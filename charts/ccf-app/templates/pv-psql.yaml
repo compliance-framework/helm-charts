@@ -1,0 +1,40 @@
+{{- if .Values.database.local.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-postgresql
+  labels:
+    {{- include "ccf-app.labels" . | nindent 4 }}
+spec:
+  storageClassName: {{ .Values.database.local.persistence.storageClass | default "local-storage" }}
+  capacity:
+    storage: {{ .Values.database.local.persistence.size | default "10Gi" }}
+  volumeMode: {{ .Values.database.local.persistence.volumeMode | default "Filesystem" }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: "Retain"
+  local:
+    path: {{ .Values.database.local.persistence.path | default "/mnt/disks/ccf-postgresql" | quote }}
+  {{- with .Values.database.local.persistence.nodeAffinity }}
+  nodeAffinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-postgresql
+  labels:
+    {{- include "ccf-app.labels" . | nindent 4 }}
+spec:
+  storageClassName: {{ .Values.database.local.persistence.storageClass | default "local-storage" }}
+  accessModes:
+    {{- range $mode := (.Values.database.local.persistence.accessModes | default (list "ReadWriteOnce")) }}
+    - {{ $mode }}
+    {{- end }}
+  volumeMode: {{ .Values.database.local.persistence.volumeMode | default "Filesystem" }}
+  resources:
+    requests:
+      storage: {{ .Values.database.local.persistence.size | default "10Gi" }}
+  volumeName: {{ include "ccf-app.fullname" . }}-postgresql
+{{- end }}

@@ -1,0 +1,15 @@
+{{- if .Values.database.local.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-psql
+  labels:
+    {{- include "ccf-app.labels" . | nindent 4 }}
+  {{- with .Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  POSTGRES_DB: "{{ .Values.database.local.database }}"
+  POSTGRES_USER: "{{ .Values.database.local.username }}"
+{{- end }}

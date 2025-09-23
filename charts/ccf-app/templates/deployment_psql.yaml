@@ -1,0 +1,68 @@
+{{- if .Values.database.local.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-postgresql
+  labels:
+    app.kubernetes.io/type: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/type: database
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/type: database
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-db
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
+          imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "ccf-app.fullname" . }}-psql
+            # - secretRef:
+            #     name: {{ include "ccf-app.fullname" . }}-psql
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ccf-app.fullname" . }}-psql
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgresdata
+      volumes:
+        - name: postgresdata
+          persistentVolumeClaim:
+            claimName: {{ include "ccf-app.fullname" . }}-postgresql
+{{- end }}
