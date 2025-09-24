@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-ui
+  labels:
+    {{- include "ccf-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
+    {{- with .Values.ui.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  replicas: {{ .Values.ui.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ccf-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap_ui.yaml") . | sha256sum }}
+      labels:
+        {{- include "ccf-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
+        {{- with .Values.ui.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values.securityContext }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}-ui
+        image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
+        imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        volumeMounts:
+          - name: config-volume
+            mountPath: /app/config.json
+            subPath: config.json
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-ui
+            items:
+            - key: config.json
+              path: config.json

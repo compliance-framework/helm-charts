@@ -17,3 +17,4 @@ data:
   CCF_DB_USER: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
   CCF_JWT_PRIVATE_KEY: "/var/ccf/private_key/private_key.pem"
   CCF_JWT_PUBLIC_KEY: "/var/ccf/public_key/public_key.pem"
+  CCF_API_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8000"
