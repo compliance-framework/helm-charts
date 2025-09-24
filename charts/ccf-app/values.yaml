@@ -56,9 +56,11 @@ database:
       tag: 17.5
       pullPolicy: IfNotPresent
     persistence:
+      existingVolume: "demo-pv"
       size: 10Gi
       storageClass: local-storage
       volumeMode: Filesystem
+      ## Only used if existingClaim is not set.
       path: /mnt/disks/ccf-postgresql
       nodeAffinity:
         required:

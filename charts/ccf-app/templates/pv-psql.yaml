@@ -1,4 +1,5 @@
 {{- if .Values.database.local.enabled }}
+{{- if not .Values.database.local.persistence.existingVolume }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -20,6 +21,7 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 ---
+{{- end }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -36,5 +38,5 @@ spec:
   resources:
     requests:
       storage: {{ .Values.database.local.persistence.size | default "10Gi" }}
-  volumeName: {{ include "ccf-app.fullname" . }}-postgresql
+  volumeName: {{ if .Values.database.local.persistence.existingVolume }}{{ .Values.database.local.persistence.existingVolume }}{{ else }}{{ include "ccf-app.fullname" . }}-postgresql{{ end }}
 {{- end }}
