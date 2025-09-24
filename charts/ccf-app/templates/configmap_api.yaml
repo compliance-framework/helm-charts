@@ -11,3 +11,9 @@ metadata:
 data:
   APP_PORT: "{{ .Values.service.port }}"
   CCF_DB_DRIVER: "postgres"
+  CCF_DB_HOST: {{ if .Values.database.local.enabled }}"{{ include "ccf-app.fullname" . }}-postgresql"{{ else }}"{{ coalesce .Values.database.external.host .Values.database.external.hostname }}"{{ end }}
+  CCF_DB_PORT: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"
+  CCF_DB_NAME: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.database }}{{ else }}{{ .Values.database.external.database }}{{ end }}"
+  CCF_DB_USER: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
+  CCF_JWT_PRIVATE_KEY: "/var/ccf/private_key/private_key.pem"
+  CCF_JWT_PUBLIC_KEY: "/var/ccf/public_key/public_key.pem"

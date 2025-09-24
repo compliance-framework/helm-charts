@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "ccf-app.fullname" . }}
+  name: {{ include "ccf-app.fullname" . }}-api
   labels:
     {{- include "ccf-app.labels" . | nindent 4 }}
 spec:
@@ -44,93 +44,114 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "ccf-app.fullname" . }}-api
           env:
-            - name: APP_PORT
-              value: "{{ .Values.service.port }}"
-            - name: CCF_DB_DRIVER
-              value: "postgres"
-            - name: CCF_DB_HOST
-              value: {{ if .Values.database.local.enabled }}"{{ include "ccf-app.fullname" . }}-postgresql"{{ else }}"{{ .Values.database.external.host }}"{{ end }}
-            - name: CCF_DB_PORT
-              value: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"
-            - name: CCF_DB_NAME
-              value: "{{- if .Values.database.local.enabled }}{{ .Values.database.local.database }}{{- else }}{{ .Values.database.external.database }}{{- end }}"
-            - name: CCF_DB_USER
-              value: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
             - name: CCF_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
             - name: CCF_DB_CONNECTION
-              value: "\"host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable\""
+              value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
           volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            - mountPath: /var/ccf/private_key/
+              name: privatekey
+              readOnly: true
+            - mountPath: /var/ccf/public_key/
+              name: publickey
+              readOnly: true
       initContainers:
         - name: wait-for-postgres
           image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
           imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
-          command: ['sh', '-c', 'until pg_isready -h {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-postgresql{{ else }}{{ .Values.database.external.host }}{{ end }} -p {{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }} -U {{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}; do echo waiting for database; sleep 2; done;']
+          command: ['sh', '-c', 'until pg_isready -h ${CCF_DB_HOST} -p ${CCF_DB_PORT} -U ${CCF_DB_USER}; do echo waiting for database; sleep 2; done;']
+          envFrom:
+            - configMapRef:
+                name: {{ include "ccf-app.fullname" . }}-api
           env:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+          volumeMounts:
+            - mountPath: /var/ccf/private_key/
+              name: privatekey
+              readOnly: true
+            - mountPath: /var/ccf/public_key/
+              name: publickey
+              readOnly: false
+        - name: generate-public-key
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: ['sh', '-c', 'echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem']
+          volumeMounts:
+            - mountPath: /var/ccf/private_key/
+              name: privatekey
+              readOnly: true
+            - mountPath: /var/ccf/public_key/
+              name: publickey
+              readOnly: false
         - name: migrate-db
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           command: ['sh', '-c', 'echo "Running DB migrations..." && ./api migrate up']
+          envFrom:
+            - configMapRef:
+                name: {{ include "ccf-app.fullname" . }}-api
           env:
-            - name: CCF_DB_DRIVER
-              value: "postgres"
-            - name: CCF_DB_HOST
-              value: {{ if .Values.database.local.enabled }}"{{ include "ccf-app.fullname" . }}-postgresql"{{ else }}"{{ .Values.database.external.host }}"{{ end }}
-            - name: CCF_DB_PORT
-              value: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"
-            - name: CCF_DB_NAME
-              value: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.database }}{{ else }}{{ .Values.database.external.database }}{{ end }}"
-            - name: CCF_DB_USER
-              value: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
             - name: CCF_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
             - name: CCF_DB_CONNECTION
-              value: "\"host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable\""
+              value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
+          volumeMounts:
+            - mountPath: /var/ccf/private_key/
+              name: privatekey
+              readOnly: true
+            - mountPath: /var/ccf/public_key/
+              name: publickey
+              readOnly: false
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          command: ['sh', '-c', 'echo "Creating default user..." && ./api users add -f admin -l user -e admin@localhost -p Pa55w0rd']
+          command: ['sh', '-c', 'echo "Creating default user..." && ./api users add -f admin -l user -e {{ .Values.api.user.email | default "admin@localhost" }} -p $(CCF_INITIAL_USER_PASSWORD)']
+          envFrom:
+            - configMapRef:
+                name: {{ include "ccf-app.fullname" . }}-api
           env:
-            - name: CCF_DB_DRIVER
-              value: "postgres"
-            - name: CCF_DB_HOST
-              value: {{ if .Values.database.local.enabled }}"{{ include "ccf-app.fullname" . }}-postgresql"{{ else }}"{{ .Values.database.external.host }}"{{ end }}
-            - name: CCF_DB_PORT
-              value: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"
-            - name: CCF_DB_NAME
-              value: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.database }}{{ else }}{{ .Values.database.external.database }}{{ end }}"
-            - name: CCF_DB_USER
-              value: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
             - name: CCF_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+            - name: CCF_INITIAL_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ccf-app.fullname" . }}-initial-user-password
+                  key: password
             - name: CCF_DB_CONNECTION
-              value: "\"host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable\""
-      {{- with .Values.volumes }}
+              value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
+          volumeMounts:
+            - mountPath: /var/ccf/private_key/
+              name: privatekey
+              readOnly: true
+            - mountPath: /var/ccf/public_key/
+              name: publickey
+              readOnly: false
       volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        - name: privatekey
+          secret:
+            secretName: {{ include "ccf-app.fullname" . }}-jwt-private-key
+        - name: publickey
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

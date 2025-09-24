@@ -77,3 +77,15 @@ and return a new random password.
 {{- randAlphaNum 32 | b64enc -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "ccf-app.initialUserPasword" -}}
+{{- $secretName := printf "%s-initial-user-password" (include "ccf-app.fullname" .) -}}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
+{{- if and $existing (index $existing.data "password") -}}
+{{- index $existing.data "password" -}}
+{{- else if .Values.api.user.password -}}
+{{- trim .Values.database.user.password | b64enc -}}
+{{- else -}}
+{{- randAlphaNum 12 | b64enc -}}
+{{- end -}}
+{{- end -}}

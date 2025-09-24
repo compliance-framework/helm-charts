@@ -20,6 +20,9 @@ api:
     httpGet:
       path: /health/ready
       port: http
+  user:
+    password: ""
+    username: admin@localhost
 
 database:
   local:
