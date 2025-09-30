@@ -40,6 +40,9 @@ helm.sh/chart: {{ include "ccf-app.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -84,8 +87,60 @@ and return a new random password.
 {{- if and $existing (index $existing.data "password") -}}
 {{- index $existing.data "password" -}}
 {{- else if .Values.api.user.password -}}
-{{- trim .Values.database.user.password | b64enc -}}
+{{- trim .Values.api.user.password | b64enc -}}
 {{- else -}}
 {{- randAlphaNum 12 | b64enc -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Return the base selector labels for a component.
+*/}}
+{{- define "ccf-app.componentBaseLabels" -}}
+{{- $root := index . "root" -}}
+{{- $name := index . "name" -}}
+{{ include "ccf-app.selectorLabels" $root }}
+app.kubernetes.io/component: {{ printf "%s-%s" (include "ccf-app.name" $root) $name }}
+{{- end }}
+
+{{/*
+Merge helper for component metadata labels.
+*/}}
+{{- define "ccf-app.componentMetadataLabels" -}}
+{{- $root := index . "root" -}}
+{{- $name := index . "name" -}}
+{{- $component := index . "component" -}}
+{{- $labels := merge (dict) (include "ccf-app.componentBaseLabels" (dict "root" $root "name" $name) | fromYaml) -}}
+{{- $labels = merge $labels (default (dict) $root.Values.commonLabels) -}}
+{{- $labels = merge $labels (default (dict) (index $component "labels")) -}}
+{{- toYaml $labels -}}
+{{- end }}
+
+{{/*
+Merge helper for component pod template labels.
+*/}}
+{{- define "ccf-app.componentPodLabels" -}}
+{{- $root := index . "root" -}}
+{{- $name := index . "name" -}}
+{{- $component := index . "component" -}}
+{{- $labels := merge (dict) (include "ccf-app.componentBaseLabels" (dict "root" $root "name" $name) | fromYaml) -}}
+{{- $labels = merge $labels (default (dict) $root.Values.commonLabels) -}}
+{{- $labels = merge $labels (default (dict) $root.Values.podLabels) -}}
+{{- $labels = merge $labels (default (dict) (index $component "podLabels")) -}}
+{{- toYaml $labels -}}
+{{- end }}
+
+{{/*
+Merge helper for component service labels.
+*/}}
+{{- define "ccf-app.componentServiceLabels" -}}
+{{- $root := index . "root" -}}
+{{- $name := index . "name" -}}
+{{- $component := index . "component" -}}
+{{- $labels := merge (dict) (include "ccf-app.componentBaseLabels" (dict "root" $root "name" $name) | fromYaml) -}}
+{{- $labels = merge $labels (default (dict) $root.Values.commonLabels) -}}
+{{- if and $component (index $component "service") -}}
+{{- $labels = merge $labels (default (dict) (index (index $component "service") "labels")) -}}
+{{- end -}}
+{{- toYaml $labels -}}
+{{- end }}

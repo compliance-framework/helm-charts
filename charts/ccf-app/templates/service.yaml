@@ -1,56 +1,55 @@
+{{- if and .Values.api.enabled .Values.api.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "ccf-app.fullname" . }}-api
   labels:
-    {{- include "ccf-app.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-api
-    {{- with .Values.api.labels }}
+    {{- include "ccf-app.componentServiceLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+  {{- with .Values.api.service.annotations }}
+  annotations:
     {{- toYaml . | nindent 4 }}
-    {{- end }}
+  {{- end }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ .Values.api.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
+    - port: {{ .Values.api.service.port }}
+      targetPort: {{ default "http" .Values.api.service.targetPort }}
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-api
-    {{- with .Values.api.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
-    {{- include "ccf-app.selectorLabels" . | nindent 4 }}
+    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "api") | nindent 4 }}
+{{- end }}
+{{- if and .Values.ui.enabled .Values.ui.service.enabled }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "ccf-app.fullname" . }}-ui
   labels:
-    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
-    {{- with .Values.ui.labels }}
+    {{- include "ccf-app.componentServiceLabels" (dict "root" . "name" "ui" "component" .Values.ui) | nindent 4 }}
+  {{- with .Values.ui.service.annotations }}
+  annotations:
     {{- toYaml . | nindent 4 }}
-    {{- end }}
-    {{- include "ccf-app.labels" . | nindent 4 }}
+  {{- end }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ .Values.ui.service.type }}
   ports:
-    - port: 8000
-      targetPort: http
+    - port: {{ .Values.ui.service.port }}
+      targetPort: {{ default "http" .Values.ui.service.targetPort }}
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
-    {{- include "ccf-app.selectorLabels" . | nindent 4 }}
-    {{- with .Values.ui.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "ui") | nindent 4 }}
+{{- end }}
 {{- if .Values.database.local.enabled }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "ccf-app.fullname" . }}-postgresql
+  labels:
+    {{- include "ccf-app.labels" . | nindent 4 }}
+    app.kubernetes.io/type: database
 spec:
   type: ClusterIP
   ports:

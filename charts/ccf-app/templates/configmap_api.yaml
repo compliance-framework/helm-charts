@@ -1,15 +1,12 @@
+{{- if .Values.api.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "ccf-app.fullname" . }}-api
   labels:
-    {{- include "ccf-app.labels" . | nindent 4 }}
-  {{- with .Values.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
 data:
-  APP_PORT: "{{ .Values.service.port }}"
+  APP_PORT: "{{ .Values.api.service.port }}"
   CCF_DB_DRIVER: "postgres"
   CCF_DB_HOST: {{ if .Values.database.local.enabled }}"{{ include "ccf-app.fullname" . }}-postgresql"{{ else }}"{{ coalesce .Values.database.external.host .Values.database.external.hostname }}"{{ end }}
   CCF_DB_PORT: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"
@@ -17,4 +14,5 @@ data:
   CCF_DB_USER: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
   CCF_JWT_PRIVATE_KEY: "/var/ccf/private_key/private_key.pem"
   CCF_JWT_PUBLIC_KEY: "/var/ccf/public_key/public_key.pem"
-  CCF_API_ALLOWED_ORIGINS: {{ if .Values.api.cors_origins }}{{ .Values.api.cors_origins | join "," }}{{ else }}"http://localhost:3000"{{ end }}
+  CCF_API_ALLOWED_ORIGINS: {{ if .Values.api.corsOrigins }}{{ .Values.api.corsOrigins | join "," | quote }}{{ else }}"http://localhost:3000"{{ end }}
+{{- end }}

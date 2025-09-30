@@ -1,58 +1,56 @@
+{{- if .Values.api.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "ccf-app.fullname" . }}-api
   labels:
-    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-api
-    {{- with .Values.api.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
-    {{- include "ccf-app.labels" . | nindent 4 }}
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
+  {{- if not .Values.api.autoscaling.enabled }}
+  replicas: {{ .Values.api.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "ccf-app.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: {{ include "ccf-app.name" . }}-api
+      {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "api") | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- $annotations := merge (dict) (default (dict) .Values.podAnnotations) (default (dict) .Values.api.podAnnotations) }}
+      {{- if $annotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $annotations | nindent 8 }}
       {{- end }}
       labels:
-        app.kubernetes.io/component: {{ include "ccf-app.name" . }}-api
-        {{- with .Values.api.labels }}
-        {{- toYaml . | nindent 4 }}
-        {{- end }}
-        {{- include "ccf-app.selectorLabels" . | nindent 8 }}
+        {{- include "ccf-app.componentPodLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
+      {{- $podSecurityContext := coalesce .Values.api.podSecurityContext .Values.podSecurityContext }}
+      {{- if $podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $podSecurityContext | nindent 8 }}
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}-api
-          {{- with .Values.securityContext }}
+          {{- $containerSecurityContext := coalesce .Values.api.securityContext .Values.securityContext }}
+          {{- if $containerSecurityContext }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml $containerSecurityContext | nindent 12 }}
           {{- end }}
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.api.containerPort }}
               protocol: TCP
           envFrom:
             - configMapRef:
                 name: {{ include "ccf-app.fullname" . }}-api
+            {{- with .Values.api.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           env:
             - name: CCF_DB_PASSWORD
               valueFrom:
@@ -61,7 +59,10 @@ spec:
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
-          {{- with .Values.resources }}
+            {{- with .Values.api.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.api.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -170,3 +171,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}

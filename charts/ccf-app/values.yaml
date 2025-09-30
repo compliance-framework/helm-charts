@@ -1,17 +1,72 @@
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Default values for ccf-app.
+# This file is YAML-formatted. Declare variables to be passed into your templates.
 
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
+# Labels defined here are merged into every rendered object.
+commonLabels: {}
 
-# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+# Pod-level metadata applied to all workloads unless overridden per component.
+podAnnotations: {}
+podLabels: {}
+
+# Secrets for pulling an image from a private repository.
+imagePullSecrets: []
+
+# Override chart name and fullname helpers.
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created.
+  create: true
+  # Automatically mount a ServiceAccount's API credentials.
+  automount: true
+  # Annotations to add to the service account.
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template.
+  name: ""
+
+# Pod security context shared by all workloads.
+podSecurityContext: {}
+
+# Container security context shared by all workloads unless overridden per component.
+securityContext: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Global ingress settings that apply to every component ingress rule.
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  labels: {}
+  tls: []
+
 api:
+  enabled: true
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
   image:
     repository: ghcr.io/compliance-framework/api
-    # This sets the pull policy for images.
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: "0.4.7"
+  containerPort: 8080
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8080
+    targetPort: http
+    annotations: {}
+    labels: {}
   livenessProbe:
     httpGet:
       path: /health
@@ -20,23 +75,51 @@ api:
     httpGet:
       path: /health/ready
       port: http
-  cors_origins:
-    - http://ccf.example.com
-  service: {}
+  corsOrigins:
+    - http://ccf-dev.192.168.64.8.nip.io
   user:
-    password: ""
     username: admin@localhost
+    email: admin@localhost
+    password: ""
   labels: {}
+  podLabels: {}
+  podAnnotations: {}
+  resources: {}
+  podSecurityContext: {}
+  securityContext: {}
+  extraEnv: []
+  extraEnvFrom: []
+  ingress:
+    enabled: true
+    labels: {}
+    annotations: {}
+    hosts:
+      - host: ccf-dev-api.192.168.64.8.nip.io
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
 
 ui:
+  enabled: true
   replicaCount: 1
-  apiUrl: "http://ccf-api.example.com"
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
   image:
     repository: ghcr.io/compliance-framework/ui
-    # This sets the pull policy for images.
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
     tag: "2.0.7"
+  containerPort: 80
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8000
+    targetPort: http
+    annotations: {}
+    labels: {}
+  apiUrl: "http://ccf-dev-api.192.168.64.8.nip.io"
   livenessProbe:
     httpGet:
       path: /
@@ -46,7 +129,24 @@ ui:
       path: /
       port: http
   labels: {}
+  podLabels: {}
+  podAnnotations: {}
+  resources: {}
+  podSecurityContext: {}
+  securityContext: {}
+  extraEnv: []
+  extraEnvFrom: []
+  ingress:
+    enabled: true
+    labels: {}
+    annotations: {}
+    hosts:
+      - host: ccf-dev.192.168.64.8.nip.io
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
 
+# Database configuration for either bundled or external PostgreSQL.
 database:
   local:
     enabled: true
@@ -54,115 +154,25 @@ database:
     database: ccf
     password: ""
     image:
-      repository: "postgres"
+      repository: postgres
       tag: 17.5
       pullPolicy: IfNotPresent
     persistence:
-      existingVolume: ""
+      existingVolume: "ccf-postgresql-helm"
       size: 10Gi
-      ## These are not required if you have an existing volume.
-      storageClass: local-storage
+      storageClass: standard
       volumeMode: Filesystem
-      path: "/mnt/disks/ccf-postgresql"
+      path: "/mnt/disks/ccf-postgresql-helm"
       nodeAffinity: {}
+    resources: {}
   external:
     secretRef: ""
     hostname: ""
+    host: ""
     port: 5432
-
-# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-imagePullSecrets: []
-# This is to override the chart name.
-nameOverride: ""
-fullnameOverride: ""
-
-# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-# This is for setting Kubernetes Annotations to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-podAnnotations: {}
-# This is for setting Kubernetes Labels to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-podLabels: {}
-
-podSecurityContext:
-  {}
-  # fsGroup: 2000
-
-securityContext:
-  {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
-service:
-  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
-  type: ClusterIP
-  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-  port: 8080
-
-# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
-ingress:
-  enabled: true
-  className: ""
-  annotations: {}
-  hosts:
-    - host: ccf-api.example.com
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          service:
-            port: 8080
-            shortName: api
-    - host: ccf.example.com
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          service:
-            port: 8000
-            shortName: ui
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-resources:
-  {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+    existingSecret: ""
+    username: ""
+    database: ""
+    usernameKey: username
+    passwordKey: password
+    databaseKey: database

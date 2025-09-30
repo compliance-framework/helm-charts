@@ -1,13 +1,25 @@
-{{- if .Values.ingress.enabled -}}
+{{- $apiIngressEnabled := and .Values.api.enabled .Values.api.service.enabled .Values.api.ingress.enabled -}}
+{{- $uiIngressEnabled := and .Values.ui.enabled .Values.ui.service.enabled .Values.ui.ingress.enabled -}}
+{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "ccf-app.fullname" . }}
   labels:
     {{- include "ccf-app.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
-  annotations:
+    {{- with .Values.ingress.labels }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- $annotations := merge (dict) (default (dict) .Values.ingress.annotations) -}}
+  {{- if $apiIngressEnabled }}
+  {{- $annotations = merge $annotations (default (dict) .Values.api.ingress.annotations) -}}
+  {{- end }}
+  {{- if $uiIngressEnabled }}
+  {{- $annotations = merge $annotations (default (dict) .Values.ui.ingress.annotations) -}}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+    {{- toYaml $annotations | nindent 4 }}
   {{- end }}
 spec:
   {{- with .Values.ingress.className }}
@@ -24,7 +36,8 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
+    {{- if $apiIngressEnabled }}
+    {{- range .Values.api.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -35,9 +48,54 @@ spec:
             {{- end }}
             backend:
               service:
-                name: {{ include "ccf-app.fullname" $ }}-{{ .service.shortName }}
+                {{- $defaultName := printf "%s-api" (include "ccf-app.fullname" $) -}}
+                {{- $serviceName := $defaultName -}}
+                {{- $servicePort := $.Values.api.service.port -}}
+                {{- if .service }}
+                  {{- if .service.name }}
+                    {{- $serviceName = .service.name -}}
+                  {{- else if .service.shortName }}
+                    {{- $serviceName = printf "%s-%s" (include "ccf-app.fullname" $) .service.shortName -}}
+                  {{- end }}
+                  {{- if .service.port }}
+                    {{- $servicePort = .service.port -}}
+                  {{- end }}
+                {{- end }}
+                name: {{ $serviceName }}
                 port:
-                  number: {{ .service.port }}
+                  number: {{ $servicePort }}
           {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if $uiIngressEnabled }}
+    {{- range .Values.ui.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                {{- $defaultName := printf "%s-ui" (include "ccf-app.fullname" $) -}}
+                {{- $serviceName := $defaultName -}}
+                {{- $servicePort := $.Values.ui.service.port -}}
+                {{- if .service }}
+                  {{- if .service.name }}
+                    {{- $serviceName = .service.name -}}
+                  {{- else if .service.shortName }}
+                    {{- $serviceName = printf "%s-%s" (include "ccf-app.fullname" $) .service.shortName -}}
+                  {{- end }}
+                  {{- if .service.port }}
+                    {{- $servicePort = .service.port -}}
+                  {{- end }}
+                {{- end }}
+                name: {{ $serviceName }}
+                port:
+                  number: {{ $servicePort }}
+          {{- end }}
+    {{- end }}
     {{- end }}
 {{- end }}

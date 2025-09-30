@@ -54,7 +54,7 @@ spec:
             - name: postgres
               containerPort: 5432
               protocol: TCP
-          {{- with .Values.resources }}
+          {{- with .Values.database.local.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}

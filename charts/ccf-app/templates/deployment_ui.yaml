@@ -1,46 +1,68 @@
+{{- if .Values.ui.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "ccf-app.fullname" . }}-ui
   labels:
-    {{- include "ccf-app.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
-    {{- with .Values.ui.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "ui" "component" .Values.ui) | nindent 4 }}
 spec:
+  {{- if not .Values.ui.autoscaling.enabled }}
   replicas: {{ .Values.ui.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
-      {{- include "ccf-app.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
+      {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "ui") | nindent 6 }}
   template:
     metadata:
+      {{- $podAnnotations := merge (dict) (default (dict) .Values.podAnnotations) }}
+      {{- $podAnnotations = merge $podAnnotations (default (dict) .Values.ui.podAnnotations) }}
+      {{- $_ := set $podAnnotations "checksum/config" (include (print $.Template.BasePath "/configmap_ui.yaml") . | sha256sum) }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap_ui.yaml") . | sha256sum }}
+        {{- toYaml $podAnnotations | nindent 8 }}
       labels:
-        {{- include "ccf-app.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: {{ include "ccf-app.name" . }}-ui
-        {{- with .Values.ui.labels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "ccf-app.componentPodLabels" (dict "root" . "name" "ui" "component" .Values.ui) | nindent 8 }}
     spec:
-      {{- if .Values.securityContext }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
+      {{- $podSecurityContext := coalesce .Values.ui.podSecurityContext .Values.podSecurityContext }}
+      {{- if $podSecurityContext }}
       securityContext:
-        {{- toYaml .Values.securityContext | nindent 8 }}
+        {{- toYaml $podSecurityContext | nindent 8 }}
       {{- end }}
       containers:
-      - name: {{ .Chart.Name }}-ui
-        image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
-        imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
-        ports:
-          - name: http
-            containerPort: 80
-            protocol: TCP
-        volumeMounts:
-          - name: config-volume
-            mountPath: /app/config.json
-            subPath: config.json
+        - name: {{ .Chart.Name }}-ui
+          {{- $containerSecurityContext := coalesce .Values.ui.securityContext .Values.securityContext }}
+          {{- if $containerSecurityContext }}
+          securityContext:
+            {{- toYaml $containerSecurityContext | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
+          imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.ui.containerPort }}
+              protocol: TCP
+          env:
+            - name: API_URL
+              value: {{ .Values.ui.apiUrl | quote }}
+            {{- with .Values.ui.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.ui.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.ui.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config.json
+              subPath: config.json
       volumes:
         - name: config-volume
           configMap:
@@ -48,3 +70,16 @@ spec:
             items:
             - key: config.json
               path: config.json
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
