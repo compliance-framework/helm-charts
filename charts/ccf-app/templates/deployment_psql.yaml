@@ -64,5 +64,5 @@ spec:
       volumes:
         - name: postgresdata
           persistentVolumeClaim:
-            claimName: {{ include "ccf-app.fullname" . }}-postgresql
+            claimName: {{ if .Values.database.local.persistence.existingClaim }}{{ .Values.database.local.persistence.existingClaim }}{{ else }}{{ include "ccf-app.fullname" . }}-postgresql{{ end }}
 {{- end }}

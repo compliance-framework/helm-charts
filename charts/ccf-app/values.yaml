@@ -158,11 +158,14 @@ database:
       tag: 17.5
       pullPolicy: IfNotPresent
     persistence:
-      existingVolume: "ccf-postgresql-helm"
+      existingVolume: ""
       size: 10Gi
-      storageClass: standard
+      storageClass: "standard"
       volumeMode: Filesystem
-      path: "/mnt/disks/ccf-postgresql-helm"
+      accessModes:
+        - ReadWriteOnce
+      reclaimPolicy: Delete
+      path: "/var/lib/ccf-postgresql"
       nodeAffinity: {}
     resources: {}
   external:
