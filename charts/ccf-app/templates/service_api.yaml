@@ -1,0 +1,21 @@
+{{- if and .Values.api.enabled .Values.api.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api
+  labels:
+    {{- include "ccf-app.componentServiceLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+  {{- with .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.api.service.type }}
+  ports:
+    - port: {{ .Values.api.service.port }}
+      targetPort: {{ default "http" .Values.api.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "api") | nindent 4 }}
+{{- end }}
