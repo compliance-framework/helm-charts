@@ -1,5 +1,4 @@
-{{- if .Values.database.local.enabled }}
-{{- if not .Values.database.local.persistence.existingVolume }}
+{{- if and .Values.database.local.enabled (not .Values.database.local.persistence.existingVolume) (.Values.database.local.persistence.createPersistentVolume | default true) }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -25,5 +24,4 @@ spec:
   nodeAffinity:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-{{- end }}
 {{- end }}

@@ -158,6 +158,7 @@ database:
       tag: 17.5
       pullPolicy: IfNotPresent
     persistence:
+      createPersistentVolume: true # Set false when using a dynamic storageClass (e.g., ebs-gp3)
       existingVolume: ""
       size: 10Gi
       storageClass: "standard"

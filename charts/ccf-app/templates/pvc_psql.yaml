@@ -21,7 +21,7 @@ spec:
       storage: {{ .Values.database.local.persistence.size | default "10Gi" }}
   {{- if .Values.database.local.persistence.existingVolume }}
   volumeName: {{ .Values.database.local.persistence.existingVolume }}
-  {{- else if not .Values.database.local.persistence.existingClaim }}
+  {{- else if and (not .Values.database.local.persistence.existingClaim) (.Values.database.local.persistence.createPersistentVolume | default true) }}
   volumeName: {{ include "ccf-app.fullname" . }}-postgresql
   {{- end }}
 {{- end }}
