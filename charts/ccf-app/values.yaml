@@ -69,11 +69,11 @@ api:
     labels: {}
   livenessProbe:
     httpGet:
-      path: /health
+      path: /api/auth/publickey
       port: http
   readinessProbe:
     httpGet:
-      path: /health/ready
+      path: /api/auth/publickey
       port: http
   corsOrigins:
     - https://ccf.example.com

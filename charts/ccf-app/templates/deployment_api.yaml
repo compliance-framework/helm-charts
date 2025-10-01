@@ -73,6 +73,14 @@ spec:
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: true
+          livenessProbe:
+            {{- with .Values.api.livenessProbe }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            {{- with .Values.api.readinessProbe }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       initContainers:
         - name: wait-for-postgres
           image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
