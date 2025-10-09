@@ -98,6 +98,7 @@ spec:
           {{- with .Values.api.initResources }}
           resources:
             {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
