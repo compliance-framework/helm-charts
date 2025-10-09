@@ -110,6 +110,10 @@ spec:
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           command: ['sh', '-c', 'echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem']
+          {{- with .Values.api.initResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
@@ -132,6 +136,10 @@ spec:
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
+          {{- with .Values.api.initResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
@@ -159,6 +167,10 @@ spec:
                   key: password
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
+          {{- with .Values.api.initResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
