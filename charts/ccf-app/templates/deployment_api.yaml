@@ -95,8 +95,9 @@ spec:
                 secretKeyRef:
                   name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+          {{- with .Values.api.initResources }}
           resources:
-            {{- toYaml $initResources | nindent 6 }}
+            {{- toYaml . | nindent 12 }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
