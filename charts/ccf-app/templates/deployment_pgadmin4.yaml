@@ -1,0 +1,75 @@
+{{- if .Values.pgadmin4.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-pgadmin4
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "pgadmin4" "component" .Values.pgadmin4) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "pgadmin4") | nindent 6 }}
+  template:
+    metadata:
+      {{- $annotations := merge (dict) (default (dict) .Values.podAnnotations) (default (dict) .Values.api.podAnnotations) }}
+      {{- if $annotations }}
+      annotations:
+        {{- toYaml $annotations | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ccf-app.componentPodLabels" (dict "root" . "name" "pgadmin4" "component" .Values.pgadmin4) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
+      {{- $podSecurityContext := coalesce .Values.ui.podSecurityContext .Values.podSecurityContext }}
+      {{- if $podSecurityContext }}
+      securityContext:
+        {{- toYaml $podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-pgadmin4
+          {{- $containerSecurityContext := coalesce .Values.pgadmin4.securityContext .Values.securityContext }}
+          {{- if $containerSecurityContext }}
+          securityContext:
+            {{- toYaml $containerSecurityContext | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.pgadmin4.image.repository }}:{{ .Values.pgadmin4.image.tag }}"
+          imagePullPolicy: {{ .Values.pgadmin4.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.pgadmin4.containerPort }}
+              protocol: TCP
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              value: {{ .Values.pgadmin4.pgadmin4_default_email | quote }}
+            - name: PGADMIN_DEFAULT_PASSWORD
+              value: {{ .Values.pgadmin4.pgadmin4_default_password | quote }}
+            {{- with .Values.pgadmin4.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.pgadmin4.extraEnvFrom }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: pgadmin-data
+              mountPath: /var/lib/pgadmin
+      volumes:
+        - name: pgadmin-data
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

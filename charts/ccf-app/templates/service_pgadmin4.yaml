@@ -1,0 +1,23 @@
+{{- if and .Values.pgadmin4.enabled .Values.pgadmin4.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-pgadmin4
+  labels:
+    {{- include "ccf-app.componentServiceLabels" (dict "root" . "name" "pgadmin4" "component" .Values.pgadmin4) | nindent 4 }}
+  {{- with .Values.pgadmin4.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.pgadmin4.service.type }}
+  selector:
+    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "pgadmin4") | nindent 4 }}
+  ports:
+    - port: {{ .Values.pgadmin4.service.port }}
+      targetPort: {{ default "http" .Values.pgadmin4.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "pgadmin4") | nindent 4 }}
+{{- end }}

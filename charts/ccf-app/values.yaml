@@ -180,3 +180,50 @@ database:
     usernameKey: username
     passwordKey: password
     databaseKey: database
+
+pgadmin4:
+  enabled: false
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  image:
+    repository: dpage/pgadmin4
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  containerPort: 80
+  pgadmin4_default_email: admin@example.com
+  pgadmin4_default_password: ""
+  extraEnv: []
+  extraEnvFrom: []
+  labels: {}
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8001
+    targetPort: http
+    annotations: {}
+    labels: {}
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+  podLabels: {}
+  podAnnotations: {}
+  resources: {}
+  podSecurityContext: {}
+  securityContext: {}
+  ingress:
+    enabled: true
+    labels: {}
+    annotations: {}
+    hosts:
+      - host: ccf.example.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
