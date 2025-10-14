@@ -150,7 +150,7 @@ spec:
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          command: ['sh', '-c', 'echo "Creating default user..." && ./api users add -f admin -l user -e {{ .Values.api.user.email | default "admin@localhost" }} -p $(CCF_INITIAL_USER_PASSWORD)']
+          command: ['sh', '-c', 'echo "Creating default user..." && ./api users add -f admin -l user -e {{ .Values.api.user.email }} -p $(CCF_INITIAL_USER_PASSWORD)']
           envFrom:
             - configMapRef:
                 name: {{ include "ccf-app.fullname" . }}-api

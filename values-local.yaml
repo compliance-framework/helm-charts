@@ -1,0 +1,56 @@
+# An example values file for local development.
+api:
+  image:
+    repository: ghcr.io/compliance-framework/api
+    tag: "0.4.7"
+  corsOrigins:
+    - "https://ccf.192.168.64.8.nip.io"
+  ingress:
+    hosts:
+      - host: ccf-api.192.168.64.8.nip.io
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+
+ui:
+  image:
+    repository: ghcr.io/compliance-framework/ui
+    tag: "2.0.7"
+  apiUrl: "https://ccf-api.192.168.64.8.nip.io"
+  ingress:
+    enabled: true
+    labels: {}
+    annotations: {}
+    hosts:
+      - host: ccf.192.168.64.8.nip.io
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+
+database:
+  local:
+    enabled: true
+    password: "admin123"
+    persistence:
+      existingVolume: ""
+      size: 10Gi
+      storageClass: "standard"
+      volumeMode: Filesystem
+      accessModes:
+        - ReadWriteOnce
+      reclaimPolicy: Delete
+      path: "/var/lib/ccf-postgresql"
+      nodeAffinity: {} # Ensure this has been configured to match one of your nodes
+
+pgadmin4:
+  enabled: true
+  pgadmin4_default_password: "a43rft2142"
+  ingress:
+    enabled: true
+    labels: {}
+    annotations: {}
+    hosts:
+      - host: ccf-pgadmin4.192.168.64.8.nip.io
+        paths:
+        - path: /
+          pathType: ImplementationSpecific
