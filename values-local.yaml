@@ -5,6 +5,8 @@ api:
     tag: "0.4.7"
   corsOrigins:
     - "https://ccf.192.168.64.8.nip.io"
+  user:
+    password: "api123"
   ingress:
     hosts:
       - host: ccf-api.192.168.64.8.nip.io
