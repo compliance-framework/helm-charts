@@ -57,6 +57,10 @@ spec:
           volumeMounts:
             - name: pgadmin-data
               mountPath: /var/lib/pgadmin
+          {{- with .Values.pgadmin4.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       volumes:
         - name: pgadmin-data
           emptyDir: {}
