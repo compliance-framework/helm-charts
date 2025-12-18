@@ -54,6 +54,21 @@ api:
     minReplicas: 1
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
+  vpa:
+    enabled: false
+    updatePolicy:
+      updateMode: "Recreate"
+    resourcePolicy:
+      containerPolicy:
+        mode: Auto
+        controlledValues: RequestsAndLimits
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 512Mi
+    recommenders: []
   image:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
@@ -107,6 +122,21 @@ ui:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
+  vpa:
+    enabled: false
+    updatePolicy:
+      updateMode: "Recreate"
+    resourcePolicy:
+      containerPolicy:
+        mode: Auto
+        controlledValues: RequestsAndLimits
+        minAllowed:
+          cpu: 10m
+          memory: 10Mi
+        maxAllowed:
+          cpu: 128m
+          memory: 200Mi      
+    recommenders: []
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
@@ -153,6 +183,21 @@ database:
     username: ccf
     database: ccf
     password: ""
+    vpa:
+      enabled: false
+      updatePolicy:
+        updateMode: "Recreate"
+      resourcePolicy:
+        containerPolicy:
+          mode: Auto
+          controlledValues: RequestsAndLimits
+          minAllowed:
+            cpu: 10m
+            memory: 64Mi
+          maxAllowed:
+            cpu: 500m
+            memory: 512Mi
+      recommenders: []
     image:
       repository: postgres
       tag: 17.5
@@ -188,6 +233,21 @@ pgadmin4:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
+  vpa:
+    enabled: false
+    updatePolicy:
+      updateMode: "Recreate"
+    resourcePolicy:
+      containerPolicy:
+        mode: Auto
+        controlledValues: RequestsAndLimits
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 512Mi
+    recommenders: []
   image:
     repository: dpage/pgadmin4
     pullPolicy: IfNotPresent

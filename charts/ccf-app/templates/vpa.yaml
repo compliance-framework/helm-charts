@@ -1,0 +1,157 @@
+{{- if and .Values.api.enabled .Values.api.vpa.enabled }}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ccf-app.fullname" . }}-api
+  {{- with .Values.api.vpa.updatePolicy }}
+  updatePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "{{ .Chart.Name }}-api"
+      mode: {{ .Values.api.vpa.resourcePolicy.containerPolicy.mode | default "Auto"}}
+      {{- with .Values.api.vpa.resourcePolicy.containerPolicy.controlledResources}}
+      controlledResources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      controlledValues: {{ .Values.api.vpa.resourcePolicy.containerPolicy.controlledValues | default "RequestsAndLimits"}}
+      {{- with .Values.api.vpa.resourcePolicy.containerPolicy.minAllowed}}
+      minAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.vpa.resourcePolicy.containerPolicy.maxAllowed}}
+      maxAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- with .Values.api.vpa.recommenders }}
+  recommenders:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if and .Values.ui.enabled .Values.ui.vpa.enabled }}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-ui
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "ui" "component" .Values.ui) | nindent 4 }}
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ccf-app.fullname" . }}-ui
+  {{- with .Values.ui.vpa.updatePolicy }}
+  updatePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "{{ .Chart.Name }}-ui"
+      mode: {{ .Values.ui.vpa.resourcePolicy.containerPolicy.mode | default "Auto"}}
+      {{- with .Values.ui.vpa.resourcePolicy.containerPolicy.controlledResources}}
+      controlledResources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      controlledValues: {{ .Values.ui.vpa.resourcePolicy.containerPolicy.controlledValues | default "RequestsAndLimits"}}
+      {{- with .Values.ui.vpa.resourcePolicy.containerPolicy.minAllowed}}
+      minAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ui.vpa.resourcePolicy.containerPolicy.maxAllowed}}
+      maxAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.ui.vpa.recommenders }}
+  recommenders:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if and .Values.pgadmin4.enabled .Values.pgadmin4.vpa.enabled }}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-pgadmin4
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "pgadmin4" "component" .Values.pgadmin4) | nindent 4 }}
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ccf-app.fullname" . }}-pgadmin4
+  {{- with .Values.pgadmin4.vpa.updatePolicy }}
+  updatePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "{{ .Chart.Name }}-pgadmin4"
+      mode: {{ .Values.pgadmin4.vpa.resourcePolicy.containerPolicy.mode | default "Auto"}}
+      {{- with .Values.pgadmin4.vpa.resourcePolicy.containerPolicy.controlledResources}}
+      controlledResources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      controlledValues: {{ .Values.pgadmin4.vpa.resourcePolicy.containerPolicy.controlledValues | default "RequestsAndLimits"}}
+      {{- with .Values.pgadmin4.vpa.resourcePolicy.containerPolicy.minAllowed}}
+      minAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pgadmin4.vpa.resourcePolicy.containerPolicy.maxAllowed}}
+      maxAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- with .Values.pgadmin4.vpa.recommenders }}
+  recommenders:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- if and .Values.database.local.enabled .Values.database.local.vpa.enabled }}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-postgresql
+  labels:
+    app.kubernetes.io/type: database
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ccf-app.fullname" . }}-postgresql
+  {{- with .Values.database.local.vpa.updatePolicy }}
+  updatePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "{{ .Chart.Name }}-db"
+      mode: {{ .Values.database.local.vpa.resourcePolicy.containerPolicy.mode | default "Auto"}}
+      {{- with .Values.database.local.vpa.resourcePolicy.containerPolicy.controlledResources}}
+      controlledResources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      controlledValues: {{ .Values.database.local.vpa.resourcePolicy.containerPolicy.controlledValues | default "RequestsAndLimits"}}
+      {{- with .Values.database.local.vpa.resourcePolicy.containerPolicy.minAllowed}}
+      minAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.database.local.vpa.resourcePolicy.containerPolicy.maxAllowed}}
+      maxAllowed:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- with .Values.database.local.vpa.recommenders }}
+  recommenders:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
