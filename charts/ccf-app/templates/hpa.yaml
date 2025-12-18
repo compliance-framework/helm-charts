@@ -1,4 +1,7 @@
 {{- if and .Values.api.enabled .Values.api.autoscaling.enabled }}
+{{- if .Values.api.vpa.enabled }}
+  {{- fail "Both HPA (api.autoscaling.enabled) and VPA (api.vpa.enabled) are enabled for API. This is not supported." }}
+{{- end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -31,6 +34,9 @@ spec:
     {{- end }}
 {{- end }}
 {{- if and .Values.ui.enabled .Values.ui.autoscaling.enabled }}
+{{- if .Values.ui.vpa.enabled }}
+  {{- fail "Both HPA (ui.autoscaling.enabled) and VPA (ui.vpa.enabled) are enabled for UI. This is not supported." }}
+{{- end }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
