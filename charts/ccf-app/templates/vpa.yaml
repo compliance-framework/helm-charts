@@ -1,4 +1,7 @@
 {{- if and .Values.api.enabled .Values.api.vpa.enabled }}
+{{- if .Values.api.autoscaling.enabled }}
+  {{- fail "Both HPA (api.autoscaling.enabled) and VPA (api.vpa.enabled) are enabled for API. This is not supported." }}
+{{- end }}
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -38,6 +41,9 @@ spec:
 {{- end }}
 
 {{- if and .Values.ui.enabled .Values.ui.vpa.enabled }}
+{{- if .Values.ui.autoscaling.enabled }}
+  {{- fail "Both HPA (ui.autoscaling.enabled) and VPA (ui.vpa.enabled) are enabled for UI. This is not supported." }}
+{{- end }}
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -78,6 +84,9 @@ spec:
 {{- end }}
 
 {{- if and .Values.pgadmin4.enabled .Values.pgadmin4.vpa.enabled }}
+{{- if .Values.pgadmin4.autoscaling.enabled }}
+  {{- fail "Both HPA (pgadmin4.autoscaling.enabled) and VPA (pgadmin4.vpa.enabled) are enabled for pgadmin4. This is not supported." }}
+{{- end }}
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

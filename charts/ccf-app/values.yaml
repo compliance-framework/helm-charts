@@ -57,11 +57,11 @@ api:
   vpa:
     enabled: false
     updatePolicy:
-      updateMode: "Recreate"
+      updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
     resourcePolicy:
       containerPolicy:
-        mode: Auto
-        controlledValues: RequestsAndLimits
+        mode: Auto # @schema enum:[Off, Auto]
+        controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
           cpu: 10m
           memory: 64Mi
@@ -125,17 +125,17 @@ ui:
   vpa:
     enabled: false
     updatePolicy:
-      updateMode: "Recreate"
+      updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
     resourcePolicy:
       containerPolicy:
-        mode: Auto
-        controlledValues: RequestsAndLimits
+        mode: Auto # @schema enum:[Off, Auto]
+        controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
           cpu: 10m
           memory: 10Mi
         maxAllowed:
           cpu: 128m
-          memory: 200Mi      
+          memory: 200Mi
     recommenders: []
   image:
     repository: ghcr.io/compliance-framework/ui
@@ -186,11 +186,11 @@ database:
     vpa:
       enabled: false
       updatePolicy:
-        updateMode: "Recreate"
+        updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
       resourcePolicy:
         containerPolicy:
-          mode: Auto
-          controlledValues: RequestsAndLimits
+          mode: Auto # @schema enum:[Off, Auto]
+          controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
           minAllowed:
             cpu: 10m
             memory: 64Mi
@@ -236,11 +236,11 @@ pgadmin4:
   vpa:
     enabled: false
     updatePolicy:
-      updateMode: "Recreate"
+      updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
     resourcePolicy:
       containerPolicy:
-        mode: Auto
-        controlledValues: RequestsAndLimits
+        mode: Auto # @schema enum:[Off, Auto]
+        controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
           cpu: 10m
           memory: 64Mi

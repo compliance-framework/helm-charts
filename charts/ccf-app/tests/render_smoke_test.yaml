@@ -1,0 +1,123 @@
+suite: render smoke
+templates:
+  - templates/*.yaml
+  - templates/**/*.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: renders with default values
+    asserts:
+      - containsDocument:
+          kind: Deployment
+          apiVersion: apps/v1
+        template: templates/deployment_api.yaml
+      - containsDocument:
+          kind: Deployment
+          apiVersion: apps/v1
+        template: templates/deployment_ui.yaml
+      - containsDocument:
+          kind: Service
+          apiVersion: v1
+        template: templates/service_api.yaml
+      - containsDocument:
+          kind: Service
+          apiVersion: v1
+        template: templates/service_ui.yaml
+
+  - it: renders vpa objects when enabled
+    set:
+      api.vpa.enabled: true
+      ui.vpa.enabled: true
+      database.local.vpa.enabled: true
+      pgadmin4.enabled: true
+      pgadmin4.vpa.enabled: true
+    asserts:
+      - containsDocument:
+          kind: VerticalPodAutoscaler
+          apiVersion: autoscaling.k8s.io/v1
+          name: ccf-app-api
+          any: true
+        template: templates/vpa.yaml
+      - containsDocument:
+          kind: VerticalPodAutoscaler
+          apiVersion: autoscaling.k8s.io/v1
+          name: ccf-app-ui
+          any: true
+        template: templates/vpa.yaml
+      - containsDocument:
+          kind: VerticalPodAutoscaler
+          apiVersion: autoscaling.k8s.io/v1
+          name: ccf-app-pgadmin4
+          any: true
+        template: templates/vpa.yaml
+      - containsDocument:
+          kind: VerticalPodAutoscaler
+          apiVersion: autoscaling.k8s.io/v1
+          name: ccf-app-postgresql
+          any: true
+        template: templates/vpa.yaml
+
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].containerName
+          value: ccf-api
+        documentSelector:
+          path: metadata.name
+          value: ccf-app-api
+        template: templates/vpa.yaml
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].containerName
+          value: ccf-ui
+        documentSelector:
+          path: metadata.name
+          value: ccf-app-ui
+        template: templates/vpa.yaml
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].containerName
+          value: ccf-pgadmin4
+        documentSelector:
+          path: metadata.name
+          value: ccf-app-pgadmin4
+        template: templates/vpa.yaml
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].containerName
+          value: ccf-db
+        documentSelector:
+          path: metadata.name
+          value: ccf-app-postgresql
+        template: templates/vpa.yaml
+
+  - it: renders hpa objects when enabled
+    set:
+      api.autoscaling.enabled: true
+      ui.autoscaling.enabled: true
+    asserts:
+      - containsDocument:
+          kind: HorizontalPodAutoscaler
+          apiVersion: autoscaling/v2
+          name: ccf-app-api
+          any: true
+        template: templates/hpa.yaml
+      - containsDocument:
+          kind: HorizontalPodAutoscaler
+          apiVersion: autoscaling/v2
+          name: ccf-app-ui
+          any: true
+        template: templates/hpa.yaml
+
+  - it: fails when both HPA and VPA are enabled (api)
+    set:
+      api.autoscaling.enabled: true
+      api.vpa.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "Both HPA (api.autoscaling.enabled) and VPA (api.vpa.enabled) are enabled for API. This is not supported."
+
+  - it: fails when both HPA and VPA are enabled (ui)
+    set:
+      ui.autoscaling.enabled: true
+      ui.vpa.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "Both HPA (ui.autoscaling.enabled) and VPA (ui.vpa.enabled) are enabled for UI. This is not supported."

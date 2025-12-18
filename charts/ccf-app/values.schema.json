@@ -202,7 +202,11 @@
                                     "type": "object",
                                     "properties": {
                                         "controlledValues": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "RequestsOnly",
+                                                "RequestsAndLimits"
+                                            ]
                                         },
                                         "maxAllowed": {
                                             "type": "object",
@@ -227,7 +231,11 @@
                                             }
                                         },
                                         "mode": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "Off",
+                                                "Auto"
+                                            ]
                                         }
                                     }
                                 }
@@ -237,7 +245,14 @@
                             "type": "object",
                             "properties": {
                                 "updateMode": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "enum": [
+                                        "Off",
+                                        "Auto",
+                                        "Initial",
+                                        "Recreate",
+                                        "InPlaceOrRecreate"
+                                    ]
                                 }
                             }
                         }
@@ -369,7 +384,11 @@
                                             "type": "object",
                                             "properties": {
                                                 "controlledValues": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "RequestsOnly",
+                                                        "RequestsAndLimits"
+                                                    ]
                                                 },
                                                 "maxAllowed": {
                                                     "type": "object",
@@ -394,7 +413,11 @@
                                                     }
                                                 },
                                                 "mode": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Off",
+                                                        "Auto"
+                                                    ]
                                                 }
                                             }
                                         }
@@ -404,7 +427,14 @@
                                     "type": "object",
                                     "properties": {
                                         "updateMode": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "Off",
+                                                "Auto",
+                                                "Initial",
+                                                "Recreate",
+                                                "InPlaceOrRecreate"
+                                            ]
                                         }
                                     }
                                 }
@@ -626,7 +656,11 @@
                                     "type": "object",
                                     "properties": {
                                         "controlledValues": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "RequestsOnly",
+                                                "RequestsAndLimits"
+                                            ]
                                         },
                                         "maxAllowed": {
                                             "type": "object",
@@ -651,7 +685,11 @@
                                             }
                                         },
                                         "mode": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "Off",
+                                                "Auto"
+                                            ]
                                         }
                                     }
                                 }
@@ -661,7 +699,14 @@
                             "type": "object",
                             "properties": {
                                 "updateMode": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "enum": [
+                                        "Off",
+                                        "Auto",
+                                        "Initial",
+                                        "Recreate",
+                                        "InPlaceOrRecreate"
+                                    ]
                                 }
                             }
                         }
@@ -881,7 +926,11 @@
                                     "type": "object",
                                     "properties": {
                                         "controlledValues": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "RequestsOnly",
+                                                "RequestsAndLimits"
+                                            ]
                                         },
                                         "maxAllowed": {
                                             "type": "object",
@@ -906,7 +955,11 @@
                                             }
                                         },
                                         "mode": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "enum": [
+                                                "Off",
+                                                "Auto"
+                                            ]
                                         }
                                     }
                                 }
@@ -916,7 +969,14 @@
                             "type": "object",
                             "properties": {
                                 "updateMode": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "enum": [
+                                        "Off",
+                                        "Auto",
+                                        "Initial",
+                                        "Recreate",
+                                        "InPlaceOrRecreate"
+                                    ]
                                 }
                             }
                         }

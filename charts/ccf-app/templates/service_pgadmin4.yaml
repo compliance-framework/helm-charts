@@ -18,6 +18,4 @@ spec:
       targetPort: {{ default "http" .Values.pgadmin4.service.targetPort }}
       protocol: TCP
       name: http
-  selector:
-    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "pgadmin4") | nindent 4 }}
 {{- end }}
