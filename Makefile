@@ -13,7 +13,7 @@ helm.install-plugins:
 	fi
 	@if ! helm plugin list | grep -q schema; then \
 		echo "Installing helm-schema $(HELM_SCHEMA_VERSION)..."; \
-		helm plugin install https://github.com/dadav/helm-schema --version $(HELM_SCHEMA_VERSION); \
+		helm plugin install https://github.com/losisin/helm-values-schema-json --version $(HELM_SCHEMA_VERSION); \
 	else \
 		echo "helm-schema already installed"; \
 	fi
