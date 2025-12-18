@@ -1,5 +1,5 @@
 HELM_UNITTEST_VERSION ?= 0.7.0
-HELM_SCHEMA_VERSION ?= 0.17.0
+HELM_SCHEMA_VERSION ?= 2.2.1
 CHART_DIR ?= charts/ccf-app
 
 .PHONY: helm.install-plugins
