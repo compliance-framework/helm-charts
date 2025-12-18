@@ -63,11 +63,11 @@ api:
         mode: Auto # @schema enum:[Off, Auto]
         controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
-          cpu: 10m
-          memory: 64Mi
+          cpu: 50m
+          memory: 10Mi
         maxAllowed:
-          cpu: 500m
-          memory: 512Mi
+          cpu: 512m
+          memory: 256Mi
     recommenders: []
   image:
     repository: ghcr.io/compliance-framework/api
@@ -131,11 +131,11 @@ ui:
         mode: Auto # @schema enum:[Off, Auto]
         controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
-          cpu: 10m
+          cpu: 50m
           memory: 10Mi
         maxAllowed:
-          cpu: 128m
-          memory: 200Mi
+          cpu: 512m
+          memory: 256Mi
     recommenders: []
   image:
     repository: ghcr.io/compliance-framework/ui
@@ -192,10 +192,10 @@ database:
           mode: Auto # @schema enum:[Off, Auto]
           controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
           minAllowed:
-            cpu: 10m
-            memory: 64Mi
+            cpu: 100m
+            memory: 128Mi
           maxAllowed:
-            cpu: 500m
+            cpu: 512m
             memory: 512Mi
       recommenders: []
     image:
@@ -242,10 +242,10 @@ pgadmin4:
         mode: Auto # @schema enum:[Off, Auto]
         controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
-          cpu: 10m
-          memory: 64Mi
+          cpu: 100m
+          memory: 128Mi
         maxAllowed:
-          cpu: 500m
+          cpu: 512m
           memory: 512Mi
     recommenders: []
   image:
