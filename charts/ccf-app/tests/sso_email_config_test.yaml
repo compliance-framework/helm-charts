@@ -54,7 +54,7 @@ tests:
           path: data["sso.yaml"]
           pattern: "issuer_url: \"https://accounts.google.com\""
         template: templates/configmap_api.yaml
-      - notMatchRegex:
+      - matchRegex:
           path: data["sso.yaml"]
           pattern: "client_id"
         template: templates/configmap_api.yaml
