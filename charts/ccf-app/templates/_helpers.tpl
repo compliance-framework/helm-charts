@@ -144,3 +144,7 @@ Merge helper for component service labels.
 {{- end -}}
 {{- toYaml $labels -}}
 {{- end }}
+
+{{/*
+Convert camelCase to snake_case
+*/}}

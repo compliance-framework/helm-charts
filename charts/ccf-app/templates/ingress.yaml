@@ -1,7 +1,7 @@
 {{- $apiIngressEnabled := and .Values.api.enabled .Values.api.service.enabled .Values.api.ingress.enabled -}}
 {{- $uiIngressEnabled := and .Values.ui.enabled .Values.ui.service.enabled .Values.ui.ingress.enabled -}}
 {{- $pgadmin4IngressEnabled := and .Values.pgadmin4.enabled .Values.pgadmin4.service.enabled .Values.pgadmin4.ingress.enabled -}}
-{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled) $pgadmin4IngressEnabled -}}
+{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled $pgadmin4IngressEnabled) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -14,5 +14,50 @@ data:
   CCF_DB_USER: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
   CCF_JWT_PRIVATE_KEY: "/var/ccf/private_key/private_key.pem"
   CCF_JWT_PUBLIC_KEY: "/var/ccf/public_key/public_key.pem"
+  CCF_WEB_BASE_URL: {{ .Values.api.webBaseUrl | quote }}
+  CCF_ENVIRONMENT: {{ .Values.api.environment | default "production" | quote }}
   CCF_API_ALLOWED_ORIGINS: {{ if .Values.api.corsOrigins }}{{ .Values.api.corsOrigins | join "," | quote }}{{ else }}"http://localhost:3000"{{ end }}
+  {{- if .Values.api.sso.enabled }}
+  CCF_SSO_CONFIG: "/etc/ccf/sso.yaml"
+  {{- end }}
+  {{- if .Values.api.email.enabled }}
+  CCF_EMAIL_CONFIG: "/etc/ccf/email.yaml"
+  {{- end }}
+  {{- if .Values.api.sso.enabled }}
+  sso.yaml: |
+    enabled: true
+    base_url: {{ .Values.api.sso.baseUrl | quote }}
+    callback_url: {{ .Values.api.sso.callbackUrl | quote }}
+    providers:
+      {{- range $key, $val := .Values.api.sso.providers }}
+      {{- if $val.enabled }}
+      {{ $key }}:
+        {{- range $k, $v := $val }}
+        {{- if and (ne $k "clientSecret") (ne $k "clientId") }}
+        {{ $k | snakecase }}: {{ $v | toJson }}
+        {{- else }}
+        {{ $k | snakecase }}: ""
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+  {{- end }}
+  {{- if .Values.api.email.enabled }}
+  email.yaml: |
+    enabled: true
+    provider: {{ .Values.api.email.provider | quote }}
+    providers:
+      {{- range $key, $val := .Values.api.email.providers }}
+      {{- if $val.enabled }}
+      {{ $key }}:
+        {{- range $k, $v := $val }}
+        {{- if and (ne $k "password") (ne $k "accessKeyId") (ne $k "secretAccessKey") (ne $k "sessionToken") }}
+        {{ $k | snakecase }}: {{ $v | toJson }}
+        {{- else }}
+        {{ $k | snakecase }}: ""
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+  {{- end }}
 {{- end }}
