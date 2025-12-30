@@ -49,6 +49,8 @@ ingress:
 api:
   enabled: true
   replicaCount: 1
+  webBaseUrl: "http://localhost:8080"
+  environment: "production" ## Set this to local if you are not running with https
   autoscaling:
     enabled: false
     minReplicas: 1
@@ -73,7 +75,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.4.7"
+    tag: "0.6.3"
   containerPort: 8080
   service:
     enabled: true
@@ -114,6 +116,70 @@ api:
           - path: /
             pathType: ImplementationSpecific
 
+  # SSO configuration
+  sso:
+    enabled: false
+    # createSecret: true # If true, a secret will be created with sensitive values
+    # existingSecret: "" # If provided, sensitive values will be pulled from this secret
+    baseUrl: "http://localhost:8000"
+    callbackUrl: "http://localhost:8080/api/auth/sso/callback"
+    providers:
+      google:
+        name: "google"
+        displayName: "Google"
+        provider: "google"
+        protocol: "oidc"
+        iconUrl: "https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+        clientId: ""
+        clientSecret: ""
+        issuerUrl: "https://accounts.google.com"
+        scopes: ["openid", "email", "profile"]
+        enabled: false
+      github:
+        name: "github"
+        displayName: "GitHub"
+        provider: "github"
+        protocol: "oauth"
+        iconUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+        clientId: ""
+        clientSecret: ""
+        authUrl: "https://github.com/login/oauth/authorize"
+        tokenUrl: "https://github.com/login/oauth/access_token"
+        userInfoUrl: "https://api.github.com/user"
+        emailUrl: "https://api.github.com/user/emails"
+        scopes: ["read:user", "user:email", "read:org"]
+        enabled: false
+        groupMapping:
+          "github-organization:compliance-framework": ["ccf-authorized-users"]
+
+  # Email configuration
+  email:
+    enabled: false
+    # createSecret: true # If true, a secret will be created with sensitive values
+    # existingSecret: "" # If provided, sensitive values will be pulled from this secret
+    provider: "smtp"
+    providers:
+      smtp:
+        enabled: true
+        name: "SMTP"
+        host: "localhost"
+        port: 2525
+        username: "testuser"
+        password: "testpass"
+        from: "noreply@compliance-framework.local"
+        fromName: "Compliance Framework"
+        useSsl: false
+        useTls: false
+      ses:
+        enabled: false
+        name: "AWS SES"
+        region: "us-east-1"
+        from: "noreply@compliance-framework.local"
+        fromName: "Compliance Framework"
+        # accessKeyId: ""
+        # secretAccessKey: ""
+        # sessionToken: ""
+
 ui:
   enabled: true
   replicaCount: 1
@@ -140,7 +206,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.0.7"
+    tag: "2.2.1"
   containerPort: 80
   service:
     enabled: true

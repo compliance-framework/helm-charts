@@ -59,6 +59,78 @@ spec:
                   key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
+            {{- if .Values.api.sso.enabled }}
+            {{- range $key, $val := .Values.api.sso.providers }}
+            {{- if $val.enabled }}
+            - name: CCF_SSO_PROVIDERS_{{ $key | upper }}_CLIENT_ID
+              {{- if or $.Values.api.sso.createSecret $.Values.api.sso.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if $.Values.api.sso.createSecret }}{{ include "ccf-app.fullname" $ }}-api-config{{ else }}{{ $.Values.api.sso.existingSecret }}{{ end }}
+                  key: CCF_SSO_PROVIDERS_{{ $key | upper }}_CLIENT_ID
+              {{- else }}
+              value: {{ $val.clientId | quote }}
+              {{- end }}
+            - name: CCF_SSO_PROVIDERS_{{ $key | upper }}_CLIENT_SECRET
+              {{- if or $.Values.api.sso.createSecret $.Values.api.sso.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if $.Values.api.sso.createSecret }}{{ include "ccf-app.fullname" $ }}-api-config{{ else }}{{ $.Values.api.sso.existingSecret }}{{ end }}
+                  key: CCF_SSO_PROVIDERS_{{ $key | upper }}_CLIENT_SECRET
+              {{- else }}
+              value: {{ $val.clientSecret | quote }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.api.email.enabled }}
+            {{- if and .Values.api.email.providers.smtp .Values.api.email.providers.smtp.enabled }}
+            - name: CCF_EMAIL_PROVIDERS_SMTP_PASSWORD
+              {{- if or .Values.api.email.createSecret .Values.api.email.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.email.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.email.existingSecret }}{{ end }}
+                  key: CCF_EMAIL_PROVIDERS_SMTP_PASSWORD
+              {{- else }}
+              value: {{ .Values.api.email.providers.smtp.password | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if and .Values.api.email.providers.ses .Values.api.email.providers.ses.enabled }}
+            {{- if .Values.api.email.providers.ses.accessKeyId }}
+            - name: CCF_EMAIL_PROVIDERS_SES_ACCESS_KEY_ID
+              {{- if or .Values.api.email.createSecret .Values.api.email.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.email.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.email.existingSecret }}{{ end }}
+                  key: CCF_EMAIL_PROVIDERS_SES_ACCESS_KEY_ID
+              {{- else }}
+              value: {{ .Values.api.email.providers.ses.accessKeyId | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if .Values.api.email.providers.ses.secretAccessKey }}
+            - name: CCF_EMAIL_PROVIDERS_SES_SECRET_ACCESS_KEY
+              {{- if or .Values.api.email.createSecret .Values.api.email.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.email.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.email.existingSecret }}{{ end }}
+                  key: CCF_EMAIL_PROVIDERS_SES_SECRET_ACCESS_KEY
+              {{- else }}
+              value: {{ .Values.api.email.providers.ses.secretAccessKey | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if .Values.api.email.providers.ses.sessionToken }}
+            - name: CCF_EMAIL_PROVIDERS_SES_SESSION_TOKEN
+              {{- if or .Values.api.email.createSecret .Values.api.email.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.email.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.email.existingSecret }}{{ end }}
+                  key: CCF_EMAIL_PROVIDERS_SES_SESSION_TOKEN
+              {{- else }}
+              value: {{ .Values.api.email.providers.ses.sessionToken | quote }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -73,6 +145,11 @@ spec:
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: true
+            {{- if or .Values.api.sso.enabled .Values.api.email.enabled }}
+            - mountPath: /etc/ccf/
+              name: api-config
+              readOnly: true
+            {{- end }}
           livenessProbe:
             {{- with .Values.api.livenessProbe }}
             {{- toYaml . | nindent 12 }}
@@ -107,9 +184,9 @@ spec:
               name: publickey
               readOnly: false
         - name: generate-public-key
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          command: ['sh', '-c', 'echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem']
+          image: "alpine:3.21"
+          imagePullPolicy: IfNotPresent
+          command: ['sh', '-c', 'apk add --no-cache openssl && echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem']
           {{- with .Values.api.initResources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -124,7 +201,8 @@ spec:
         - name: migrate-db
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          command: ['sh', '-c', 'echo "Running DB migrations..." && ./api migrate up']
+          command: ["/api"]
+          args: ["migrate", "up"]
           envFrom:
             - configMapRef:
                 name: {{ include "ccf-app.fullname" . }}-api
@@ -150,7 +228,8 @@ spec:
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          command: ['sh', '-c', 'echo "Creating default user..." && ./api users add -f admin -l user -e {{ .Values.api.user.email }} -p $(CCF_INITIAL_USER_PASSWORD)']
+          command: ["/api"]
+          args: ["users", "add", "-f", "admin", "-l", "user", "-e", "{{ .Values.api.user.email }}", "-p", "$(CCF_INITIAL_USER_PASSWORD)"]
           envFrom:
             - configMapRef:
                 name: {{ include "ccf-app.fullname" . }}-api
@@ -183,6 +262,21 @@ spec:
           secret:
             secretName: {{ include "ccf-app.fullname" . }}-jwt-private-key
         - name: publickey
+          emptyDir: {}
+        {{- if or .Values.api.sso.enabled .Values.api.email.enabled }}
+        - name: api-config
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-api
+            items:
+              {{- if .Values.api.sso.enabled }}
+              - key: sso.yaml
+                path: sso.yaml
+              {{- end }}
+              {{- if .Values.api.email.enabled }}
+              - key: email.yaml
+                path: email.yaml
+              {{- end }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,0 +1,121 @@
+suite: SSO and Email configuration
+templates:
+  - templates/configmap_api.yaml
+  - templates/deployment_api.yaml
+  - templates/secrets_api_config.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: Regression (sso=false, email=false)
+    set:
+      api.enabled: true
+      api.sso.enabled: false
+      api.email.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_api_config.yaml
+      - notMatchRegex:
+          path: data["sso.yaml"]
+          pattern: "enabled: true"
+        template: templates/configmap_api.yaml
+      - notMatchRegex:
+          path: data["email.yaml"]
+          pattern: "enabled: true"
+        template: templates/configmap_api.yaml
+
+  - it: Google SSO enabled, create secret
+    set:
+      api.enabled: true
+      api.sso.enabled: true
+      api.sso.createSecret: true
+      api.sso.baseUrl: "http://ui.example.com"
+      api.sso.providers.google.enabled: true
+      api.sso.providers.google.clientId: "google-id"
+      api.sso.providers.google.clientSecret: "google-secret"
+      api.sso.providers.google.issuerUrl: "https://accounts.google.com"
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: ccf-app-api-config
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: data["CCF_SSO_PROVIDERS_GOOGLE_CLIENT_ID"]
+          value: "Z29vZ2xlLWlk" # base64 for google-id
+        template: templates/secrets_api_config.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "base_url: \"http://ui.example.com\""
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "issuer_url: \"https://accounts.google.com\""
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "client_id"
+        template: templates/configmap_api.yaml
+
+  - it: Github SSO enabled, import secret
+    set:
+      api.enabled: true
+      api.sso.enabled: true
+      api.sso.existingSecret: "external-sso-secret"
+      api.sso.providers.github.enabled: true
+      api.sso.providers.github.clientId: "github-id"
+      api.sso.providers.github.clientSecret: "github-secret"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_GITHUB_CLIENT_ID")].valueFrom.secretKeyRef.name
+          value: "external-sso-secret"
+        template: templates/deployment_api.yaml
+
+  - it: Email enabled, Create Secret
+    set:
+      api.enabled: true
+      api.email.enabled: true
+      api.email.createSecret: true
+      api.email.provider: "smtp"
+      api.email.providers.smtp.enabled: true
+      api.email.providers.smtp.host: "smtp.example.com"
+      api.email.providers.smtp.password: "smtp-pass"
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: ccf-app-api-config
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: data["CCF_EMAIL_PROVIDERS_SMTP_PASSWORD"]
+          value: "c210cC1wYXNz" # base64 for smtp-pass
+        template: templates/secrets_api_config.yaml
+      - matchRegex:
+          path: data["email.yaml"]
+          pattern: "host: \"smtp.example.com\""
+        template: templates/configmap_api.yaml
+
+  - it: email & google SSO enabled, import two different secrets
+    set:
+      api.enabled: true
+      api.sso.enabled: true
+      api.sso.existingSecret: "sso-secret"
+      api.sso.providers.google.enabled: true
+      api.email.enabled: true
+      api.email.existingSecret: "email-secret"
+      api.email.provider: "smtp"
+      api.email.providers.smtp.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_GOOGLE_CLIENT_ID")].valueFrom.secretKeyRef.name
+          value: "sso-secret"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_EMAIL_PROVIDERS_SMTP_PASSWORD")].valueFrom.secretKeyRef.name
+          value: "email-secret"
+        template: templates/deployment_api.yaml
