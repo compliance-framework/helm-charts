@@ -259,7 +259,105 @@
                             "type": "boolean"
                         },
                         "providers": {
-                            "type": "null"
+                            "type": "object",
+                            "properties": {
+                                "github": {
+                                    "type": "object",
+                                    "properties": {
+                                        "authUrl": {
+                                            "type": "string"
+                                        },
+                                        "clientId": {
+                                            "type": "string"
+                                        },
+                                        "clientSecret": {
+                                            "type": "string"
+                                        },
+                                        "displayName": {
+                                            "type": "string"
+                                        },
+                                        "emailUrl": {
+                                            "type": "string"
+                                        },
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "groupMapping": {
+                                            "type": "object",
+                                            "properties": {
+                                                "github-organization:compliance-framework": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "iconUrl": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "protocol": {
+                                            "type": "string"
+                                        },
+                                        "provider": {
+                                            "type": "string"
+                                        },
+                                        "scopes": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "tokenUrl": {
+                                            "type": "string"
+                                        },
+                                        "userInfoUrl": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "google": {
+                                    "type": "object",
+                                    "properties": {
+                                        "clientId": {
+                                            "type": "string"
+                                        },
+                                        "clientSecret": {
+                                            "type": "string"
+                                        },
+                                        "displayName": {
+                                            "type": "string"
+                                        },
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "iconUrl": {
+                                            "type": "string"
+                                        },
+                                        "issuerUrl": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "protocol": {
+                                            "type": "string"
+                                        },
+                                        "provider": {
+                                            "type": "string"
+                                        },
+                                        "scopes": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },

@@ -124,33 +124,33 @@ api:
     baseUrl: "http://localhost:8000"
     callbackUrl: "http://localhost:8080/api/auth/sso/callback"
     providers:
-      # google:
-      #   name: "google"
-      #   displayName: "Google"
-      #   provider: "google"
-      #   protocol: "oidc"
-      #   iconUrl: "https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-      #   clientId: "change-me"
-      #   clientSecret: "change-me"
-      #   issuerUrl: "https://accounts.google.com"
-      #   scopes: ["openid", "email", "profile"]
-      #   enabled: true
-      # github:
-      #   name: "github"
-      #   displayName: "GitHub"
-      #   provider: "github"
-      #   protocol: "oauth"
-      #   iconUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-      #   clientId: "change-me"
-      #   clientSecret: "change-me"
-      #   authUrl: "https://github.com/login/oauth/authorize"
-      #   tokenUrl: "https://github.com/login/oauth/access_token"
-      #   userInfoUrl: "https://api.github.com/user"
-      #   emailUrl: "https://api.github.com/user/emails"
-      #   scopes: ["read:user", "user:email", "read:org"]
-      #   enabled: true
-      #   groupMapping:
-      #     "github-organization:compliance-framework": ["ccf-authorized-users"]
+      google:
+        name: "google"
+        displayName: "Google"
+        provider: "google"
+        protocol: "oidc"
+        iconUrl: "https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+        clientId: ""
+        clientSecret: ""
+        issuerUrl: "https://accounts.google.com"
+        scopes: ["openid", "email", "profile"]
+        enabled: false
+      github:
+        name: "github"
+        displayName: "GitHub"
+        provider: "github"
+        protocol: "oauth"
+        iconUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+        clientId: ""
+        clientSecret: ""
+        authUrl: "https://github.com/login/oauth/authorize"
+        tokenUrl: "https://github.com/login/oauth/access_token"
+        userInfoUrl: "https://api.github.com/user"
+        emailUrl: "https://api.github.com/user/emails"
+        scopes: ["read:user", "user:email", "read:org"]
+        enabled: false
+        groupMapping:
+          "github-organization:compliance-framework": ["ccf-authorized-users"]
 
   # Email configuration
   email:
