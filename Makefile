@@ -1,5 +1,5 @@
 HELM_UNITTEST_VERSION ?= 0.7.0
-HELM_SCHEMA_VERSION ?= 2.2.1
+HELM_SCHEMA_VERSION ?= 2.3.0
 CHART_DIR ?= charts/ccf-app
 
 .PHONY: helm.install-plugins
@@ -39,3 +39,18 @@ check-diff:
 	else \
 		echo "No changes detected."; \
 	fi
+
+# CCF Agent chart targets
+.PHONY: helm.test.agent
+helm.test.agent: helm.install-plugins
+	@echo "Running helm unittest for ccf-agent..."
+	helm unittest charts/ccf-agent
+
+.PHONY: helm.schema.agent
+helm.schema.agent: helm.install-plugins
+	@echo "Generating helm schema for ccf-agent..."
+	helm schema --values charts/ccf-agent/values.yaml --output charts/ccf-agent/values.schema.json
+
+.PHONY: helm.agent
+helm.agent: helm.schema.agent helm.test.agent
+	@echo "CCF Agent chart validated successfully"

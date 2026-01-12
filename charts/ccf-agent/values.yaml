@@ -1,0 +1,200 @@
+# Default values for ccf-agent.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Number of agent replicas
+replicaCount: 1
+
+image:
+  repository: ghcr.io/compliance-framework/agent
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+    - ALL
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: false
+  # The agent doesn't expose health endpoints by default
+  # exec:
+  #   command:
+  #   - /bin/sh
+  #   - -c
+  #   - pgrep -f agent
+
+readinessProbe:
+  enabled: false
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Agent configuration
+agent:
+  # Hostname for the agent (used for identification in the API)
+  hostname: ""
+  
+  # Agent daemon mode - set to true to run continuously
+  daemon: false
+  
+  # Verbosity level (0-3)
+  verbosity: 0
+  
+  # API configuration
+  api:
+    # URL of the CCF API server
+    url: "http://ccf-api:8080"
+  
+  # Plugin configurations
+  # Each plugin can have: schedule, source, policies, config, labels
+  # Example:
+  #   jira:
+  #     schedule: "*/5 * * * *"
+  #     source: ghcr.io/compliance-framework/plugin-jira:v0.1.1
+  #     policies:
+  #       - ghcr.io/compliance-framework/plugin-jira-policies:v0.1.1
+  #     config:
+  #       base_url: https://your-instance.atlassian.net
+  #       auth_type: oauth2
+  #     labels:
+  #       tier: change-management
+  #       team: ccf
+  # @schema
+  # description: Plugin configurations - map of plugin name to plugin configuration
+  # additionalProperties:
+  #   type: object
+  #   properties:
+  #     schedule:
+  #       type: string
+  #       description: Cron schedule for plugin execution
+  #       examples: ["*/5 * * * *", "0 */2 * * *"]
+  #     source:
+  #       type: string
+  #       description: Container image for the plugin
+  #     policies:
+  #       type: array
+  #       description: List of policy bundles to evaluate
+  #       items:
+  #         type: string
+  #     config:
+  #       type: object
+  #       description: Plugin-specific configuration
+  #     labels:
+  #       type: object
+  #       description: Labels for organizing compliance data
+  #       additionalProperties:
+  #         type: string
+  # @schema
+  plugins: {}
+
+# Secret references for plugin credentials
+# These will be mounted as environment variables
+# Example:
+#   - name: ccf-plugin-jira
+#     keys:
+#       - envName: CCF_PLUGINS_JIRA_CONFIG_CLIENT_ID
+#         secretKey: client_id
+#       - envName: CCF_PLUGINS_JIRA_CONFIG_CLIENT_SECRET
+#         secretKey: client_secret
+# @schema
+# description: Secret references for plugin credentials mounted as environment variables
+# items:
+#   type: object
+#   required: [name, keys]
+#   properties:
+#     name:
+#       type: string
+#       description: Name of the Kubernetes secret
+#     keys:
+#       type: array
+#       description: List of secret keys to mount as environment variables
+#       items:
+#         type: object
+#         required: [envName, secretKey]
+#         properties:
+#           envName:
+#             type: string
+#             description: Environment variable name
+#             pattern: ^[A-Z_][A-Z0-9_]*$
+#           secretKey:
+#             type: string
+#             description: Key in the secret
+# @schema
+secretRefs: []
+
+# Additional environment variables
+extraEnv: []
+  # - name: CUSTOM_VAR
+  #   value: "custom-value"
+
+# Additional environment variables from ConfigMaps or Secrets
+extraEnvFrom: []
+  # - configMapRef:
+  #     name: my-configmap
+  # - secretRef:
+  #     name: my-secret
+
+# Restart policy for the agent
+restartPolicy: Always
