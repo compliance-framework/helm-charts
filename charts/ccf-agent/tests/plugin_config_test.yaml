@@ -1,0 +1,141 @@
+suite: plugin configuration
+templates:
+  - templates/configmap.yaml
+  - templates/deployment.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: renders empty plugins section when no plugins configured
+    asserts:
+      - notMatchRegex:
+          path: data["config.yml"]
+          pattern: "plugins:"
+        template: templates/configmap.yaml
+
+  - it: renders single plugin configuration
+    set:
+      agent.plugins:
+        jira:
+          schedule: "*/5 * * * *"
+          source: ghcr.io/compliance-framework/plugin-jira:v0.1.1
+          policies:
+            - ghcr.io/compliance-framework/plugin-jira-policies:v0.1.1
+          config:
+            base_url: https://example.atlassian.net
+            auth_type: oauth2
+          labels:
+            tier: change-management
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "plugins:"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "jira:"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "schedule: '\\*/5 \\* \\* \\* \\*'"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "source: ghcr.io/compliance-framework/plugin-jira:v0.1.1"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "base_url: https://example.atlassian.net"
+        template: templates/configmap.yaml
+
+  - it: renders multiple plugins configuration
+    set:
+      agent.plugins:
+        jira:
+          schedule: "*/5 * * * *"
+          source: ghcr.io/compliance-framework/plugin-jira:v0.1.1
+        dependabot:
+          schedule: "*/10 * * * *"
+          source: ghcr.io/compliance-framework/plugin-dependabot:v0.3.4
+        github_repos:
+          schedule: "*/15 * * * *"
+          source: ghcr.io/compliance-framework/plugin-github-repositories:v0.5.1
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "jira:"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "dependabot:"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "github_repos:"
+        template: templates/configmap.yaml
+
+  - it: sets agent daemon mode
+    set:
+      agent.daemon: true
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "daemon: true"
+        template: templates/configmap.yaml
+
+  - it: sets agent verbosity
+    set:
+      agent.verbosity: 2
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "verbosity: 2"
+        template: templates/configmap.yaml
+
+  - it: sets API URL
+    set:
+      agent.api.url: "http://custom-api:9090"
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "url: http://custom-api:9090"
+        template: templates/configmap.yaml
+
+  - it: mounts config as volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: ccf-agent-config
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /config
+            readOnly: true
+        template: templates/deployment.yaml
+
+  - it: uses config file in command args
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--config"
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "/config/config.yml"
+        template: templates/deployment.yaml
+
+  - it: triggers deployment rollout on config change
+    set:
+      agent.plugins:
+        jira:
+          schedule: "*/5 * * * *"
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]
+        template: templates/deployment.yaml

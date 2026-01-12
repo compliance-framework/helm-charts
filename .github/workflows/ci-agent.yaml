@@ -1,0 +1,30 @@
+name: CI - CCF Agent
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'charts/ccf-agent/**'
+      - 'Makefile'
+      - '.github/workflows/ci-agent.yaml'
+
+jobs:
+  helm-check-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.14.4
+
+      - name: Run Helm Tests for ccf-agent
+        run: |
+          make helm.test.agent
+
+      - name: Verify Helm Schema for ccf-agent
+        run: |
+          make helm.schema.agent
+          CHART_DIR=charts/ccf-agent make check-diff

@@ -1,11 +1,15 @@
-name: CI
+name: CI - CCF App
 
 on:
   pull_request:
     branches: [ main, master ]
+    paths:
+      - 'charts/ccf-app/**'
+      - 'Makefile'
+      - '.github/workflows/ci-app.yaml'
 
 jobs:
-  helm-check:
+  helm-check-app:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,11 +20,11 @@ jobs:
         with:
           version: v3.14.4
 
-      - name: Run Helm Tests
+      - name: Run Helm Tests for ccf-app
         run: |
           make helm.test
 
-      - name: Verify Helm Schema
+      - name: Verify Helm Schema for ccf-app
         run: |
           make helm.schema
           make check-diff

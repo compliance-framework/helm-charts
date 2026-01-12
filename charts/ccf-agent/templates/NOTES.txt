@@ -1,0 +1,40 @@
+CCF Agent has been deployed!
+
+Chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+Agent Configuration:
+  - API URL: {{ .Values.agent.api.url }}
+  - Hostname: {{ include "ccf-agent.hostname" . }}
+  - Daemon Mode: {{ .Values.agent.daemon }}
+  - Verbosity: {{ .Values.agent.verbosity }}
+
+{{- if .Values.agent.plugins }}
+Configured Plugins:
+{{- range $name, $config := .Values.agent.plugins }}
+  - {{ $name }}:
+      Schedule: {{ $config.schedule | default "not set" }}
+      Source: {{ $config.source | default "not set" }}
+{{- end }}
+{{- else }}
+⚠️  No plugins configured. Add plugin configurations in values.yaml under 'agent.plugins'.
+{{- end }}
+
+{{- if .Values.secretRefs }}
+Secret References:
+{{- range .Values.secretRefs }}
+  - {{ .name }}
+{{- end }}
+{{- else }}
+⚠️  No secret references configured. Plugin credentials should be provided via 'secretRefs'.
+{{- end }}
+
+To check the agent logs:
+  kubectl logs -f deployment/{{ include "ccf-agent.fullname" . }} -n {{ .Release.Namespace }}
+
+To view the agent configuration:
+  kubectl get configmap {{ include "ccf-agent.fullname" . }}-config -n {{ .Release.Namespace }} -o yaml
+
+For more information, visit:
+  https://github.com/compliance-framework/agent
