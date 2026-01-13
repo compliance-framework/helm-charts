@@ -33,12 +33,12 @@ jobs:
         id: check-package
         run: |
           # Try to pull the package to see if it exists
-          if helm pull oci://ghcr.io/compliance-framework/helm-charts/ccf-app --version ${{ steps.chart-version.outputs.version }} 2>/dev/null; then
+          if helm pull oci://ghcr.io/compliance-framework/helm-charts/ccf --version ${{ steps.chart-version.outputs.version }} 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Package ccf-app:${{ steps.chart-version.outputs.version }} already exists"
+            echo "Package ccf:${{ steps.chart-version.outputs.version }} already exists"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Package ccf-app:${{ steps.chart-version.outputs.version }} does not exist"
+            echo "Package ccf:${{ steps.chart-version.outputs.version }} does not exist"
           fi
 
       - name: Login to GitHub Container Registry
@@ -57,9 +57,9 @@ jobs:
       - name: Push to GHCR
         if: steps.check-package.outputs.exists == 'false'
         run: |
-          helm push ccf-app-${{ steps.chart-version.outputs.version }}.tgz oci://ghcr.io/compliance-framework/helm-charts
+          helm push ccf-${{ steps.chart-version.outputs.version }}.tgz oci://ghcr.io/compliance-framework/helm-charts
 
       - name: Skip release (package exists)
         if: steps.check-package.outputs.exists == 'true'
         run: |
-          echo "✅ Package ccf-app:${{ steps.chart-version.outputs.version }} already exists, skipping release"
+          echo "✅ Package ccf:${{ steps.chart-version.outputs.version }} already exists, skipping release"
