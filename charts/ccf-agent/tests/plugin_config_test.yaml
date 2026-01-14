@@ -122,11 +122,19 @@ tests:
   - it: uses config file in command args
     asserts:
       - contains:
-          path: spec.template.spec.containers[0].args
-          content: "--config"
+          path: spec.template.spec.containers[0].command
+          content: "./concom"
         template: templates/deployment.yaml
       - contains:
-          path: spec.template.spec.containers[0].args
+          path: spec.template.spec.containers[0].command
+          content: "agent"
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].command
+          content: "-c"
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].command
           content: "/config/config.yml"
         template: templates/deployment.yaml
 
