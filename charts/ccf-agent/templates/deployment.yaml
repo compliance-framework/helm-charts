@@ -38,10 +38,10 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command:
-          - /agent
-        args:
-          - --config
-          - /config/config.yml
+          - "./concom"
+          - "agent"
+          - "-c"
+          - "/config/config.yml"
         env:
           - name: HOSTNAME
             value: {{ include "ccf-agent.hostname" . | quote }}
