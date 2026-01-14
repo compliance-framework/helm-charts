@@ -67,8 +67,10 @@ spec:
           - name: config
             mountPath: /config
             readOnly: true
-          - name: tmp
+          - name: ccf-tmp
             mountPath: /app/.compliance-framework
+          - name: tmp
+            mountPath: /tmp
           {{- with .Values.volumeMounts }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
@@ -85,6 +87,8 @@ spec:
           configMap:
             name: {{ include "ccf-agent.fullname" . }}-config
         - name: tmp
+          emptyDir: {}
+        - name: ccf-tmp
           emptyDir: {}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
