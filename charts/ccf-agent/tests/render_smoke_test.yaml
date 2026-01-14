@@ -181,7 +181,7 @@ tests:
           value: true
         template: templates/deployment.yaml
 
-  - it: mounts tmp volume for writable filesystem
+  - it: mounts .compliance-framework volume for writable filesystem
     asserts:
       - contains:
           path: spec.template.spec.volumes
@@ -193,7 +193,7 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: tmp
-            mountPath: /tmp
+            mountPath: /app/.compliance-framework
         template: templates/deployment.yaml
 
   - it: sets resource limits and requests
