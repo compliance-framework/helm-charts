@@ -186,6 +186,21 @@ tests:
       - contains:
           path: spec.template.spec.volumes
           content:
+            name: ccf-tmp
+            emptyDir: {}
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: ccf-tmp
+            mountPath: /app/.compliance-framework
+        template: templates/deployment.yaml
+
+  - it: mounts tmp volume for writable filesystem
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
             name: tmp
             emptyDir: {}
         template: templates/deployment.yaml
@@ -193,7 +208,7 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: tmp
-            mountPath: /app/.compliance-framework
+            mountPath: /tmp
         template: templates/deployment.yaml
 
   - it: sets resource limits and requests
