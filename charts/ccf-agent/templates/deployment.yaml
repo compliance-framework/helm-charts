@@ -68,7 +68,7 @@ spec:
             mountPath: /config
             readOnly: true
           - name: tmp
-            mountPath: /tmp
+            mountPath: /app/.compliance-framework
           {{- with .Values.volumeMounts }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
