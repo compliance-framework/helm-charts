@@ -111,6 +111,9 @@
                 "environment": {
                     "type": "string"
                 },
+                "extraConfig": {
+                    "type": "object"
+                },
                 "extraEnv": {
                     "type": "array"
                 },

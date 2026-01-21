@@ -17,6 +17,9 @@ data:
   CCF_WEB_BASE_URL: {{ .Values.api.webBaseUrl | quote }}
   CCF_ENVIRONMENT: {{ .Values.api.environment | default "production" | quote }}
   CCF_API_ALLOWED_ORIGINS: {{ if .Values.api.corsOrigins }}{{ .Values.api.corsOrigins | join "," | quote }}{{ else }}"http://localhost:3000"{{ end }}
+  {{- range $key, $val := .Values.api.extraConfig }}
+  {{ $key }}: {{ $val | quote }}
+  {{- end }}
   {{- if .Values.api.sso.enabled }}
   CCF_SSO_CONFIG: "/etc/ccf/sso.yaml"
   {{- end }}
