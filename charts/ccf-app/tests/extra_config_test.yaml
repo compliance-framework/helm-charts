@@ -1,0 +1,205 @@
+suite: API extraConfig parameter
+templates:
+  - templates/configmap_api.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: renders with empty extraConfig by default
+    set:
+      api.enabled: true
+    asserts:
+      - notExists:
+          path: data["CCF_EMAIL_DIGEST_SCHEDULE"]
+        template: templates/configmap_api.yaml
+      - notExists:
+          path: data["CCF_EMAIL_DIGEST_ENABLED"]
+        template: templates/configmap_api.yaml
+
+  - it: renders with single extraConfig key-value pair
+    set:
+      api.enabled: true
+      api.extraConfig:
+        CCF_EMAIL_DIGEST_SCHEDULE: "@weekly"
+    asserts:
+      - equal:
+          path: data["CCF_EMAIL_DIGEST_SCHEDULE"]
+          value: "@weekly"
+        template: templates/configmap_api.yaml
+
+  - it: renders with multiple extraConfig key-value pairs
+    set:
+      api.enabled: true
+      api.extraConfig:
+        CCF_EMAIL_DIGEST_SCHEDULE: "@weekly"
+        CCF_EMAIL_DIGEST_ENABLED: "true"
+        CCF_LOG_LEVEL: "debug"
+    asserts:
+      - equal:
+          path: data["CCF_EMAIL_DIGEST_SCHEDULE"]
+          value: "@weekly"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_EMAIL_DIGEST_ENABLED"]
+          value: "true"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_LOG_LEVEL"]
+          value: "debug"
+        template: templates/configmap_api.yaml
+
+  - it: renders extraConfig with special characters
+    set:
+      api.enabled: true
+      api.extraConfig:
+        CCF_CRON_SCHEDULE: "0 0 * * 0"
+        CCF_API_URL: "https://api.example.com/v1"
+        CCF_COMPLEX_VALUE: "some-complex_value.with.special@chars"
+    asserts:
+      - equal:
+          path: data["CCF_CRON_SCHEDULE"]
+          value: "0 0 * * 0"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_API_URL"]
+          value: "https://api.example.com/v1"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_COMPLEX_VALUE"]
+          value: "some-complex_value.with.special@chars"
+        template: templates/configmap_api.yaml
+
+  - it: renders extraConfig alongside other configurations
+    set:
+      api.enabled: true
+      api.environment: "development"
+      api.webBaseUrl: "https://dev.example.com"
+      api.corsOrigins:
+        - "https://dev.example.com"
+        - "http://localhost:3000"
+      api.extraConfig:
+        CCF_DEBUG_MODE: "true"
+        CCF_FEATURE_FLAG: "new-feature"
+    asserts:
+      - equal:
+          path: data["CCF_ENVIRONMENT"]
+          value: "development"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_WEB_BASE_URL"]
+          value: "https://dev.example.com"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_API_ALLOWED_ORIGINS"]
+          value: "https://dev.example.com,http://localhost:3000"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_DEBUG_MODE"]
+          value: "true"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_FEATURE_FLAG"]
+          value: "new-feature"
+        template: templates/configmap_api.yaml
+
+  - it: renders extraConfig with SSO enabled
+    set:
+      api.enabled: true
+      api.sso.enabled: true
+      api.sso.baseUrl: "https://sso.example.com"
+      api.extraConfig:
+        CCF_SSO_TIMEOUT: "30s"
+        CCF_SESSION_DURATION: "1h"
+    asserts:
+      - equal:
+          path: data["CCF_SSO_CONFIG"]
+          value: "/etc/ccf/sso.yaml"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_SSO_TIMEOUT"]
+          value: "30s"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_SESSION_DURATION"]
+          value: "1h"
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "base_url: \"https://sso.example.com\""
+        template: templates/configmap_api.yaml
+
+  - it: renders extraConfig with Email enabled
+    set:
+      api.enabled: true
+      api.email.enabled: true
+      api.email.provider: "smtp"
+      api.extraConfig:
+        CCF_EMAIL_BATCH_SIZE: "100"
+        CCF_EMAIL_RETRY_ATTEMPTS: "3"
+    asserts:
+      - equal:
+          path: data["CCF_EMAIL_CONFIG"]
+          value: "/etc/ccf/email.yaml"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_EMAIL_BATCH_SIZE"]
+          value: "100"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_EMAIL_RETRY_ATTEMPTS"]
+          value: "3"
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["email.yaml"]
+          pattern: "provider: \"smtp\""
+        template: templates/configmap_api.yaml
+
+  - it: renders extraConfig with both SSO and Email enabled
+    set:
+      api.enabled: true
+      api.sso.enabled: true
+      api.email.enabled: true
+      api.extraConfig:
+        CCF_NOTIFICATION_CHANNEL: "email"
+        CCF_AUDIT_ENABLED: "true"
+    asserts:
+      - equal:
+          path: data["CCF_SSO_CONFIG"]
+          value: "/etc/ccf/sso.yaml"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_EMAIL_CONFIG"]
+          value: "/etc/ccf/email.yaml"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_NOTIFICATION_CHANNEL"]
+          value: "email"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AUDIT_ENABLED"]
+          value: "true"
+        template: templates/configmap_api.yaml
+
+  - it: does not render when API is disabled
+    set:
+      api.enabled: false
+      api.extraConfig:
+        CCF_SHOULD_NOT_RENDER: "true"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_api.yaml
+
+  - it: handles empty extraConfig object gracefully
+    set:
+      api.enabled: true
+      api.extraConfig: {}
+    asserts:
+      - containsDocument:
+          kind: ConfigMap
+          apiVersion: v1
+        template: templates/configmap_api.yaml
+      - notExists:
+          path: data["CCF_EMAIL_DIGEST_SCHEDULE"]
+        template: templates/configmap_api.yaml
