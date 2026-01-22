@@ -55,8 +55,8 @@ spec:
             - name: CCF_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
-                  key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+                  name: {{ include "ccf-app.databasePasswordSecret" . }}
+                  key: {{ include "ccf-app.databasePasswordKey" . }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
             {{- if .Values.api.sso.enabled }}
@@ -170,8 +170,8 @@ spec:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
-                  key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+                  name: {{ include "ccf-app.databasePasswordSecret" . }}
+                  key: {{ include "ccf-app.databasePasswordKey" . }}
           {{- with .Values.api.initResources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -210,8 +210,8 @@ spec:
             - name: CCF_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
-                  key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+                  name: {{ include "ccf-app.databasePasswordSecret" . }}
+                  key: {{ include "ccf-app.databasePasswordKey" . }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
           {{- with .Values.api.initResources }}
@@ -237,8 +237,8 @@ spec:
             - name: CCF_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.database.local.enabled }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.external.existingSecret }}{{ end }}
-                  key: {{ if .Values.database.local.enabled }}POSTGRES_PASSWORD{{ else }}{{ .Values.database.external.passwordKey }}{{ end }}
+                  name: {{ include "ccf-app.databasePasswordSecret" . }}
+                  key: {{ include "ccf-app.databasePasswordKey" . }}
             - name: CCF_INITIAL_USER_PASSWORD
               valueFrom:
                 secretKeyRef:

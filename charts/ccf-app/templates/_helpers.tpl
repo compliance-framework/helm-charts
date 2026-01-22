@@ -94,6 +94,40 @@ and return a new random password.
 {{- end -}}
 
 {{/*
+Return the database password secret name and key based on configuration.
+This function centralizes the logic for determining which secret and key to use
+for database password authentication across all containers and init containers.
+*/}}
+{{- define "ccf-app.databasePasswordSecret" -}}
+{{- if .Values.database.local.enabled -}}
+  {{- if .Values.database.local.createSecret -}}
+    {{- printf "%s-psql" (include "ccf-app.fullname" .) -}}
+  {{- else if .Values.database.local.existingSecret -}}
+    {{- .Values.database.local.existingSecret -}}
+  {{- else -}}
+    {{- fail "database.local.enabled is true but neither createSecret nor existingSecret is set" -}}
+  {{- end -}}
+{{- else -}}
+  {{- if .Values.database.external.existingSecret -}}
+    {{- .Values.database.external.existingSecret -}}
+  {{- else -}}
+    {{- fail "database.local.enabled is false but database.external.existingSecret is not set" -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the database password secret key based on configuration.
+*/}}
+{{- define "ccf-app.databasePasswordKey" -}}
+{{- if .Values.database.local.enabled -}}
+  {{- print "POSTGRES_PASSWORD" -}}
+{{- else -}}
+  {{- print .Values.database.external.passwordKey -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Return the base selector labels for a component.
 */}}
 {{- define "ccf-app.componentBaseLabels" -}}

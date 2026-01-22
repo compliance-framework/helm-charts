@@ -1,0 +1,90 @@
+suite: database password test
+templates:
+  - templates/deployment_api.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: should render deployment
+    asserts:
+      - containsDocument:
+          kind: Deployment
+          apiVersion: apps/v1
+        template: templates/deployment_api.yaml
+
+  - it: should work with default values
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: "ccf-app-psql"
+        template: templates/deployment_api.yaml
+
+  - it: should work with external database
+    set:
+      database:
+        local:
+          enabled: false
+        external:
+          existingSecret: "external-db-secret"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: "external-db-secret"
+        template: templates/deployment_api.yaml
+
+  - it: should work with local database and existingSecret
+    set:
+      database:
+        local:
+          enabled: true
+          createSecret: false
+          existingSecret: "existing-psql-secret"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: "existing-psql-secret"
+        template: templates/deployment_api.yaml
+
+  - it: should fail when local database enabled but no secret configuration
+    set:
+      database:
+        local:
+          enabled: true
+          createSecret: false
+          existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "database.local.enabled is true but neither createSecret nor existingSecret is set"
+        template: templates/deployment_api.yaml
+
+  - it: should fail when external database enabled but no existingSecret
+    set:
+      database:
+        local:
+          enabled: false
+        external:
+          existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "database.local.enabled is false but database.external.existingSecret is not set"
+        template: templates/deployment_api.yaml
+
+  - it: should use consistent secret references across all containers
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: "ccf-app-psql"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].valueFrom.secretKeyRef.name
+          value: "ccf-app-psql"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[2].env[0].valueFrom.secretKeyRef.name
+          value: "ccf-app-psql"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[3].env[0].valueFrom.secretKeyRef.name
+          value: "ccf-app-psql"
+        template: templates/deployment_api.yaml

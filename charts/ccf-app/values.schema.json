@@ -499,11 +499,17 @@
                 "local": {
                     "type": "object",
                     "properties": {
+                        "createSecret": {
+                            "type": "boolean"
+                        },
                         "database": {
                             "type": "string"
                         },
                         "enabled": {
                             "type": "boolean"
+                        },
+                        "existingSecret": {
+                            "type": "string"
                         },
                         "image": {
                             "type": "object",

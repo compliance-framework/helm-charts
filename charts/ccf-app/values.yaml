@@ -249,6 +249,8 @@ ui:
 database:
   local:
     enabled: true
+    createSecret: true
+    existingSecret: ""
     username: ccf
     database: ccf
     password: ""
