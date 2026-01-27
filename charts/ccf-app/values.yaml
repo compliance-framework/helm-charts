@@ -78,7 +78,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.9.0"
+    tag: "0.11.0"
   containerPort: 8080
   service:
     enabled: true
@@ -209,7 +209,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.6.0"
+    tag: "2.6.1"
   containerPort: 80
   service:
     enabled: true
