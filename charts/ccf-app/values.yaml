@@ -277,6 +277,7 @@ database:
       createPersistentVolume: true # Set false when using a dynamic storageClass (e.g., ebs-gp3)
       existingVolume: ""
       size: 10Gi
+      mountPath: "/var/lib/postgresql/data"
       storageClass: "standard"
       volumeMode: Filesystem
       accessModes:
