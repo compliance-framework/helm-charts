@@ -543,6 +543,9 @@
                                 "existingVolume": {
                                     "type": "string"
                                 },
+                                "mountPath": {
+                                    "type": "string"
+                                },
                                 "nodeAffinity": {
                                     "type": "object"
                                 },
