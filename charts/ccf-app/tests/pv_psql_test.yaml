@@ -1,0 +1,78 @@
+suite: postgresql persistent volume test
+templates:
+  - templates/pv-psql.yaml
+  - templates/pvc_psql.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: should not create PV when createPersistentVolume is false
+    set:
+      database:
+        local:
+          enabled: true
+          persistence:
+            createPersistentVolume: false
+            storageClass: ebs-gp3
+            size: 10Gi
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/pv-psql.yaml
+
+  - it: should create PV when createPersistentVolume is true
+    set:
+      database:
+        local:
+          enabled: true
+          persistence:
+            createPersistentVolume: true
+            storageClass: ebs-gp3
+            size: 10Gi
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: templates/pv-psql.yaml
+      - isKind:
+          of: PersistentVolume
+        template: templates/pv-psql.yaml
+
+  - it: should create PV by default when createPersistentVolume is not set
+    set:
+      database:
+        local:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: templates/pv-psql.yaml
+      - isKind:
+          of: PersistentVolume
+        template: templates/pv-psql.yaml
+
+  - it: should not create PV when database local is disabled
+    set:
+      database:
+        local:
+          enabled: false
+        external:
+          existingSecret: "external-db-secret"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/pv-psql.yaml
+
+  - it: should not include volumeName in PVC when createPersistentVolume is false
+    set:
+      database:
+        local:
+          enabled: true
+          persistence:
+            createPersistentVolume: false
+            storageClass: ebs-gp3
+            size: 10Gi
+    asserts:
+      - notExists:
+          path: spec.volumeName
+        template: templates/pvc_psql.yaml

@@ -1,4 +1,4 @@
-{{- if and .Values.database.local.enabled (not .Values.database.local.persistence.existingVolume) (.Values.database.local.persistence.createPersistentVolume | default true) }}
+{{- if and .Values.database.local.enabled (not .Values.database.local.persistence.existingVolume) (ne (toString .Values.database.local.persistence.createPersistentVolume) "false") }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
