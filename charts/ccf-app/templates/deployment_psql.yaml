@@ -59,7 +59,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
-            - mountPath: /var/lib/postgresql/data
+            - mountPath: {{ .Values.database.local.persistence.mountPath }}
               name: postgresdata
       volumes:
         - name: postgresdata
