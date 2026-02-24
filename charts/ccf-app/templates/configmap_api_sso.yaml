@@ -1,0 +1,26 @@
+{{- if and .Values.api.enabled .Values.api.sso.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api-sso
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+data:
+  sso.yaml: |
+    enabled: true
+    base_url: {{ .Values.api.sso.baseUrl | quote }}
+    callback_url: {{ .Values.api.sso.callbackUrl | quote }}
+    providers:
+      {{- range $key, $val := .Values.api.sso.providers }}
+      {{- if $val.enabled }}
+      {{ $key }}:
+        {{- range $k, $v := $val }}
+        {{- if and (ne $k "clientSecret") (ne $k "clientId") }}
+        {{ $k | snakecase }}: {{ $v | toJson }}
+        {{- else }}
+        {{ $k | snakecase }}: ""
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+{{- end }}

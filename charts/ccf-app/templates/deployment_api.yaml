@@ -145,9 +145,22 @@ spec:
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: true
-            {{- if or .Values.api.sso.enabled .Values.api.email.enabled }}
-            - mountPath: /etc/ccf/
-              name: api-config
+            {{- if .Values.api.sso.enabled }}
+            - mountPath: /etc/ccf/sso.yaml
+              name: api-sso-config
+              subPath: sso.yaml
+              readOnly: true
+            {{- end }}
+            {{- if .Values.api.email.enabled }}
+            - mountPath: /etc/ccf/email.yaml
+              name: api-email-config
+              subPath: email.yaml
+              readOnly: true
+            {{- end }}
+            {{- if .Values.api.workflow.enabled }}
+            - mountPath: /etc/ccf/workflow.yaml
+              name: api-workflow-config
+              subPath: workflow.yaml
               readOnly: true
             {{- end }}
           livenessProbe:
@@ -263,19 +276,20 @@ spec:
             secretName: {{ include "ccf-app.fullname" . }}-jwt-private-key
         - name: publickey
           emptyDir: {}
-        {{- if or .Values.api.sso.enabled .Values.api.email.enabled }}
-        - name: api-config
+        {{- if .Values.api.sso.enabled }}
+        - name: api-sso-config
           configMap:
-            name: {{ include "ccf-app.fullname" . }}-api
-            items:
-              {{- if .Values.api.sso.enabled }}
-              - key: sso.yaml
-                path: sso.yaml
-              {{- end }}
-              {{- if .Values.api.email.enabled }}
-              - key: email.yaml
-                path: email.yaml
-              {{- end }}
+            name: {{ include "ccf-app.fullname" . }}-api-sso
+        {{- end }}
+        {{- if .Values.api.email.enabled }}
+        - name: api-email-config
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-api-email
+        {{- end }}
+        {{- if .Values.api.workflow.enabled }}
+        - name: api-workflow-config
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-api-workflow
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

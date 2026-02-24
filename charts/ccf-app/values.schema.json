@@ -452,6 +452,38 @@
                 },
                 "webBaseUrl": {
                     "type": "string"
+                },
+                "workflow": {
+                    "type": "object",
+                    "properties": {
+                        "dueSoonEnabled": {
+                            "type": "boolean"
+                        },
+                        "dueSoonSchedule": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "gracePeriodDays": {
+                            "type": "integer"
+                        },
+                        "overdueCheckEnabled": {
+                            "type": "boolean"
+                        },
+                        "schedule": {
+                            "type": "string"
+                        },
+                        "schedulerEnabled": {
+                            "type": "boolean"
+                        },
+                        "taskDigestEnabled": {
+                            "type": "boolean"
+                        },
+                        "taskDigestSchedule": {
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },

@@ -78,7 +78,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.11.0"
+    tag: "0.12.0"
   containerPort: 8080
   service:
     enabled: true
@@ -155,6 +155,18 @@ api:
         groupMapping:
           "github-organization:compliance-framework": ["ccf-authorized-users"]
 
+  # Workflow configuration
+  workflow:
+    enabled: false
+    schedulerEnabled: true
+    schedule: "@every 15m"
+    gracePeriodDays: 7
+    overdueCheckEnabled: true
+    dueSoonEnabled: true
+    dueSoonSchedule: "0 0 8 * * *"
+    taskDigestEnabled: true
+    taskDigestSchedule: "0 0 8 * * *"
+
   # Email configuration
   email:
     enabled: false
@@ -209,7 +221,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.6.1"
+    tag: "2.7.0"
   containerPort: 80
   service:
     enabled: true
