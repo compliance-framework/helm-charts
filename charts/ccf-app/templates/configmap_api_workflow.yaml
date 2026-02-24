@@ -1,0 +1,18 @@
+{{- if and .Values.api.enabled .Values.api.workflow.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api-workflow
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+data:
+  workflow.yaml: |
+    scheduler_enabled: {{ .Values.api.workflow.schedulerEnabled }}
+    scheduler_schedule: {{ .Values.api.workflow.schedule | quote }}
+    grace_period_days: {{ .Values.api.workflow.gracePeriodDays }}
+    overdue_check_enabled: {{ .Values.api.workflow.overdueCheckEnabled }}
+    due_soon_enabled: {{ .Values.api.workflow.dueSoonEnabled }}
+    due_soon_schedule: {{ .Values.api.workflow.dueSoonSchedule | quote }}
+    task_digest_enabled: {{ .Values.api.workflow.taskDigestEnabled }}
+    task_digest_schedule: {{ .Values.api.workflow.taskDigestSchedule | quote }}
+{{- end }}

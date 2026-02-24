@@ -1,6 +1,8 @@
 suite: API extraConfig parameter
 templates:
   - templates/configmap_api.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
 release:
   name: ccf-app
   namespace: default
@@ -127,7 +129,7 @@ tests:
       - matchRegex:
           path: data["sso.yaml"]
           pattern: "base_url: \"https://sso.example.com\""
-        template: templates/configmap_api.yaml
+        template: templates/configmap_api_sso.yaml
 
   - it: renders extraConfig with Email enabled
     set:
@@ -153,7 +155,7 @@ tests:
       - matchRegex:
           path: data["email.yaml"]
           pattern: "provider: \"smtp\""
-        template: templates/configmap_api.yaml
+        template: templates/configmap_api_email.yaml
 
   - it: renders extraConfig with both SSO and Email enabled
     set:

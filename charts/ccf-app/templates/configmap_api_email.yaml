@@ -1,0 +1,25 @@
+{{- if and .Values.api.enabled .Values.api.email.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api-email
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+data:
+  email.yaml: |
+    enabled: true
+    provider: {{ .Values.api.email.provider | quote }}
+    providers:
+      {{- range $key, $val := .Values.api.email.providers }}
+      {{- if $val.enabled }}
+      {{ $key }}:
+        {{- range $k, $v := $val }}
+        {{- if and (ne $k "password") (ne $k "accessKeyId") (ne $k "secretAccessKey") (ne $k "sessionToken") }}
+        {{ $k | snakecase }}: {{ $v | toJson }}
+        {{- else }}
+        {{ $k | snakecase }}: ""
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+{{- end }}

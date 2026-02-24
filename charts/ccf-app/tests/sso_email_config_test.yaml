@@ -1,6 +1,8 @@
 suite: SSO and Email configuration
 templates:
   - templates/configmap_api.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
   - templates/deployment_api.yaml
   - templates/secrets_api_config.yaml
 release:
@@ -17,14 +19,12 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/secrets_api_config.yaml
-      - notMatchRegex:
-          path: data["sso.yaml"]
-          pattern: "enabled: true"
-        template: templates/configmap_api.yaml
-      - notMatchRegex:
-          path: data["email.yaml"]
-          pattern: "enabled: true"
-        template: templates/configmap_api.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_api_sso.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_api_email.yaml
 
   - it: Google SSO enabled, create secret
     set:
@@ -49,15 +49,15 @@ tests:
       - matchRegex:
           path: data["sso.yaml"]
           pattern: "base_url: \"http://ui.example.com\""
-        template: templates/configmap_api.yaml
+        template: templates/configmap_api_sso.yaml
       - matchRegex:
           path: data["sso.yaml"]
           pattern: "issuer_url: \"https://accounts.google.com\""
-        template: templates/configmap_api.yaml
+        template: templates/configmap_api_sso.yaml
       - matchRegex:
           path: data["sso.yaml"]
           pattern: "client_id"
-        template: templates/configmap_api.yaml
+        template: templates/configmap_api_sso.yaml
 
   - it: Github SSO enabled, import secret
     set:
@@ -98,7 +98,7 @@ tests:
       - matchRegex:
           path: data["email.yaml"]
           pattern: "host: \"smtp.example.com\""
-        template: templates/configmap_api.yaml
+        template: templates/configmap_api_email.yaml
 
   - it: email & google SSO enabled, import two different secrets
     set:

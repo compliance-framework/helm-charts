@@ -1,0 +1,102 @@
+suite: Workflow configuration
+templates:
+  - templates/configmap_api.yaml
+  - templates/configmap_api_workflow.yaml
+  - templates/deployment_api.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: Regression (workflow=false)
+    set:
+      api.enabled: true
+      api.workflow.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_api_workflow.yaml
+      - notExists:
+          path: data["CCF_WORKFLOW_CONFIG"]
+        template: templates/configmap_api.yaml
+
+  - it: Workflow enabled with defaults
+    set:
+      api.enabled: true
+      api.workflow.enabled: true
+    asserts:
+      - equal:
+          path: data["CCF_WORKFLOW_CONFIG"]
+          value: "/etc/ccf/workflow.yaml"
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "scheduler_enabled: true"
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "scheduler_schedule: \"@every 15m\""
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "grace_period_days: 7"
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "overdue_check_enabled: true"
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "due_soon_enabled: true"
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "task_digest_enabled: true"
+        template: templates/configmap_api_workflow.yaml
+
+  - it: Workflow enabled with custom settings
+    set:
+      api.enabled: true
+      api.workflow.enabled: true
+      api.workflow.schedulerEnabled: false
+      api.workflow.schedule: "0 * * * *"
+      api.workflow.gracePeriodDays: 14
+      api.workflow.overdueCheckEnabled: false
+    asserts:
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "scheduler_enabled: false"
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "scheduler_schedule: \"0 \\* \\* \\* \\*\""
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "grace_period_days: 14"
+        template: templates/configmap_api_workflow.yaml
+      - matchRegex:
+          path: data["workflow.yaml"]
+          pattern: "overdue_check_enabled: false"
+        template: templates/configmap_api_workflow.yaml
+
+  - it: Workflow configmap mounted in deployment
+    set:
+      api.enabled: true
+      api.workflow.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /etc/ccf/workflow.yaml
+            name: api-workflow-config
+            subPath: workflow.yaml
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: api-workflow-config
+            configMap:
+              name: ccf-app-api-workflow
+        template: templates/deployment_api.yaml
