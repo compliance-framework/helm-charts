@@ -173,6 +173,70 @@
                         }
                     }
                 },
+                "jwt": {
+                    "type": "object",
+                    "properties": {
+                        "existingSecret": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "privateKey": {
+                                    "type": "string"
+                                },
+                                "publicKey": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "publicKeyGeneration": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                },
+                                "initContainer": {
+                                    "type": "object",
+                                    "properties": {
+                                        "args": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "command": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "image": {
+                                            "type": "object",
+                                            "properties": {
+                                                "pullPolicy": {
+                                                    "type": "string"
+                                                },
+                                                "repository": {
+                                                    "type": "string"
+                                                },
+                                                "tag": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "source": {
+                            "type": "string"
+                        }
+                    }
+                },
                 "labels": {
                     "type": "object"
                 },

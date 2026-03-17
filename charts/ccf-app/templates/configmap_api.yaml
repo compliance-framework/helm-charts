@@ -1,4 +1,5 @@
 {{- if .Values.api.enabled }}
+{{- $jwt := include "ccf-app.jwtRuntimeConfig" . | fromYaml -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -12,8 +13,10 @@ data:
   CCF_DB_PORT: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"
   CCF_DB_NAME: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.database }}{{ else }}{{ .Values.database.external.database }}{{ end }}"
   CCF_DB_USER: "{{ if .Values.database.local.enabled }}{{ .Values.database.local.username }}{{ else }}{{ .Values.database.external.username }}{{ end }}"
+  {{- if not $jwt.inMemory }}
   CCF_JWT_PRIVATE_KEY: "/var/ccf/private_key/private_key.pem"
   CCF_JWT_PUBLIC_KEY: "/var/ccf/public_key/public_key.pem"
+  {{- end }}
   CCF_WEB_BASE_URL: {{ .Values.api.webBaseUrl | quote }}
   CCF_ENVIRONMENT: {{ .Values.api.environment | default "production" | quote }}
   CCF_API_ALLOWED_ORIGINS: {{ if .Values.api.corsOrigins }}{{ .Values.api.corsOrigins | join "," | quote }}{{ else }}"http://localhost:3000"{{ end }}
