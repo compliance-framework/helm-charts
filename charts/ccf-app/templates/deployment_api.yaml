@@ -201,7 +201,7 @@ spec:
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
-              readOnly: {{ not $jwt.publicKeyWritable }}
+              readOnly: true
           {{- end }}
         {{- if $jwt.publicGenerationEnabled }}
         - name: {{ $jwt.generationContainerName }}
@@ -250,7 +250,7 @@ spec:
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
-              readOnly: {{ not $jwt.publicKeyWritable }}
+              readOnly: true
           {{- end }}
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
@@ -284,7 +284,7 @@ spec:
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
-              readOnly: {{ not $jwt.publicKeyWritable }}
+              readOnly: true
           {{- end }}
       {{- if $jwt.apiHasVolumes }}
       volumes:

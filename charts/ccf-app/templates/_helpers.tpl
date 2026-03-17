@@ -156,7 +156,6 @@ existingSecretName: {{ default "" $jwtExistingSecretValues.name | quote }}
 existingPrivateKey: {{ default "private_key.pem" $jwtExistingSecretValues.privateKey | quote }}
 existingPublicKey: {{ default "public_key.pem" $jwtExistingSecretValues.publicKey | quote }}
 publicGenerationEnabled: {{ $jwtPublicGenerationEnabled }}
-publicKeyWritable: {{ $jwtPublicGenerationEnabled }}
 fileMountsEnabled: {{ $jwtFileMountsEnabled }}
 generationContainerName: {{ default "generate-public-key" $jwtGenerationInitContainerValues.name | quote }}
 generationImageRepository: {{ default "alpine" $jwtGenerationImageValues.repository | quote }}
