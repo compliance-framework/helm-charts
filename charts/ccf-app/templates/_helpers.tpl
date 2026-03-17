@@ -128,6 +128,49 @@ Return the database password secret key based on configuration.
 {{- end -}}
 
 {{/*
+Resolve and validate JWT runtime configuration once for reuse across templates.
+*/}}
+{{- define "ccf-app.jwtRuntimeConfig" -}}
+{{- $jwtValues := default (dict) .Values.api.jwt -}}
+{{- $jwtExistingSecretValues := default (dict) $jwtValues.existingSecret -}}
+{{- $jwtPublicKeyGenerationValues := default (dict) $jwtValues.publicKeyGeneration -}}
+{{- $jwtGenerationInitContainerValues := default (dict) $jwtPublicKeyGenerationValues.initContainer -}}
+{{- $jwtGenerationImageValues := default (dict) $jwtGenerationInitContainerValues.image -}}
+{{- $jwtSource := default "generated" $jwtValues.source -}}
+{{- if and (ne $jwtSource "generated") (ne $jwtSource "existingSecret") (ne $jwtSource "inMemory") -}}
+{{- fail "api.jwt.source must be one of 'generated', 'existingSecret', or 'inMemory'" -}}
+{{- end -}}
+{{- $jwtUseExistingSecret := eq $jwtSource "existingSecret" -}}
+{{- if and $jwtUseExistingSecret (empty $jwtExistingSecretValues.name) -}}
+{{- fail "api.jwt.existingSecret.name is required when api.jwt.source is 'existingSecret'" -}}
+{{- end -}}
+{{- $jwtPublicGenerationEnabledValue := ternary $jwtPublicKeyGenerationValues.enabled true (hasKey $jwtPublicKeyGenerationValues "enabled") -}}
+{{- $jwtPublicGenerationEnabled := and (eq $jwtSource "generated") $jwtPublicGenerationEnabledValue -}}
+{{- $jwtFileMountsEnabled := ne $jwtSource "inMemory" -}}
+{{- $apiHasConfigMounts := or .Values.api.sso.enabled .Values.api.email.enabled .Values.api.workflow.enabled -}}
+{{- $apiHasVolumeMounts := or $jwtFileMountsEnabled $apiHasConfigMounts -}}
+source: {{ $jwtSource | quote }}
+inMemory: {{ eq $jwtSource "inMemory" }}
+useExistingSecret: {{ $jwtUseExistingSecret }}
+existingSecretName: {{ default "" $jwtExistingSecretValues.name | quote }}
+existingPrivateKey: {{ default "private_key.pem" $jwtExistingSecretValues.privateKey | quote }}
+existingPublicKey: {{ default "public_key.pem" $jwtExistingSecretValues.publicKey | quote }}
+publicGenerationEnabled: {{ $jwtPublicGenerationEnabled }}
+publicKeyWritable: {{ $jwtPublicGenerationEnabled }}
+fileMountsEnabled: {{ $jwtFileMountsEnabled }}
+generationContainerName: {{ default "generate-public-key" $jwtGenerationInitContainerValues.name | quote }}
+generationImageRepository: {{ default "alpine" $jwtGenerationImageValues.repository | quote }}
+generationImageTag: {{ default "3.21" $jwtGenerationImageValues.tag | quote }}
+generationImagePullPolicy: {{ default "IfNotPresent" $jwtGenerationImageValues.pullPolicy | quote }}
+generationCommand:
+{{- toYaml (default (list "sh" "-c") $jwtGenerationInitContainerValues.command) | nindent 2 }}
+generationArgs:
+{{- toYaml (default (list "apk add --no-cache openssl && echo \"Generating public key from private key...\" && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem") $jwtGenerationInitContainerValues.args) | nindent 2 }}
+apiHasVolumeMounts: {{ $apiHasVolumeMounts }}
+apiHasVolumes: {{ $apiHasVolumeMounts }}
+{{- end -}}
+
+{{/*
 Return the base selector labels for a component.
 */}}
 {{- define "ccf-app.componentBaseLabels" -}}

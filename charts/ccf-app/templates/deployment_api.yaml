@@ -1,4 +1,5 @@
 {{- if .Values.api.enabled }}
+{{- $jwt := include "ccf-app.jwtRuntimeConfig" . | fromYaml -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -138,13 +139,16 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if $jwt.apiHasVolumeMounts }}
           volumeMounts:
+            {{- if $jwt.fileMountsEnabled }}
             - mountPath: /var/ccf/private_key/
               name: privatekey
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: true
+            {{- end }}
             {{- if .Values.api.sso.enabled }}
             - mountPath: /etc/ccf/sso.yaml
               name: api-sso-config
@@ -163,6 +167,7 @@ spec:
               subPath: workflow.yaml
               readOnly: true
             {{- end }}
+          {{- end }}
           livenessProbe:
             {{- with .Values.api.livenessProbe }}
             {{- toYaml . | nindent 12 }}
@@ -189,17 +194,23 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if $jwt.fileMountsEnabled }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
-              readOnly: false
-        - name: generate-public-key
-          image: "alpine:3.21"
-          imagePullPolicy: IfNotPresent
-          command: ['sh', '-c', 'apk add --no-cache openssl && echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem']
+              readOnly: {{ not $jwt.publicKeyWritable }}
+          {{- end }}
+        {{- if $jwt.publicGenerationEnabled }}
+        - name: {{ $jwt.generationContainerName }}
+          image: "{{ $jwt.generationImageRepository }}:{{ $jwt.generationImageTag }}"
+          imagePullPolicy: {{ $jwt.generationImagePullPolicy }}
+          command:
+            {{- toYaml $jwt.generationCommand | nindent 12 }}
+          args:
+            {{- toYaml $jwt.generationArgs | nindent 12 }}
           {{- with .Values.api.initResources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -211,6 +222,7 @@ spec:
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: false
+        {{- end }}
         - name: migrate-db
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
@@ -231,13 +243,15 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if $jwt.fileMountsEnabled }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
-              readOnly: false
+              readOnly: {{ not $jwt.publicKeyWritable }}
+          {{- end }}
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
@@ -263,19 +277,37 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if $jwt.fileMountsEnabled }}
           volumeMounts:
             - mountPath: /var/ccf/private_key/
               name: privatekey
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
-              readOnly: false
+              readOnly: {{ not $jwt.publicKeyWritable }}
+          {{- end }}
+      {{- if $jwt.apiHasVolumes }}
       volumes:
+        {{- if $jwt.fileMountsEnabled }}
         - name: privatekey
           secret:
-            secretName: {{ include "ccf-app.fullname" . }}-jwt-private-key
+            secretName: {{ if $jwt.useExistingSecret }}{{ $jwt.existingSecretName }}{{ else }}{{ include "ccf-app.fullname" . }}-jwt-private-key{{ end }}
+            {{- if $jwt.useExistingSecret }}
+            items:
+              - key: {{ $jwt.existingPrivateKey }}
+                path: private_key.pem
+            {{- end }}
         - name: publickey
+          {{- if $jwt.useExistingSecret }}
+          secret:
+            secretName: {{ $jwt.existingSecretName }}
+            items:
+              - key: {{ $jwt.existingPublicKey }}
+                path: public_key.pem
+          {{- else }}
           emptyDir: {}
+          {{- end }}
+        {{- end }}
         {{- if .Values.api.sso.enabled }}
         - name: api-sso-config
           configMap:
@@ -291,6 +323,7 @@ spec:
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-workflow
         {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

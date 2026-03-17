@@ -1,0 +1,159 @@
+suite: JWT key handling
+templates:
+  - templates/deployment_api.yaml
+  - templates/secrets_api.yaml
+  - templates/configmap_api.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: uses generated private key secret and public key init container by default
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: "generate-public-key"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].image
+          value: "alpine:3.21"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: "ccf-app-jwt-private-key"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].emptyDir
+          value: {}
+        template: templates/deployment_api.yaml
+      - hasDocuments:
+          count: 2
+        template: templates/secrets_api.yaml
+
+  - it: allows overriding JWT public key init container image and command
+    set:
+      api.jwt.publicKeyGeneration.initContainer.name: "custom-generate-public-key"
+      api.jwt.publicKeyGeneration.initContainer.image.repository: "my-registry/alpine"
+      api.jwt.publicKeyGeneration.initContainer.image.tag: "3.22"
+      api.jwt.publicKeyGeneration.initContainer.image.pullPolicy: "Always"
+      api.jwt.publicKeyGeneration.initContainer.command:
+        - "/bin/sh"
+        - "-c"
+      api.jwt.publicKeyGeneration.initContainer.args:
+        - "echo custom && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem"
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: "custom-generate-public-key"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].image
+          value: "my-registry/alpine:3.22"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].imagePullPolicy
+          value: "Always"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].command[0]
+          value: "/bin/sh"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].args[0]
+          value: "echo custom && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem"
+        template: templates/deployment_api.yaml
+
+  - it: can mount both keys from an existing secret and skip key generation init container
+    set:
+      api.jwt.source: "existingSecret"
+      api.jwt.existingSecret.name: "external-jwt-secret"
+      api.jwt.existingSecret.privateKey: "jwt-private.pem"
+      api.jwt.existingSecret.publicKey: "jwt-public.pem"
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")]
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: "external-jwt-secret"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.items[0].key
+          value: "jwt-private.pem"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.items[0].path
+          value: "private_key.pem"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].secret.secretName
+          value: "external-jwt-secret"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].secret.items[0].key
+          value: "jwt-public.pem"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].secret.items[0].path
+          value: "public_key.pem"
+        template: templates/deployment_api.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/secrets_api.yaml
+
+  - it: can disable public key generation init container
+    set:
+      api.jwt.publicKeyGeneration.enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")]
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].emptyDir
+          value: {}
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[1].readOnly
+          value: true
+        template: templates/deployment_api.yaml
+
+  - it: can use in-memory JWT keys without mounts, key volumes, or key env vars
+    set:
+      api.jwt.source: "inMemory"
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")]
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name == "privatekey")]
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name == "publickey")]
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].volumeMounts[?(@.name == "privatekey")]
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].volumeMounts[?(@.name == "publickey")]
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: spec.template.spec.initContainers[0].volumeMounts
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: data["CCF_JWT_PRIVATE_KEY"]
+        template: templates/configmap_api.yaml
+      - notExists:
+          path: data["CCF_JWT_PUBLIC_KEY"]
+        template: templates/configmap_api.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/secrets_api.yaml
+
+  - it: fails when existing secret mode is set without a secret name
+    set:
+      api.jwt.source: "existingSecret"
+      api.jwt.existingSecret.name: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.jwt.existingSecret.name is required when api.jwt.source is 'existingSecret'"
+        template: templates/secrets_api.yaml

@@ -79,6 +79,29 @@ api:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: "0.12.0"
+  # JWT signing key management for the API.
+  jwt:
+    # generated: chart generates a private key and (optionally) derives public key via init container
+    # existingSecret: mount both keys from an existing Kubernetes Secret
+    # inMemory: API generates and stores JWT keys in memory (no key env vars, volumes, or key mounts)
+    source: generated
+    existingSecret:
+      name: ""
+      privateKey: private_key.pem
+      publicKey: public_key.pem
+    publicKeyGeneration:
+      enabled: true
+      initContainer:
+        name: generate-public-key
+        image:
+          repository: alpine
+          tag: "3.21"
+          pullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+        args:
+          - apk add --no-cache openssl && echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem
   containerPort: 8080
   service:
     enabled: true
