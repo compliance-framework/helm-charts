@@ -53,6 +53,9 @@
         "extraEnvFrom": {
             "type": "array"
         },
+        "extraObjects": {
+            "type": "array"
+        },
         "fullnameOverride": {
             "type": "string"
         },

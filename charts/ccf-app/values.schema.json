@@ -744,6 +744,9 @@
                 }
             }
         },
+        "extraObjects": {
+            "type": "array"
+        },
         "fullnameOverride": {
             "type": "string"
         },
