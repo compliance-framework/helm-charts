@@ -333,6 +333,18 @@ database:
     passwordKey: password
     databaseKey: database
 
+# Extra Kubernetes objects to deploy alongside the chart.
+# Each entry is rendered as a full manifest via tpl, so templating is supported.
+# Example:
+#   extraObjects:
+#     - apiVersion: v1
+#       kind: ConfigMap
+#       metadata:
+#         name: my-extra-config
+#       data:
+#         key: value
+extraObjects: []
+
 pgadmin4:
   enabled: false
   autoscaling:
