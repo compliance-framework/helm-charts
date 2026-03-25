@@ -72,6 +72,15 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
+# Init containers to run before the agent container starts.
+initContainers: []
+# - name: plugin-sidecar
+#   image: my-plugin-sidecar:latest
+#   command: ["sh", "-c", "cp -rv /plugins/* /output/"]
+#   volumeMounts:
+#     - name: plugins
+#       mountPath: /output
+
 # Additional volumes on the output Deployment definition.
 volumes: []
 # - name: foo

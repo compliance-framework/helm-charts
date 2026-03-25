@@ -76,6 +76,9 @@
         "imagePullSecrets": {
             "type": "array"
         },
+        "initContainers": {
+            "type": "array"
+        },
         "livenessProbe": {
             "type": "object",
             "properties": {
