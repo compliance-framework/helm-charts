@@ -1,0 +1,154 @@
+suite: init containers
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: does not render initContainers by default
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers
+        template: templates/deployment.yaml
+
+  - it: renders a single init container
+    set:
+      initContainers:
+        - name: plugin-sidecar
+          image: ccf-plugin-sidecar:latest
+          command: ["sh", "-c", "cp -rv /plugins/* /output/"]
+          volumeMounts:
+            - name: plugins
+              mountPath: /output
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: plugin-sidecar
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: ccf-plugin-sidecar:latest
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: plugins
+            mountPath: /output
+        template: templates/deployment.yaml
+
+  - it: renders init container security context
+    set:
+      initContainers:
+        - name: plugin-sidecar
+          image: ccf-plugin-sidecar:latest3
+          imagePullPolicy: Never
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          command: ["sh", "-c", "cp -rv /plugins/* /output/"]
+          volumeMounts:
+            - name: plugins
+              mountPath: /output
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.allowPrivilegeEscalation
+          value: false
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.readOnlyRootFilesystem
+          value: true
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
+          value: true
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsUser
+          value: 1000
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.capabilities.drop[0]
+          value: ALL
+        template: templates/deployment.yaml
+
+  - it: renders multiple init containers
+    set:
+      initContainers:
+        - name: plugin-sidecar-a
+          image: ccf-plugin-sidecar-a:latest
+          command: ["sh", "-c", "cp -rv /plugins-a/* /output/"]
+          volumeMounts:
+            - name: plugins
+              mountPath: /output
+        - name: plugin-sidecar-b
+          image: ccf-plugin-sidecar-b:latest
+          command: ["sh", "-c", "cp -rv /plugins-b/* /output/"]
+          volumeMounts:
+            - name: plugins
+              mountPath: /output
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: plugin-sidecar-a
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: plugin-sidecar-b
+        template: templates/deployment.yaml
+
+  - it: init containers share volumes with the agent container
+    set:
+      volumes:
+        - name: plugins
+          emptyDir: {}
+      volumeMounts:
+        - name: plugins
+          mountPath: /plugins
+          readOnly: true
+      initContainers:
+        - name: plugin-sidecar
+          image: ccf-plugin-sidecar:latest
+          command: ["sh", "-c", "cp -rv /plugins/* /output/"]
+          volumeMounts:
+            - name: plugins
+              mountPath: /output
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: plugins
+            emptyDir: {}
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: plugins
+            mountPath: /plugins
+            readOnly: true
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: plugins
+            mountPath: /output
+        template: templates/deployment.yaml
+
+  - it: renders init container with imagePullPolicy Never (local image)
+    set:
+      initContainers:
+        - name: plugin-sidecar
+          image: ccf-plugin-sidecar:latest3
+          imagePullPolicy: Never
+          command: ["sh", "-c", "cp -rv /plugins/* /output/"]
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].imagePullPolicy
+          value: Never
+        template: templates/deployment.yaml
