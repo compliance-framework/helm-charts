@@ -50,6 +50,9 @@ spec:
                 secretKeyRef:
                   name: {{ if .Values.database.local.createSecret }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.local.existingSecret }}{{ end }}
                   key: POSTGRES_PASSWORD
+            {{- with .Values.database.local.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           ports:
             - name: postgres
               containerPort: 5432

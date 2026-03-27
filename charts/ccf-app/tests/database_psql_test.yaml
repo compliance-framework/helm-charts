@@ -30,6 +30,22 @@ tests:
           value: "/custom/pgdata"
         template: templates/deployment_psql.yaml
 
+  - it: should append extraEnv entries to postgres container env
+    set:
+      database:
+        local:
+          enabled: true
+          extraEnv:
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_INITDB_ARGS
+            value: "--data-checksums"
+        template: templates/deployment_psql.yaml
+
   - it: should not render when local database is disabled
     set:
       database:

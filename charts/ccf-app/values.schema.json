@@ -607,6 +607,9 @@
                         "existingSecret": {
                             "type": "string"
                         },
+                        "extraEnv": {
+                            "type": "array"
+                        },
                         "image": {
                             "type": "object",
                             "properties": {
