@@ -604,11 +604,11 @@
                         "enabled": {
                             "type": "boolean"
                         },
-                        "extraEnv": {
-                            "type": "array"
-                        },
                         "existingSecret": {
                             "type": "string"
+                        },
+                        "extraEnv": {
+                            "type": "array"
                         },
                         "image": {
                             "type": "object",
