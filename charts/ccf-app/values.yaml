@@ -321,6 +321,7 @@ database:
       path: "/var/lib/ccf-postgresql"
       nodeAffinity: {}
     resources: {}
+    extraEnv: []
   external:
     secretRef: ""
     hostname: ""

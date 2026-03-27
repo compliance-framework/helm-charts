@@ -604,6 +604,9 @@
                         "enabled": {
                             "type": "boolean"
                         },
+                        "extraEnv": {
+                            "type": "array"
+                        },
                         "existingSecret": {
                             "type": "string"
                         },
