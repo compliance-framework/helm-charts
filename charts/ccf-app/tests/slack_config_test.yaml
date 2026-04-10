@@ -40,7 +40,7 @@ tests:
       api.slack.redirectUrl: ""
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.redirectUrl is required when api.slack.clientId and clientSecret are provided"
+          errorMessage: "api.slack.redirectUrl is required when api.slack.clientId and api.slack.clientSecret are provided"
         template: templates/configmap_api_slack.yaml
 
   - it: Fails when only clientSecret is provided without clientId
@@ -65,6 +65,9 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/configmap_api_slack.yaml
+      - notExists:
+          path: data["CCF_SLACK_CONFIG"]
+        template: templates/configmap_api.yaml
 
   - it: Slack enabled with token only (no OAuth pair)
     set:
@@ -74,6 +77,10 @@ tests:
       api.slack.digestChannel: "ccf-alerts"
       api.slack.token: "xoxb-test-token"
     asserts:
+      - equal:
+          path: data["CCF_SLACK_CONFIG"]
+          value: "/etc/ccf/slack.yaml"
+        template: templates/configmap_api.yaml
       - containsDocument:
           kind: Secret
           apiVersion: v1
@@ -145,13 +152,15 @@ tests:
           value: "ccf-app-api-config"
         template: templates/deployment_api.yaml
 
-  - it: Slack enabled, import existing secret
+  - it: Slack enabled, existing secret with OAuth (clientId set as signal)
     set:
       api.enabled: true
       api.slack.enabled: true
       api.slack.existingSecret: "external-slack-secret"
       api.slack.digestChannel: "ccf-alerts"
       api.slack.redirectUrl: "https://example.com/api/auth/slack/link/callback"
+      api.slack.clientId: "oauth-configured"
+      api.slack.clientSecret: "oauth-configured"
     asserts:
       - hasDocuments:
           count: 0
@@ -163,4 +172,44 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[?(@.name == "CCF_SLACK_CLIENT_ID")].valueFrom.secretKeyRef.name
           value: "external-slack-secret"
+        template: templates/deployment_api.yaml
+
+  - it: Slack enabled, existing secret token only (no clientId)
+    set:
+      api.enabled: true
+      api.slack.enabled: true
+      api.slack.existingSecret: "external-slack-secret"
+      api.slack.digestChannel: "ccf-alerts"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SLACK_TOKEN")].valueFrom.secretKeyRef.name
+          value: "external-slack-secret"
+        template: templates/deployment_api.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SLACK_CLIENT_ID")]
+        template: templates/deployment_api.yaml
+
+  - it: Slack configmap mounted in deployment
+    set:
+      api.enabled: true
+      api.slack.enabled: true
+      api.slack.token: "xoxb-test-token"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /etc/ccf/slack.yaml
+            name: api-slack-config
+            subPath: slack.yaml
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: api-slack-config
+            configMap:
+              name: ccf-app-api-slack
         template: templates/deployment_api.yaml

@@ -142,7 +142,7 @@ spec:
               {{- else }}
               value: {{ .Values.api.slack.token | quote }}
               {{- end }}
-            {{- if or .Values.api.slack.existingSecret .Values.api.slack.clientId }}
+            {{- if .Values.api.slack.clientId }}
             - name: CCF_SLACK_CLIENT_ID
               {{- if or .Values.api.slack.createSecret .Values.api.slack.existingSecret }}
               valueFrom:
