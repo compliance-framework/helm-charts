@@ -1,0 +1,13 @@
+{{- if and .Values.api.enabled .Values.api.slack.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api-slack
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+data:
+  slack.yaml: |
+    enabled: true
+    digest_channel: {{ .Values.api.slack.digestChannel | quote }}
+    redirect_url: {{ .Values.api.slack.redirectUrl | quote }}
+{{- end }}

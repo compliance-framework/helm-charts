@@ -147,7 +147,7 @@ Resolve and validate JWT runtime configuration once for reuse across templates.
 {{- $jwtPublicGenerationEnabledValue := ternary $jwtPublicKeyGenerationValues.enabled true (hasKey $jwtPublicKeyGenerationValues "enabled") -}}
 {{- $jwtPublicGenerationEnabled := and (eq $jwtSource "generated") $jwtPublicGenerationEnabledValue -}}
 {{- $jwtFileMountsEnabled := ne $jwtSource "inMemory" -}}
-{{- $apiHasConfigMounts := or .Values.api.sso.enabled .Values.api.email.enabled .Values.api.workflow.enabled -}}
+{{- $apiHasConfigMounts := or .Values.api.sso.enabled .Values.api.email.enabled .Values.api.workflow.enabled .Values.api.slack.enabled -}}
 {{- $apiHasVolumeMounts := or $jwtFileMountsEnabled $apiHasConfigMounts -}}
 source: {{ $jwtSource | quote }}
 inMemory: {{ eq $jwtSource "inMemory" }}

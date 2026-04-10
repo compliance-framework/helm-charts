@@ -132,6 +132,35 @@ spec:
             {{- end }}
             {{- end }}
             {{- end }}
+            {{- if .Values.api.slack.enabled }}
+            - name: CCF_SLACK_CLIENT_ID
+              {{- if or .Values.api.slack.createSecret .Values.api.slack.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.slack.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.slack.existingSecret }}{{ end }}
+                  key: CCF_SLACK_CLIENT_ID
+              {{- else }}
+              value: {{ .Values.api.slack.clientId | quote }}
+              {{- end }}
+            - name: CCF_SLACK_CLIENT_SECRET
+              {{- if or .Values.api.slack.createSecret .Values.api.slack.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.slack.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.slack.existingSecret }}{{ end }}
+                  key: CCF_SLACK_CLIENT_SECRET
+              {{- else }}
+              value: {{ .Values.api.slack.clientSecret | quote }}
+              {{- end }}
+            - name: CCF_SLACK_TOKEN
+              {{- if or .Values.api.slack.createSecret .Values.api.slack.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.slack.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.slack.existingSecret }}{{ end }}
+                  key: CCF_SLACK_TOKEN
+              {{- else }}
+              value: {{ .Values.api.slack.token | quote }}
+              {{- end }}
+            {{- end }}
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -165,6 +194,12 @@ spec:
             - mountPath: /etc/ccf/workflow.yaml
               name: api-workflow-config
               subPath: workflow.yaml
+              readOnly: true
+            {{- end }}
+            {{- if .Values.api.slack.enabled }}
+            - mountPath: /etc/ccf/slack.yaml
+              name: api-slack-config
+              subPath: slack.yaml
               readOnly: true
             {{- end }}
           {{- end }}
@@ -322,6 +357,11 @@ spec:
         - name: api-workflow-config
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-workflow
+        {{- end }}
+        {{- if .Values.api.slack.enabled }}
+        - name: api-slack-config
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-api-slack
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
