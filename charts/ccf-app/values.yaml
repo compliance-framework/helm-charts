@@ -178,6 +178,17 @@ api:
         groupMapping:
           "github-organization:compliance-framework": ["ccf-authorized-users"]
 
+  # Slack configuration
+  slack:
+    enabled: false
+    # createSecret: true # If true, a secret will be created with sensitive values
+    # existingSecret: "" # If provided, sensitive values will be pulled from this secret
+    digestChannel: ""
+    redirectUrl: "https://localhost:8080/api/auth/slack/link/callback"
+    clientId: ""
+    clientSecret: ""
+    token: ""
+
   # Workflow configuration
   workflow:
     enabled: false

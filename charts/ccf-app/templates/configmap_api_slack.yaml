@@ -1,0 +1,27 @@
+{{- if and .Values.api.enabled .Values.api.slack.enabled }}
+{{- if not .Values.api.slack.existingSecret }}
+{{- if not .Values.api.slack.token }}
+{{- fail "api.slack.token is required when api.slack.enabled is true" }}
+{{- end }}
+{{- if and .Values.api.slack.clientId (not .Values.api.slack.clientSecret) }}
+{{- fail "api.slack.clientSecret is required when api.slack.clientId is provided" }}
+{{- end }}
+{{- if and .Values.api.slack.clientSecret (not .Values.api.slack.clientId) }}
+{{- fail "api.slack.clientId is required when api.slack.clientSecret is provided" }}
+{{- end }}
+{{- if and .Values.api.slack.clientId (not .Values.api.slack.redirectUrl) }}
+{{- fail "api.slack.redirectUrl is required when api.slack.clientId and api.slack.clientSecret are provided" }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api-slack
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+data:
+  slack.yaml: |
+    enabled: true
+    digest_channel: {{ .Values.api.slack.digestChannel | quote }}
+    redirect_url: {{ .Values.api.slack.redirectUrl | quote }}
+{{- end }}
