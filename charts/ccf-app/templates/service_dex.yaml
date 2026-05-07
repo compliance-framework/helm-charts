@@ -1,0 +1,21 @@
+{{- if and .Values.dex.enabled .Values.dex.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-dex
+  labels:
+    {{- include "ccf-app.componentServiceLabels" (dict "root" . "name" "dex" "component" .Values.dex) | nindent 4 }}
+  {{- with .Values.dex.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.dex.service.type }}
+  ports:
+    - port: {{ .Values.dex.service.port }}
+      targetPort: {{ default "http" .Values.dex.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "dex") | nindent 4 }}
+{{- end }}

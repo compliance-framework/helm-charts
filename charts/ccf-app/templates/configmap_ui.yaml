@@ -8,6 +8,6 @@ metadata:
 data:
   config.json: |
     {
-      "API_URL": {{ .Values.ui.apiUrl | quote }}
+      "API_URL": {{ include "ccf-app.uiApiUrl" . | quote }}
     }
 {{- end }}

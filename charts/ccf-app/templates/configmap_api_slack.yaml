@@ -9,7 +9,7 @@
 {{- if and .Values.api.slack.clientSecret (not .Values.api.slack.clientId) }}
 {{- fail "api.slack.clientId is required when api.slack.clientSecret is provided" }}
 {{- end }}
-{{- if and .Values.api.slack.clientId (not .Values.api.slack.redirectUrl) }}
+{{- if and .Values.api.slack.clientId (not (include "ccf-app.apiSlackRedirectUrl" .)) }}
 {{- fail "api.slack.redirectUrl is required when api.slack.clientId and api.slack.clientSecret are provided" }}
 {{- end }}
 {{- end }}
@@ -23,5 +23,5 @@ data:
   slack.yaml: |
     enabled: true
     digest_channel: {{ .Values.api.slack.digestChannel | quote }}
-    redirect_url: {{ .Values.api.slack.redirectUrl | quote }}
+    redirect_url: {{ include "ccf-app.apiSlackRedirectUrl" . | quote }}
 {{- end }}

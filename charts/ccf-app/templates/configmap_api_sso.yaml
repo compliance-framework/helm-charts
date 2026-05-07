@@ -1,4 +1,4 @@
-{{- if and .Values.api.enabled .Values.api.sso.enabled }}
+{{- if and .Values.api.enabled (or .Values.api.sso.enabled .Values.dex.enabled) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,9 +8,27 @@ metadata:
 data:
   sso.yaml: |
     enabled: true
-    base_url: {{ .Values.api.sso.baseUrl | quote }}
-    callback_url: {{ .Values.api.sso.callbackUrl | quote }}
+    base_url: {{ include "ccf-app.apiSSOBaseUrl" . | quote }}
+    callback_url: {{ include "ccf-app.apiSSOCallbackUrl" . | quote }}
     providers:
+      {{- if .Values.dex.enabled }}
+      {{ .Values.dex.sso.name }}:
+        name: {{ .Values.dex.sso.name | quote }}
+        display_name: {{ .Values.dex.sso.displayName | quote }}
+        provider: {{ .Values.dex.sso.provider | quote }}
+        protocol: {{ .Values.dex.sso.protocol | quote }}
+        icon_url: {{ .Values.dex.sso.iconUrl | quote }}
+        required_login_groups: {{ .Values.dex.sso.requiredLoginGroups | toJson }}
+        required_admin_groups: {{ .Values.dex.sso.requiredAdminGroups | toJson }}
+        client_id: ""
+        client_secret: ""
+        issuer_url: {{ include "ccf-app.dexIssuerUrl" . | quote }}
+        well_known_url: {{ include "ccf-app.dexWellKnownUrl" . | quote }}
+        scopes: {{ .Values.dex.sso.scopes | toJson }}
+        enabled: true
+        group_mapping: {{ .Values.dex.sso.groupMapping | toJson }}
+      {{- end }}
+      {{- if .Values.api.sso.enabled }}
       {{- range $key, $val := .Values.api.sso.providers }}
       {{- if $val.enabled }}
       {{ $key }}:
@@ -21,6 +39,7 @@ data:
         {{ $k | snakecase }}: ""
         {{- end }}
         {{- end }}
+      {{- end }}
       {{- end }}
       {{- end }}
 {{- end }}

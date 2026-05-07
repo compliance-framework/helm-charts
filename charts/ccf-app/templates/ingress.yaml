@@ -1,7 +1,21 @@
 {{- $apiIngressEnabled := and .Values.api.enabled .Values.api.service.enabled .Values.api.ingress.enabled -}}
 {{- $uiIngressEnabled := and .Values.ui.enabled .Values.ui.service.enabled .Values.ui.ingress.enabled -}}
+{{- $dexIngressEnabled := and .Values.dex.enabled .Values.dex.service.enabled .Values.dex.ingress.enabled -}}
 {{- $pgadmin4IngressEnabled := and .Values.pgadmin4.enabled .Values.pgadmin4.service.enabled .Values.pgadmin4.ingress.enabled -}}
-{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled $pgadmin4IngressEnabled) -}}
+{{- $webBaseHost := include "ccf-app.webBaseHost" . -}}
+{{- $apiIngressHosts := .Values.api.ingress.hosts -}}
+{{- if and $apiIngressEnabled (not $apiIngressHosts) $webBaseHost -}}
+{{- $apiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/api/" "pathType" "ImplementationSpecific"))) -}}
+{{- end -}}
+{{- $uiIngressHosts := .Values.ui.ingress.hosts -}}
+{{- if and $uiIngressEnabled (not $uiIngressHosts) $webBaseHost -}}
+{{- $uiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/" "pathType" "ImplementationSpecific"))) -}}
+{{- end -}}
+{{- $dexIngressHosts := .Values.dex.ingress.hosts -}}
+{{- if and $dexIngressEnabled (not $dexIngressHosts) $webBaseHost -}}
+{{- $dexIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/dex" "pathType" "Prefix"))) -}}
+{{- end -}}
+{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled $dexIngressEnabled $pgadmin4IngressEnabled) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,6 +31,9 @@ metadata:
   {{- end }}
   {{- if $uiIngressEnabled }}
   {{- $annotations = merge $annotations (default (dict) .Values.ui.ingress.annotations) -}}
+  {{- end }}
+  {{- if $dexIngressEnabled }}
+  {{- $annotations = merge $annotations (default (dict) .Values.dex.ingress.annotations) -}}
   {{- end }}
   {{- if $pgadmin4IngressEnabled }}
   {{- $annotations = merge $annotations (default (dict) .Values.pgadmin4.ingress.annotations) -}}
@@ -41,7 +58,7 @@ spec:
   {{- end }}
   rules:
     {{- if $apiIngressEnabled }}
-    {{- range .Values.api.ingress.hosts }}
+    {{- range $apiIngressHosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -72,7 +89,7 @@ spec:
     {{- end }}
     {{- end }}
     {{- if $uiIngressEnabled }}
-    {{- range .Values.ui.ingress.hosts }}
+    {{- range $uiIngressHosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -86,6 +103,37 @@ spec:
                 {{- $defaultName := printf "%s-ui" (include "ccf-app.fullname" $) -}}
                 {{- $serviceName := $defaultName -}}
                 {{- $servicePort := $.Values.ui.service.port -}}
+                {{- if .service }}
+                  {{- if .service.name }}
+                    {{- $serviceName = .service.name -}}
+                  {{- else if .service.shortName }}
+                    {{- $serviceName = printf "%s-%s" (include "ccf-app.fullname" $) .service.shortName -}}
+                  {{- end }}
+                  {{- if .service.port }}
+                    {{- $servicePort = .service.port -}}
+                  {{- end }}
+                {{- end }}
+                name: {{ $serviceName }}
+                port:
+                  number: {{ $servicePort }}
+          {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if $dexIngressEnabled }}
+    {{- range $dexIngressHosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                {{- $defaultName := printf "%s-dex" (include "ccf-app.fullname" $) -}}
+                {{- $serviceName := $defaultName -}}
+                {{- $servicePort := $.Values.dex.service.port -}}
                 {{- if .service }}
                   {{- if .service.name }}
                     {{- $serviceName = .service.name -}}

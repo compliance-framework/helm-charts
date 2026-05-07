@@ -1,0 +1,84 @@
+suite: webBaseUrl defaults
+templates:
+  - templates/configmap_api.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_dex.yaml
+  - templates/configmap_ui.yaml
+  - templates/ingress.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: derives API, UI, SSO, Dex, and ingress defaults from webBaseUrl
+    set:
+      webBaseUrl: http://ccf.127.0.0.1.sslip.io:8080
+      api:
+        sso:
+          enabled: true
+      dex:
+        enabled: true
+    asserts:
+      - equal:
+          path: data["CCF_WEB_BASE_URL"]
+          value: http://ccf.127.0.0.1.sslip.io:8080
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_API_ALLOWED_ORIGINS"]
+          value: http://ccf.127.0.0.1.sslip.io:8080
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"API_URL": "http://ccf.127.0.0.1.sslip.io:8080"'
+        template: templates/configmap_ui.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: 'base_url: "http://ccf.127.0.0.1.sslip.io:8080"'
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: 'callback_url: "http://ccf.127.0.0.1.sslip.io:8080/api/auth/sso/callback"'
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: 'issuer_url: "http://ccf.127.0.0.1.sslip.io:8080/dex"'
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'issuer: "http://ccf.127.0.0.1.sslip.io:8080/dex"'
+        template: templates/configmap_dex.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'http://ccf.127.0.0.1.sslip.io:8080/api/auth/sso/callback/dex'
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.rules[?(@.host == "ccf.127.0.0.1.sslip.io")].http.paths[?(@.path == "/api/")].backend.service.name
+          value: ccf-app-api
+        template: templates/ingress.yaml
+      - equal:
+          path: spec.rules[?(@.host == "ccf.127.0.0.1.sslip.io")].http.paths[?(@.path == "/")].backend.service.name
+          value: ccf-app-ui
+        template: templates/ingress.yaml
+      - equal:
+          path: spec.rules[?(@.host == "ccf.127.0.0.1.sslip.io")].http.paths[?(@.path == "/dex")].backend.service.name
+          value: ccf-app-dex
+        template: templates/ingress.yaml
+
+  - it: lets api.webBaseUrl override API web base URL and default CORS origin
+    set:
+      webBaseUrl: https://ccf.example.com
+      api:
+        webBaseUrl: https://api.example.com
+    asserts:
+      - equal:
+          path: data["CCF_WEB_BASE_URL"]
+          value: https://api.example.com
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_API_ALLOWED_ORIGINS"]
+          value: https://api.example.com
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"API_URL": "https://ccf.example.com"'
+        template: templates/configmap_ui.yaml

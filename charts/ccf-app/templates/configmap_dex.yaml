@@ -1,0 +1,37 @@
+{{- if .Values.dex.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-dex
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "dex" "component" .Values.dex) | nindent 4 }}
+data:
+  config.yaml: |
+    issuer: {{ include "ccf-app.dexIssuerUrl" . | quote }}
+    storage:
+      {{- toYaml .Values.dex.storage | nindent 6 }}
+    web:
+      http: 0.0.0.0:{{ .Values.dex.containerPort }}
+    oauth2:
+      {{- toYaml .Values.dex.oauth2 | nindent 6 }}
+    staticClients:
+      - id: {{ .Values.dex.staticClient.id | quote }}
+        name: {{ .Values.dex.staticClient.name | quote }}
+        secretEnv: {{ include "ccf-app.dexClientSecretEnvName" . | quote }}
+        redirectURIs:
+          {{- if .Values.dex.staticClient.redirectUris }}
+          {{- toYaml .Values.dex.staticClient.redirectUris | nindent 10 }}
+          {{- else }}
+          - {{ printf "%s/%s" (include "ccf-app.apiSSOCallbackUrl" .) .Values.dex.sso.name | quote }}
+          {{- end }}
+    connectors:
+      {{- toYaml .Values.dex.connectors | nindent 6 }}
+    enablePasswordDB: {{ .Values.dex.enablePasswordDB }}
+    {{- with .Values.dex.staticPasswords }}
+    staticPasswords:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- range $key, $val := .Values.dex.extraConfig }}
+    {{ $key }}: {{ $val | toJson }}
+    {{- end }}
+{{- end }}

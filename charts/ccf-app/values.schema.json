@@ -29,10 +29,7 @@
                     "type": "integer"
                 },
                 "corsOrigins": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "array"
                 },
                 "email": {
                     "type": "object",
@@ -144,29 +141,7 @@
                             "type": "boolean"
                         },
                         "hosts": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "host": {
-                                        "type": "string"
-                                    },
-                                    "paths": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "path": {
-                                                    "type": "string"
-                                                },
-                                                "pathType": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            "type": "array"
                         },
                         "labels": {
                             "type": "object"
@@ -770,6 +745,213 @@
                 }
             }
         },
+        "dex": {
+            "type": "object",
+            "properties": {
+                "clientSecret": {
+                    "type": "object",
+                    "properties": {
+                        "createSecret": {
+                            "type": "boolean"
+                        },
+                        "envName": {
+                            "type": "string"
+                        },
+                        "existingSecret": {
+                            "type": "string"
+                        },
+                        "secretKey": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "command": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "connectors": {
+                    "type": "array"
+                },
+                "containerPort": {
+                    "type": "integer"
+                },
+                "enablePasswordDB": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "extraConfig": {
+                    "type": "object"
+                },
+                "extraEnv": {
+                    "type": "array"
+                },
+                "extraEnvFrom": {
+                    "type": "array"
+                },
+                "image": {
+                    "type": "object",
+                    "properties": {
+                        "pullPolicy": {
+                            "type": "string"
+                        },
+                        "repository": {
+                            "type": "string"
+                        },
+                        "tag": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "ingress": {
+                    "type": "object",
+                    "properties": {
+                        "annotations": {
+                            "type": "object"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "hosts": {
+                            "type": "array"
+                        },
+                        "labels": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "issuerUrl": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "object"
+                },
+                "oauth2": {
+                    "type": "object",
+                    "properties": {
+                        "alwaysShowLoginScreen": {
+                            "type": "boolean"
+                        },
+                        "responseTypes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "skipApprovalScreen": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "podAnnotations": {
+                    "type": "object"
+                },
+                "podLabels": {
+                    "type": "object"
+                },
+                "podSecurityContext": {
+                    "type": "object"
+                },
+                "replicaCount": {
+                    "type": "integer"
+                },
+                "resources": {
+                    "type": "object"
+                },
+                "securityContext": {
+                    "type": "object"
+                },
+                "service": {
+                    "type": "object",
+                    "properties": {
+                        "annotations": {
+                            "type": "object"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "labels": {
+                            "type": "object"
+                        },
+                        "port": {
+                            "type": "integer"
+                        },
+                        "targetPort": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "sso": {
+                    "type": "object",
+                    "properties": {
+                        "displayName": {
+                            "type": "string"
+                        },
+                        "groupMapping": {
+                            "type": "object"
+                        },
+                        "iconUrl": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "protocol": {
+                            "type": "string"
+                        },
+                        "provider": {
+                            "type": "string"
+                        },
+                        "requiredAdminGroups": {
+                            "type": "array"
+                        },
+                        "requiredLoginGroups": {
+                            "type": "array"
+                        },
+                        "scopes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "staticClient": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "redirectUris": {
+                            "type": "array"
+                        }
+                    }
+                },
+                "staticPasswords": {
+                    "type": "array"
+                },
+                "storage": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "extraObjects": {
             "type": "array"
         },
@@ -1134,29 +1316,7 @@
                             "type": "boolean"
                         },
                         "hosts": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "host": {
-                                        "type": "string"
-                                    },
-                                    "paths": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "path": {
-                                                    "type": "string"
-                                                },
-                                                "pathType": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            "type": "array"
                         },
                         "labels": {
                             "type": "object"
@@ -1312,6 +1472,9 @@
                     }
                 }
             }
+        },
+        "webBaseUrl": {
+            "type": "string"
         }
     }
 }
