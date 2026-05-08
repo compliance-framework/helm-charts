@@ -29,6 +29,7 @@ tests:
   - it: Google SSO enabled, create secret
     set:
       api.enabled: true
+      api.webBaseUrl: "http://ui.example.com"
       api.sso.enabled: true
       api.sso.createSecret: true
       api.sso.baseUrl: "http://ui.example.com"
@@ -62,6 +63,7 @@ tests:
   - it: Github SSO enabled, import secret
     set:
       api.enabled: true
+      api.webBaseUrl: "https://example.com"
       api.sso.enabled: true
       api.sso.existingSecret: "external-sso-secret"
       api.sso.providers.github.enabled: true
@@ -103,6 +105,7 @@ tests:
   - it: email & google SSO enabled, import two different secrets
     set:
       api.enabled: true
+      api.webBaseUrl: "https://example.com"
       api.sso.enabled: true
       api.sso.existingSecret: "sso-secret"
       api.sso.providers.google.enabled: true

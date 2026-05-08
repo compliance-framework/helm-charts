@@ -15,7 +15,8 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-webBaseUrl: "https://ccf.example.com"
+# Web Base URL - Use it to configure default networking configuration for ccf
+webBaseUrl: ""
 
 serviceAccount:
   # Specifies whether a service account should be created.

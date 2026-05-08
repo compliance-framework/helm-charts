@@ -108,6 +108,7 @@ tests:
   - it: renders extraConfig with SSO enabled
     set:
       api.enabled: true
+      api.webBaseUrl: "https://sso.example.com"
       api.sso.enabled: true
       api.sso.baseUrl: "https://sso.example.com"
       api.extraConfig:
@@ -160,6 +161,7 @@ tests:
   - it: renders extraConfig with both SSO and Email enabled
     set:
       api.enabled: true
+      api.webBaseUrl: "https://example.com"
       api.sso.enabled: true
       api.email.enabled: true
       api.extraConfig:

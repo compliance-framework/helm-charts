@@ -33,6 +33,7 @@ tests:
 
   - it: renders Dex and wires generated client secret into Dex and CCF SSO
     set:
+      webBaseUrl: https://ccf.example.com
       dex:
         enabled: true
         clientSecret:
@@ -122,6 +123,7 @@ tests:
 
   - it: uses an existing client secret for Dex and CCF SSO
     set:
+      webBaseUrl: http://app.example.com
       dex:
         enabled: true
         issuerUrl: http://dex.example.com/custom-issuer
@@ -181,6 +183,7 @@ tests:
 
   - it: derives Dex SSO provider config and API env vars from dex.sso.name
     set:
+      webBaseUrl: https://ccf.example.com
       dex:
         enabled: true
         sso:
@@ -205,6 +208,7 @@ tests:
 
   - it: fails when Dex is enabled without the in-chart Service
     set:
+      webBaseUrl: https://ccf.example.com
       dex:
         enabled: true
         service:
@@ -237,6 +241,7 @@ tests:
 
   - it: mounts Dex configuration from an existing Secret instead of rendering a ConfigMap
     set:
+      webBaseUrl: https://ccf.example.com
       dex:
         enabled: true
         config:
