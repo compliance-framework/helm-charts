@@ -223,7 +223,7 @@ Merge helper for component service labels.
 {{- end }}
 
 {{/*
-Convert camelCase to snake_case
+webBaseUrl and URL/ingress helper functions
 */}}
 
 {{- define "ccf-app.webBaseUrl" -}}
