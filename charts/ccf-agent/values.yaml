@@ -116,7 +116,7 @@ agent:
     # enables sending agent execution evidence to the API
     enabled: false
     # interval to send agent execution evidence
-    interval: "1h" 
+    interval: "1h"
   
   # API configuration
   api:

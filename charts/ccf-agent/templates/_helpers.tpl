@@ -78,12 +78,18 @@ Validate agent API authentication configuration
 {{- define "ccf-agent.validateAuthConfig" -}}
 {{- if .Values.agent.api.auth.enabled }}
 {{- $auth := .Values.agent.api.auth }}
+{{- if and $auth.createSecret $auth.existingSecret }}
+{{- fail "agent.api.auth: cannot set both createSecret and existingSecret" }}
+{{- end }}
 {{- if $auth.createSecret }}
 {{- if not $auth.clientId.value }}
 {{- fail "agent.api.auth: when createSecret is true, clientId.value must be set" }}
 {{- end }}
 {{- if not $auth.clientSecret.value }}
 {{- fail "agent.api.auth: when createSecret is true, clientSecret.value must be set" }}
+{{- end }}
+{{- if or $auth.clientId.secretKeyRef $auth.clientSecret.secretKeyRef }}
+{{- fail "agent.api.auth: when createSecret is true, secretKeyRef must not be set" }}
 {{- end }}
 {{- end }}
 {{- if $auth.existingSecret }}
@@ -96,6 +102,12 @@ Validate agent API authentication configuration
 {{- if not $auth.clientSecret.secretKeyRef }}
 {{- fail "agent.api.auth: when existingSecret is set, clientSecret.secretKeyRef must be set" }}
 {{- end }}
+{{- end }}
+{{- if and $auth.clientId.secretKeyRef (not $auth.existingSecret) }}
+{{- fail "agent.api.auth: clientId.secretKeyRef requires existingSecret to be set" }}
+{{- end }}
+{{- if and $auth.clientSecret.secretKeyRef (not $auth.existingSecret) }}
+{{- fail "agent.api.auth: clientSecret.secretKeyRef requires existingSecret to be set" }}
 {{- end }}
 {{- end }}
 {{- end }}

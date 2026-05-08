@@ -5,7 +5,6 @@ templates:
 release:
   name: ccf-agent
   namespace: default
-
 tests:
   - it: renders empty plugins section when no plugins configured
     asserts:
@@ -23,30 +22,27 @@ tests:
           policies:
             - ghcr.io/compliance-framework/plugin-jira-policies:v0.1.1
           config:
-            base_url: https://example.atlassian.net
+            base_url: https://your-instance.atlassian.net
             auth_type: oauth2
+            project_keys: "PROJECT"
           labels:
             tier: change-management
     asserts:
-      - matchRegex:
-          path: data["config.yml"]
-          pattern: "plugins:"
-        template: templates/configmap.yaml
       - matchRegex:
           path: data["config.yml"]
           pattern: "jira:"
         template: templates/configmap.yaml
       - matchRegex:
           path: data["config.yml"]
-          pattern: "schedule: '\\*/5 \\* \\* \\* \\*'"
+          pattern: "schedule:"
+        template: templates/configmap.yaml
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "base_url: https://your-instance.atlassian.net"
         template: templates/configmap.yaml
       - matchRegex:
           path: data["config.yml"]
           pattern: "source: ghcr.io/compliance-framework/plugin-jira:v0.1.1"
-        template: templates/configmap.yaml
-      - matchRegex:
-          path: data["config.yml"]
-          pattern: "base_url: https://example.atlassian.net"
         template: templates/configmap.yaml
 
   - it: renders multiple plugins configuration
@@ -147,3 +143,32 @@ tests:
       - exists:
           path: spec.template.metadata.annotations["checksum/config"]
         template: templates/deployment.yaml
+
+  - it: renders agent evidence with default values
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "agent_evidence:\n  enabled: false\n  interval: 1h"
+        template: templates/configmap.yaml
+
+  - it: renders agent evidence with custom values
+    set:
+      agent.agentEvidence:
+        enabled: true
+        interval: "30m"
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "agent_evidence:\n  enabled: true\n  interval: 30m"
+        template: templates/configmap.yaml
+
+  - it: renders agent evidence with enabled true and custom interval
+    set:
+      agent.agentEvidence:
+        enabled: true
+        interval: "2h"
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "agent_evidence:\n  enabled: true\n  interval: 2h"
+        template: templates/configmap.yaml

@@ -102,7 +102,7 @@ agent:
         value: "your-client-secret"
 ```
 
-This creates a Kubernetes Secret named `ccf-agent-auth` containing the credentials.
+This creates a Kubernetes Secret named `<release-name>-auth` (default: `ccf-agent-auth`) containing the credentials.
 
 #### Option 2: Reference an existing secret
 
