@@ -90,3 +90,14 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/ingress.yaml
+
+  - it: fails when SSO callback URL cannot be derived as an absolute URL
+    set:
+      webBaseUrl: ""
+      api:
+        sso:
+          enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.sso.callbackUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
+        template: templates/configmap_api_sso.yaml

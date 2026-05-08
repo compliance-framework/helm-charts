@@ -254,7 +254,11 @@ Convert camelCase to snake_case
 {{- end -}}
 
 {{- define "ccf-app.apiSSOCallbackUrl" -}}
-{{- default (printf "%s/api/auth/sso/callback" (include "ccf-app.webBaseUrl" .)) .Values.api.sso.callbackUrl | trimSuffix "/" -}}
+{{- $url := default (printf "%s/api/auth/sso/callback" (include "ccf-app.webBaseUrl" .)) .Values.api.sso.callbackUrl | trimSuffix "/" -}}
+{{- if not (regexMatch "^https?://" $url) -}}
+{{- fail "api.sso.callbackUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled" -}}
+{{- end -}}
+{{- $url -}}
 {{- end -}}
 
 {{- define "ccf-app.apiSlackRedirectUrl" -}}
@@ -271,14 +275,20 @@ Convert camelCase to snake_case
 {{- end -}}
 
 {{- define "ccf-app.dexIssuerUrl" -}}
-{{- default (printf "%s/dex" (include "ccf-app.webBaseUrl" .)) .Values.dex.issuerUrl | trimSuffix "/" -}}
+{{- $url := default (printf "%s/dex" (include "ccf-app.webBaseUrl" .)) .Values.dex.issuerUrl | trimSuffix "/" -}}
+{{- if not (regexMatch "^https?://" $url) -}}
+{{- fail "dex.issuerUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when dex.enabled is true" -}}
+{{- end -}}
+{{- $url -}}
 {{- end -}}
 
 {{- define "ccf-app.dexWellKnownUrl" -}}
 {{- if not .Values.dex.service.enabled -}}
 {{- fail "dex.service.enabled must be true when dex.enabled is true" -}}
 {{- end -}}
-{{- printf "http://%s-dex:%v/dex/.well-known/openid-configuration" (include "ccf-app.fullname" .) .Values.dex.service.port -}}
+{{- $issuerUrl := include "ccf-app.dexIssuerUrl" . -}}
+{{- $issuerPath := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://[^/]*" $issuerUrl "" | trimSuffix "/" -}}
+{{- printf "http://%s-dex:%v%s/.well-known/openid-configuration" (include "ccf-app.fullname" .) .Values.dex.service.port $issuerPath -}}
 {{- end -}}
 
 {{- define "ccf-app.dexSSOProviderName" -}}

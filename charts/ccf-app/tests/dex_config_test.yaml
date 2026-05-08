@@ -124,7 +124,7 @@ tests:
     set:
       dex:
         enabled: true
-        issuerUrl: http://dex.example.com/dex
+        issuerUrl: http://dex.example.com/custom-issuer
         staticClient:
           id: custom-client
           redirectUris:
@@ -140,7 +140,7 @@ tests:
         template: templates/secrets_dex.yaml
       - matchRegex:
           path: data["config.yaml"]
-          pattern: "issuer: \"http://dex.example.com/dex\""
+          pattern: "issuer: \"http://dex.example.com/custom-issuer\""
         template: templates/configmap_dex.yaml
       - matchRegex:
           path: data["config.yaml"]
@@ -168,11 +168,11 @@ tests:
         template: templates/deployment_api.yaml
       - matchRegex:
           path: data["sso.yaml"]
-          pattern: "issuer_url: \"http://dex.example.com/dex\""
+          pattern: "issuer_url: \"http://dex.example.com/custom-issuer\""
         template: templates/configmap_api_sso.yaml
       - matchRegex:
           path: data["sso.yaml"]
-          pattern: "well_known_url: \"http://ccf-app-dex:5556/dex/.well-known/openid-configuration\""
+          pattern: "well_known_url: \"http://ccf-app-dex:5556/custom-issuer/.well-known/openid-configuration\""
         template: templates/configmap_api_sso.yaml
 
   - it: derives Dex SSO provider config and API env vars from dex.sso.name
@@ -209,3 +209,24 @@ tests:
       - failedTemplate:
           errorMessage: "dex.service.enabled must be true when dex.enabled is true"
         template: templates/configmap_api_sso.yaml
+
+  - it: fails when Dex issuer URL cannot be derived as an absolute URL
+    set:
+      webBaseUrl: ""
+      dex:
+        enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.issuerUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when dex.enabled is true"
+        template: templates/deployment_dex.yaml
+
+  - it: fails when Dex SSO callback URL cannot be derived as an absolute URL
+    set:
+      webBaseUrl: ""
+      dex:
+        enabled: true
+        issuerUrl: https://dex.example.com/dex
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.sso.callbackUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
+        template: templates/deployment_dex.yaml
