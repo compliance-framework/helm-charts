@@ -92,6 +92,12 @@ Validate agent API authentication configuration
 {{- fail "agent.api.auth: when createSecret is true, secretKeyRef must not be set" }}
 {{- end }}
 {{- end }}
+{{- if and $auth.clientId.secretKeyRef (not $auth.existingSecret) }}
+{{- fail "agent.api.auth: clientId.secretKeyRef requires existingSecret to be set" }}
+{{- end }}
+{{- if and $auth.clientSecret.secretKeyRef (not $auth.existingSecret) }}
+{{- fail "agent.api.auth: clientSecret.secretKeyRef requires existingSecret to be set" }}
+{{- end }}
 {{- if $auth.existingSecret }}
 {{- if $auth.clientId }}
 {{- if not $auth.clientId.secretKeyRef }}
@@ -102,12 +108,6 @@ Validate agent API authentication configuration
 {{- if not $auth.clientSecret.secretKeyRef }}
 {{- fail "agent.api.auth: when existingSecret is set, clientSecret.secretKeyRef must be set" }}
 {{- end }}
-{{- end }}
-{{- if and $auth.clientId.secretKeyRef (not $auth.existingSecret) }}
-{{- fail "agent.api.auth: clientId.secretKeyRef requires existingSecret to be set" }}
-{{- end }}
-{{- if and $auth.clientSecret.secretKeyRef (not $auth.existingSecret) }}
-{{- fail "agent.api.auth: clientSecret.secretKeyRef requires existingSecret to be set" }}
 {{- end }}
 {{- end }}
 {{- end }}
