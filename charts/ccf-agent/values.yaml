@@ -111,11 +111,30 @@ agent:
   # Verbosity level (0-3)
   verbosity: 0
   
+  # Agent evidence configuration
+  agentEvidence:
+    # enables sending agent execution evidence to the API
+    enabled: false 
+    # interval to send agent execution evidence
+    interval: "1h" 
+  
   # API configuration
   api:
     # URL of the CCF API server
     url: "http://ccf-api:8080"
-  
+  # @schema
+  # description: Agent Credentials for secure communication with CCF
+  # additionalProperties:
+  #   type: object
+  #   properties:
+  #     client_id:
+  #       type: string
+  #       description: Client ID for authentication
+  #     client_secret:
+  #       type: string
+  #       description: Client secret for authentication
+  # @schema
+    auth: {}
   # Plugin configurations
   # Each plugin can have: schedule, source, policies, config, labels
   # Example:
