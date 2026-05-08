@@ -23,7 +23,40 @@
                     "type": "object",
                     "properties": {
                         "auth": {
-                            "type": "object"
+                            "type": "object",
+                            "properties": {
+                                "clientId": {
+                                    "type": "object",
+                                    "properties": {
+                                        "secretKeyRef": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "clientSecret": {
+                                    "type": "object",
+                                    "properties": {
+                                        "secretKeyRef": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "createSecret": {
+                                    "type": "boolean"
+                                },
+                                "enabled": {
+                                    "type": "boolean"
+                                },
+                                "existingSecret": {
+                                    "type": "string"
+                                }
+                            }
                         },
                         "url": {
                             "type": "string"
