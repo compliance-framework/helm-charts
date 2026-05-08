@@ -68,11 +68,11 @@ tests:
     set:
       webBaseUrl: https://ccf.example.com
       api:
-        webBaseUrl: https://api.example.com
+        webBaseUrl: https://api.example.com/ccf
     asserts:
       - equal:
           path: data["CCF_WEB_BASE_URL"]
-          value: https://api.example.com
+          value: https://api.example.com/ccf
         template: templates/configmap_api.yaml
       - equal:
           path: data["CCF_API_ALLOWED_ORIGINS"]

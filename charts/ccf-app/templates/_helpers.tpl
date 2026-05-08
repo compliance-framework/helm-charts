@@ -245,8 +245,13 @@ Convert camelCase to snake_case
 {{- if .Values.api.corsOrigins -}}
 {{- join "," .Values.api.corsOrigins -}}
 {{- else -}}
-{{- include "ccf-app.apiWebBaseUrl" . -}}
+{{- include "ccf-app.urlOrigin" (include "ccf-app.apiWebBaseUrl" .) -}}
 {{- end -}}
+{{- end -}}
+
+{{- define "ccf-app.urlOrigin" -}}
+{{- $url := . | trimSuffix "/" -}}
+{{- regexReplaceAll "^([^?#]*://[^/?#]*).*$" $url "${1}" -}}
 {{- end -}}
 
 {{- define "ccf-app.apiSSOBaseUrl" -}}
