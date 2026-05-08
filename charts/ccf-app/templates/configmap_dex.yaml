@@ -22,7 +22,7 @@ data:
           {{- if .Values.dex.staticClient.redirectUris }}
           {{- toYaml .Values.dex.staticClient.redirectUris | nindent 10 }}
           {{- else }}
-          - {{ printf "%s/%s" (include "ccf-app.apiSSOCallbackUrl" .) .Values.dex.sso.name | quote }}
+          - {{ printf "%s/%s" (include "ccf-app.apiSSOCallbackUrl" .) (include "ccf-app.dexSSOProviderName" .) | quote }}
           {{- end }}
     connectors:
       {{- toYaml .Values.dex.connectors | nindent 6 }}

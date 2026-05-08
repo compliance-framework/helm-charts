@@ -275,7 +275,22 @@ Convert camelCase to snake_case
 {{- end -}}
 
 {{- define "ccf-app.dexWellKnownUrl" -}}
+{{- if not .Values.dex.service.enabled -}}
+{{- fail "dex.service.enabled must be true when dex.enabled is true" -}}
+{{- end -}}
 {{- printf "http://%s-dex:%v/dex/.well-known/openid-configuration" (include "ccf-app.fullname" .) .Values.dex.service.port -}}
+{{- end -}}
+
+{{- define "ccf-app.dexSSOProviderName" -}}
+{{- $name := required "dex.sso.name is required when dex.enabled is true" .Values.dex.sso.name -}}
+{{- if not (regexMatch "^[A-Za-z_][A-Za-z0-9_]*$" $name) -}}
+{{- fail "dex.sso.name must contain only letters, numbers, and underscores, and must not start with a number" -}}
+{{- end -}}
+{{- $name -}}
+{{- end -}}
+
+{{- define "ccf-app.dexSSOProviderEnvPrefix" -}}
+{{- include "ccf-app.dexSSOProviderName" . | upper -}}
 {{- end -}}
 
 {{- define "ccf-app.dexClientSecretName" -}}

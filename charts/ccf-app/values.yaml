@@ -320,7 +320,7 @@ dex:
     secretKey: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
     envName: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
   sso:
-    name: dex
+    name: dex # @schema pattern: ^[A-Za-z_][A-Za-z0-9_]*$
     displayName: Dex
     provider: generic
     protocol: oidc

@@ -950,7 +950,8 @@
                             "type": "string"
                         },
                         "name": {
-                            "type": "string"
+                            "type": "string",
+                            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
                         },
                         "protocol": {
                             "type": "string"

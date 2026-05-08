@@ -82,3 +82,11 @@ tests:
           path: data["config.json"]
           pattern: '"API_URL": "https://ccf.example.com"'
         template: templates/configmap_ui.yaml
+
+  - it: skips ingress when enabled components have no explicit hosts and webBaseUrl is empty
+    set:
+      webBaseUrl: ""
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/ingress.yaml

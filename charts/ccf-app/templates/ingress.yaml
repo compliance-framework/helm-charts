@@ -3,19 +3,32 @@
 {{- $dexIngressEnabled := and .Values.dex.enabled .Values.dex.service.enabled .Values.dex.ingress.enabled -}}
 {{- $pgadmin4IngressEnabled := and .Values.pgadmin4.enabled .Values.pgadmin4.service.enabled .Values.pgadmin4.ingress.enabled -}}
 {{- $webBaseHost := include "ccf-app.webBaseHost" . -}}
-{{- $apiIngressHosts := .Values.api.ingress.hosts -}}
+{{- $apiIngressHosts := list -}}
+{{- if $apiIngressEnabled -}}
+{{- $apiIngressHosts = .Values.api.ingress.hosts -}}
 {{- if and $apiIngressEnabled (not $apiIngressHosts) $webBaseHost -}}
 {{- $apiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/api/" "pathType" "ImplementationSpecific"))) -}}
 {{- end -}}
-{{- $uiIngressHosts := .Values.ui.ingress.hosts -}}
+{{- end -}}
+{{- $uiIngressHosts := list -}}
+{{- if $uiIngressEnabled -}}
+{{- $uiIngressHosts = .Values.ui.ingress.hosts -}}
 {{- if and $uiIngressEnabled (not $uiIngressHosts) $webBaseHost -}}
 {{- $uiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/" "pathType" "ImplementationSpecific"))) -}}
 {{- end -}}
-{{- $dexIngressHosts := .Values.dex.ingress.hosts -}}
+{{- end -}}
+{{- $dexIngressHosts := list -}}
+{{- if $dexIngressEnabled -}}
+{{- $dexIngressHosts = .Values.dex.ingress.hosts -}}
 {{- if and $dexIngressEnabled (not $dexIngressHosts) $webBaseHost -}}
 {{- $dexIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/dex" "pathType" "Prefix"))) -}}
 {{- end -}}
-{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled $dexIngressEnabled $pgadmin4IngressEnabled) -}}
+{{- end -}}
+{{- $pgadmin4IngressHosts := list -}}
+{{- if $pgadmin4IngressEnabled -}}
+{{- $pgadmin4IngressHosts = .Values.pgadmin4.ingress.hosts -}}
+{{- end -}}
+{{- if and .Values.ingress.enabled (or $apiIngressHosts $uiIngressHosts $dexIngressHosts $pgadmin4IngressHosts) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -151,7 +164,7 @@ spec:
     {{- end }}
     {{- end }}
     {{- if $pgadmin4IngressEnabled }}
-    {{- range .Values.pgadmin4.ingress.hosts }}
+    {{- range $pgadmin4IngressHosts }}
     - host: {{ .host | quote }}
       http:
         paths:

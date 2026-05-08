@@ -12,8 +12,8 @@ data:
     callback_url: {{ include "ccf-app.apiSSOCallbackUrl" . | quote }}
     providers:
       {{- if .Values.dex.enabled }}
-      {{ .Values.dex.sso.name }}:
-        name: {{ .Values.dex.sso.name | quote }}
+      {{ include "ccf-app.dexSSOProviderName" . | quote }}:
+        name: {{ include "ccf-app.dexSSOProviderName" . | quote }}
         display_name: {{ .Values.dex.sso.displayName | quote }}
         provider: {{ .Values.dex.sso.provider | quote }}
         protocol: {{ .Values.dex.sso.protocol | quote }}
@@ -31,7 +31,7 @@ data:
       {{- if .Values.api.sso.enabled }}
       {{- range $key, $val := .Values.api.sso.providers }}
       {{- if $val.enabled }}
-      {{ $key }}:
+      {{ $key | quote }}:
         {{- range $k, $v := $val }}
         {{- if and (ne $k "clientSecret") (ne $k "clientId") }}
         {{ $k | snakecase }}: {{ $v | toJson }}

@@ -61,9 +61,9 @@ spec:
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
             {{- if .Values.dex.enabled }}
-            - name: CCF_SSO_PROVIDERS_DEX_CLIENT_ID
+            - name: CCF_SSO_PROVIDERS_{{ include "ccf-app.dexSSOProviderEnvPrefix" . }}_CLIENT_ID
               value: {{ .Values.dex.staticClient.id | quote }}
-            - name: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
+            - name: CCF_SSO_PROVIDERS_{{ include "ccf-app.dexSSOProviderEnvPrefix" . }}_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ccf-app.dexClientSecretName" . }}

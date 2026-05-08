@@ -174,3 +174,38 @@ tests:
           path: data["sso.yaml"]
           pattern: "well_known_url: \"http://ccf-app-dex:5556/dex/.well-known/openid-configuration\""
         template: templates/configmap_api_sso.yaml
+
+  - it: derives Dex SSO provider config and API env vars from dex.sso.name
+    set:
+      dex:
+        enabled: true
+        sso:
+          name: custom_dex
+    asserts:
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: '"custom_dex":'
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "https://ccf.example.com/api/auth/sso/callback/custom_dex"
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_CUSTOM_DEX_CLIENT_ID")].value
+          value: ccf-ui
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_CUSTOM_DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.name
+          value: ccf-app-dex
+        template: templates/deployment_api.yaml
+
+  - it: fails when Dex is enabled without the in-chart Service
+    set:
+      dex:
+        enabled: true
+        service:
+          enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.service.enabled must be true when dex.enabled is true"
+        template: templates/configmap_api_sso.yaml
