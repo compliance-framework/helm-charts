@@ -49,6 +49,44 @@ spec:
         env:
           - name: HOSTNAME
             value: {{ include "ccf-agent.hostname" . | quote }}
+          {{- if .Values.agent.api.auth.enabled }}
+          {{- if and .Values.agent.api.auth.clientId (or .Values.agent.api.auth.clientId.value .Values.agent.api.auth.clientId.secretKeyRef) }}
+          {{- if and .Values.agent.api.auth.clientId.secretKeyRef .Values.agent.api.auth.existingSecret }}
+          - name: CCF_AGENT_API_AUTH_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.agent.api.auth.existingSecret }}
+                key: {{ .Values.agent.api.auth.clientId.secretKeyRef }}
+          {{- else if and .Values.agent.api.auth.createSecret .Values.agent.api.auth.clientId.value (not .Values.agent.api.auth.clientId.secretKeyRef) }}
+          - name: CCF_AGENT_API_AUTH_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "ccf-agent.fullname" . }}-auth
+                key: CCF_AGENT_API_AUTH_CLIENT_ID
+          {{- else if and .Values.agent.api.auth.clientId.value (not .Values.agent.api.auth.clientId.secretKeyRef) }}
+          - name: CCF_AGENT_API_AUTH_CLIENT_ID
+            value: {{ .Values.agent.api.auth.clientId.value | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if and .Values.agent.api.auth.clientSecret (or .Values.agent.api.auth.clientSecret.value .Values.agent.api.auth.clientSecret.secretKeyRef) }}
+          {{- if and .Values.agent.api.auth.clientSecret.secretKeyRef .Values.agent.api.auth.existingSecret }}
+          - name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.agent.api.auth.existingSecret }}
+                key: {{ .Values.agent.api.auth.clientSecret.secretKeyRef }}
+          {{- else if and .Values.agent.api.auth.createSecret .Values.agent.api.auth.clientSecret.value (not .Values.agent.api.auth.clientSecret.secretKeyRef) }}
+          - name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "ccf-agent.fullname" . }}-auth
+                key: CCF_AGENT_API_AUTH_CLIENT_SECRET
+          {{- else if and .Values.agent.api.auth.clientSecret.value (not .Values.agent.api.auth.clientSecret.secretKeyRef) }}
+          - name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            value: {{ .Values.agent.api.auth.clientSecret.value | quote }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
           {{- range $secretRef := .Values.secretRefs }}
           {{- range $key := $secretRef.keys }}
           - name: {{ $key.envName }}

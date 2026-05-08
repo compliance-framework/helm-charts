@@ -45,7 +45,16 @@ helm install ccf-agent ./ccf-agent \
 | `agent.hostname` | Agent hostname for identification | `""` (uses pod name) |
 | `agent.daemon` | Run agent in daemon mode | `false` |
 | `agent.verbosity` | Logging verbosity (0-3) | `0` |
+| `agent.agentEvidence.enabled` | Enable agent evidence reporting | `false` |
+| `agent.agentEvidence.interval` | Evidence reporting interval | `1h` |
 | `agent.api.url` | CCF API URL | `http://ccf-api:8080` |
+| `agent.api.auth.enabled` | Enable API authentication | `false` |
+| `agent.api.auth.createSecret` | Create a secret with credentials | `false` |
+| `agent.api.auth.existingSecret` | Reference an existing secret | `""` |
+| `agent.api.auth.clientId.value` | Client ID value | `""` |
+| `agent.api.auth.clientId.secretKeyRef` | Client ID secret key reference | `""` |
+| `agent.api.auth.clientSecret.value` | Client secret value | `""` |
+| `agent.api.auth.clientSecret.secretKeyRef` | Client secret key reference | `""` |
 
 ### Plugin Configuration
 
@@ -74,6 +83,57 @@ agent:
         tier: change-management
         team: ccf
 ```
+
+### API Authentication
+
+The agent can authenticate with the CCF API using OAuth2 client credentials. Authentication can be configured in three ways:
+
+#### Option 1: Create a new secret with credentials
+
+```yaml
+agent:
+  api:
+    auth:
+      enabled: true
+      createSecret: true
+      clientId:
+        value: "your-client-id"
+      clientSecret:
+        value: "your-client-secret"
+```
+
+This creates a Kubernetes Secret named `<fullname>-auth` (e.g., `ccf-agent-auth` when installed with release name `ccf-agent`, or `myrelease-ccf-agent-auth` when installed with release name `myrelease`) containing the credentials.
+
+#### Option 2: Reference an existing secret
+
+```yaml
+agent:
+  api:
+    auth:
+      enabled: true
+      existingSecret: "my-api-credentials"
+      clientId:
+        secretKeyRef: "client-id"
+      clientSecret:
+        secretKeyRef: "client-secret"
+```
+
+This references keys from an existing Kubernetes Secret.
+
+#### Option 3: Use plain values (for development only)
+
+```yaml
+agent:
+  api:
+    auth:
+      enabled: true
+      clientId:
+        value: "your-client-id"
+      clientSecret:
+        value: "your-client-secret"
+```
+
+This sets the credentials as environment variables directly (not recommended for production).
 
 ### Secret References
 
