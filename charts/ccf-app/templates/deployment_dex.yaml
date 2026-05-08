@@ -1,0 +1,99 @@
+{{- if .Values.dex.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-dex
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "dex" "component" .Values.dex) | nindent 4 }}
+spec:
+  replicas: {{ .Values.dex.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ccf-app.componentBaseLabels" (dict "root" . "name" "dex") | nindent 6 }}
+  template:
+    metadata:
+      {{- $podAnnotations := merge (dict) (default (dict) .Values.podAnnotations) }}
+      {{- $podAnnotations = merge $podAnnotations (default (dict) .Values.dex.podAnnotations) }}
+      {{- if not .Values.dex.config.existingSecret }}
+      {{- $_ := set $podAnnotations "checksum/config" (include (print $.Template.BasePath "/configmap_dex.yaml") . | sha256sum) }}
+      {{- end }}
+      {{- if .Values.dex.clientSecret.createSecret }}
+      {{- $_ := set $podAnnotations "checksum/secret" (include (print $.Template.BasePath "/secrets_dex.yaml") . | sha256sum) }}
+      {{- end }}
+      annotations:
+        {{- toYaml $podAnnotations | nindent 8 }}
+      labels:
+        {{- include "ccf-app.componentPodLabels" (dict "root" . "name" "dex" "component" .Values.dex) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
+      {{- $podSecurityContext := coalesce .Values.dex.podSecurityContext .Values.podSecurityContext }}
+      {{- if $podSecurityContext }}
+      securityContext:
+        {{- toYaml $podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-dex
+          {{- $containerSecurityContext := coalesce .Values.dex.securityContext .Values.securityContext }}
+          {{- if $containerSecurityContext }}
+          securityContext:
+            {{- toYaml $containerSecurityContext | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.dex.image.repository }}:{{ .Values.dex.image.tag }}"
+          imagePullPolicy: {{ .Values.dex.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.dex.command | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dex.containerPort }}
+              protocol: TCP
+          env:
+            - name: {{ include "ccf-app.dexClientSecretEnvName" . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ccf-app.dexClientSecretName" . }}
+                  key: {{ include "ccf-app.dexClientSecretKey" . }}
+            {{- with .Values.dex.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.dex.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.dex.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /etc/dex/config.yaml
+              name: dex-config
+              subPath: config.yaml
+              readOnly: true
+      volumes:
+        - name: dex-config
+          {{- if .Values.dex.config.existingSecret }}
+          secret:
+            secretName: {{ .Values.dex.config.existingSecret }}
+            items:
+              - key: {{ .Values.dex.config.secretKey }}
+                path: config.yaml
+          {{- else }}
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-dex
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -32,6 +32,7 @@ tests:
 
   - it: Fails when redirectUrl is missing with OAuth pair
     set:
+      webBaseUrl: ""
       api.enabled: true
       api.slack.enabled: true
       api.slack.token: "xoxb-test-token"
@@ -40,7 +41,23 @@ tests:
       api.slack.redirectUrl: ""
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.redirectUrl is required when api.slack.clientId and api.slack.clientSecret are provided"
+          errorMessage: "api.slack.redirectUrl, api.webBaseUrl, or webBaseUrl is required when api.slack.clientId and api.slack.clientSecret are provided"
+        template: templates/configmap_api_slack.yaml
+
+  - it: Slack OAuth redirectUrl defaults from api.webBaseUrl
+    set:
+      webBaseUrl: "https://ccf.example.com"
+      api.webBaseUrl: "https://api.example.com/ccf"
+      api.enabled: true
+      api.slack.enabled: true
+      api.slack.token: "xoxb-test-token"
+      api.slack.clientId: "slack-client-id"
+      api.slack.clientSecret: "slack-client-secret"
+      api.slack.redirectUrl: ""
+    asserts:
+      - matchRegex:
+          path: data["slack.yaml"]
+          pattern: "redirect_url: \"https://api.example.com/ccf/api/auth/slack/link/callback\""
         template: templates/configmap_api_slack.yaml
 
   - it: Fails when only clientSecret is provided without clientId

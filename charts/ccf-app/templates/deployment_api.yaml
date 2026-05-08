@@ -60,6 +60,15 @@ spec:
                   key: {{ include "ccf-app.databasePasswordKey" . }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
+            {{- if .Values.dex.enabled }}
+            - name: CCF_SSO_PROVIDERS_{{ include "ccf-app.dexSSOProviderEnvPrefix" . }}_CLIENT_ID
+              value: {{ .Values.dex.staticClient.id | quote }}
+            - name: CCF_SSO_PROVIDERS_{{ include "ccf-app.dexSSOProviderEnvPrefix" . }}_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ccf-app.dexClientSecretName" . }}
+                  key: {{ include "ccf-app.dexClientSecretKey" . }}
+            {{- end }}
             {{- if .Values.api.sso.enabled }}
             {{- range $key, $val := .Values.api.sso.providers }}
             {{- if $val.enabled }}
@@ -180,7 +189,7 @@ spec:
               name: publickey
               readOnly: true
             {{- end }}
-            {{- if .Values.api.sso.enabled }}
+            {{- if or .Values.api.sso.enabled .Values.dex.enabled }}
             - mountPath: /etc/ccf/sso.yaml
               name: api-sso-config
               subPath: sso.yaml
@@ -345,7 +354,7 @@ spec:
           emptyDir: {}
           {{- end }}
         {{- end }}
-        {{- if .Values.api.sso.enabled }}
+        {{- if or .Values.api.sso.enabled .Values.dex.enabled }}
         - name: api-sso-config
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-sso

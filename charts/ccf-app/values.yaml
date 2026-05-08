@@ -15,6 +15,9 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# Web Base URL - Use it to configure default networking configuration for ccf
+webBaseUrl: ""
+
 serviceAccount:
   # Specifies whether a service account should be created.
   create: true
@@ -49,7 +52,7 @@ ingress:
 api:
   enabled: true
   replicaCount: 1
-  webBaseUrl: "http://localhost:8080"
+  webBaseUrl: ""
   environment: "production" ## Set this to local if you are not running with https
   extraConfig: {} ## optional key-value pair to inject as part of the loaded configmap
   # CCF_EMAIL_DIGEST_SCHEDULE: "@weekly"
@@ -78,7 +81,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.15.0"
+    tag: "0.16.0"
   # JWT signing key management for the API.
   jwt:
     # generated: chart generates a private key and (optionally) derives public key via init container
@@ -118,8 +121,7 @@ api:
     httpGet:
       path: /api/auth/publickey
       port: http
-  corsOrigins:
-    - https://ccf.example.com
+  corsOrigins: [] # @schema item:string
   user:
     username: admin@localhost
     email: admin@localhost
@@ -136,19 +138,15 @@ api:
     enabled: true
     labels: {}
     annotations: {}
-    hosts:
-      - host: ccf-api.example.com
-        paths:
-          - path: /
-            pathType: ImplementationSpecific
+    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
 
   # SSO configuration
   sso:
     enabled: false
     # createSecret: true # If true, a secret will be created with sensitive values
     # existingSecret: "" # If provided, sensitive values will be pulled from this secret
-    baseUrl: "http://localhost:8000"
-    callbackUrl: "http://localhost:8080/api/auth/sso/callback"
+    baseUrl: ""
+    callbackUrl: ""
     providers:
       google:
         name: "google"
@@ -184,7 +182,7 @@ api:
     # createSecret: true # If true, a secret will be created with sensitive values
     # existingSecret: "" # If provided, sensitive values will be pulled from this secret
     digestChannel: ""
-    redirectUrl: "https://localhost:8080/api/auth/slack/link/callback"
+    redirectUrl: ""
     clientId: ""
     clientSecret: ""
     token: ""
@@ -255,7 +253,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.8.0"
+    tag: "2.9.1"
   containerPort: 80
   service:
     enabled: true
@@ -264,7 +262,7 @@ ui:
     targetPort: http
     annotations: {}
     labels: {}
-  apiUrl: "https://ccf-api.example.com"
+  apiUrl: ""
   livenessProbe:
     httpGet:
       path: /
@@ -285,11 +283,75 @@ ui:
     enabled: true
     labels: {}
     annotations: {}
-    hosts:
-      - host: ccf.example.com
-        paths:
-          - path: /
-            pathType: ImplementationSpecific
+    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
+
+dex:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: ghcr.io/dexidp/dex
+    pullPolicy: IfNotPresent
+    tag: "v2.44.0"
+  command:
+    - dex
+    - serve
+    - /etc/dex/config.yaml
+  config:
+    existingSecret: ""
+    secretKey: config.yaml
+  issuerUrl: ""
+  containerPort: 5556
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 5556
+    targetPort: http
+    annotations: {}
+    labels: {}
+  ingress:
+    enabled: true
+    labels: {}
+    annotations: {}
+    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
+  staticClient:
+    id: ccf-ui
+    name: CCF UI
+    redirectUris: [] # @schema item:string
+  clientSecret:
+    value: ""
+    createSecret: true
+    existingSecret: ""
+    secretKey: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
+    envName: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
+  sso:
+    name: dex # @schema pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+    displayName: Dex
+    provider: generic
+    protocol: oidc
+    iconUrl: ""
+    scopes: ["openid", "email", "profile", "groups"]
+    requiredLoginGroups: []
+    requiredAdminGroups: []
+    groupMapping: {}
+  storage:
+    type: memory
+  oauth2:
+    responseTypes:
+      - code
+    skipApprovalScreen: true
+    alwaysShowLoginScreen: true
+  connectors: []
+  enablePasswordDB: false
+  staticPasswords: []
+  extraConfig: {}
+  labels: {}
+  podLabels: {}
+  podAnnotations: {}
+  resources: {}
+  podSecurityContext: {}
+  securityContext: {}
+  extraEnv: []
+  extraEnvFrom: []
 
 # Database configuration for either bundled or external PostgreSQL.
 database:

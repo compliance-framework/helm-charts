@@ -1,0 +1,264 @@
+suite: Dex configuration
+templates:
+  - templates/configmap_api.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_dex.yaml
+  - templates/deployment_api.yaml
+  - templates/deployment_dex.yaml
+  - templates/ingress.yaml
+  - templates/secrets_dex.yaml
+  - templates/service_dex.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: does not render Dex resources by default
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_dex.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/deployment_dex.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_dex.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/service_dex.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_api_sso.yaml
+
+  - it: renders Dex and wires generated client secret into Dex and CCF SSO
+    set:
+      webBaseUrl: https://ccf.example.com
+      dex:
+        enabled: true
+        clientSecret:
+          value: ccf-local-secret
+        sso:
+          displayName: Dex LDAP
+          requiredLoginGroups:
+            - ccf-users
+          requiredAdminGroups:
+            - ccf-admins
+          groupMapping:
+            groups:ccf-users:
+              - ccf-users
+        connectors:
+          - type: ldap
+            id: ldap
+            name: Local LDAP
+            config:
+              host: openldap:389
+              insecureNoSSL: true
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: ccf-app-dex
+        template: templates/secrets_dex.yaml
+      - equal:
+          path: data["CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET"]
+          value: "Y2NmLWxvY2FsLXNlY3JldA=="
+        template: templates/secrets_dex.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "secretEnv: \"CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET\""
+        template: templates/configmap_dex.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "https://ccf.example.com/api/auth/sso/callback/dex"
+        template: templates/configmap_dex.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "host: openldap:389"
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.name
+          value: ccf-app-dex
+        template: templates/deployment_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_DEX_CLIENT_ID")].value
+          value: ccf-ui
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.name
+          value: ccf-app-dex
+        template: templates/deployment_api.yaml
+      - equal:
+          path: data["CCF_SSO_CONFIG"]
+          value: /etc/ccf/sso.yaml
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "display_name: \"Dex LDAP\""
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "issuer_url: \"https://ccf.example.com/dex\""
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "well_known_url: \"http://ccf-app-dex:5556/dex/.well-known/openid-configuration\""
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: 'required_login_groups: \["ccf-users"\]'
+        template: templates/configmap_api_sso.yaml
+      - equal:
+          path: spec.rules[?(@.host == "ccf.example.com")].http.paths[?(@.path == "/dex")].pathType
+          value: Prefix
+        template: templates/ingress.yaml
+      - equal:
+          path: spec.rules[?(@.host == "ccf.example.com")].http.paths[?(@.path == "/dex")].backend.service.name
+          value: ccf-app-dex
+        template: templates/ingress.yaml
+      - equal:
+          path: spec.rules[?(@.host == "ccf.example.com")].http.paths[?(@.path == "/dex")].backend.service.port.number
+          value: 5556
+        template: templates/ingress.yaml
+
+  - it: uses an existing client secret for Dex and CCF SSO
+    set:
+      webBaseUrl: http://app.example.com
+      dex:
+        enabled: true
+        issuerUrl: http://dex.example.com/custom-issuer
+        staticClient:
+          id: custom-client
+          redirectUris:
+            - http://app.example.com/api/auth/sso/callback/dex
+        clientSecret:
+          createSecret: false
+          existingSecret: external-dex-secret
+          secretKey: client-secret
+          envName: DEX_CLIENT_SECRET
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_dex.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "issuer: \"http://dex.example.com/custom-issuer\""
+        template: templates/configmap_dex.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "secretEnv: \"DEX_CLIENT_SECRET\""
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.name
+          value: external-dex-secret
+        template: templates/deployment_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.key
+          value: client-secret
+        template: templates/deployment_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_DEX_CLIENT_ID")].value
+          value: custom-client
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.name
+          value: external-dex-secret
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.key
+          value: client-secret
+        template: templates/deployment_api.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "issuer_url: \"http://dex.example.com/custom-issuer\""
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: "well_known_url: \"http://ccf-app-dex:5556/custom-issuer/.well-known/openid-configuration\""
+        template: templates/configmap_api_sso.yaml
+      - equal:
+          path: spec.rules[?(@.host == "dex.example.com")].http.paths[?(@.path == "/custom-issuer")].backend.service.name
+          value: ccf-app-dex
+        template: templates/ingress.yaml
+
+  - it: derives Dex SSO provider config and API env vars from dex.sso.name
+    set:
+      webBaseUrl: https://ccf.example.com
+      dex:
+        enabled: true
+        sso:
+          name: custom_dex
+    asserts:
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: '"custom_dex":'
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "https://ccf.example.com/api/auth/sso/callback/custom_dex"
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_CUSTOM_DEX_CLIENT_ID")].value
+          value: ccf-ui
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_SSO_PROVIDERS_CUSTOM_DEX_CLIENT_SECRET")].valueFrom.secretKeyRef.name
+          value: ccf-app-dex
+        template: templates/deployment_api.yaml
+
+  - it: fails when Dex is enabled without the in-chart Service
+    set:
+      webBaseUrl: https://ccf.example.com
+      dex:
+        enabled: true
+        service:
+          enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.service.enabled must be true when dex.enabled is true"
+        template: templates/configmap_api_sso.yaml
+
+  - it: fails when Dex issuer URL cannot be derived as an absolute URL
+    set:
+      webBaseUrl: ""
+      dex:
+        enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.issuerUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when dex.enabled is true"
+        template: templates/ingress.yaml
+
+  - it: fails when Dex SSO callback URL cannot be derived as an absolute URL
+    set:
+      webBaseUrl: ""
+      dex:
+        enabled: true
+        issuerUrl: https://dex.example.com/dex
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.sso.callbackUrl, api.webBaseUrl, or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
+        template: templates/deployment_dex.yaml
+
+  - it: mounts Dex configuration from an existing Secret instead of rendering a ConfigMap
+    set:
+      webBaseUrl: https://ccf.example.com
+      dex:
+        enabled: true
+        config:
+          existingSecret: external-dex-config
+          secretKey: dex-config.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "dex-config")].secret.secretName
+          value: external-dex-config
+        template: templates/deployment_dex.yaml
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "dex-config")].secret.items[0].key
+          value: dex-config.yaml
+        template: templates/deployment_dex.yaml
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/config"]
+        template: templates/deployment_dex.yaml

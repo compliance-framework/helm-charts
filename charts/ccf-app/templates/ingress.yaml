@@ -1,7 +1,36 @@
 {{- $apiIngressEnabled := and .Values.api.enabled .Values.api.service.enabled .Values.api.ingress.enabled -}}
 {{- $uiIngressEnabled := and .Values.ui.enabled .Values.ui.service.enabled .Values.ui.ingress.enabled -}}
+{{- $dexIngressEnabled := and .Values.dex.enabled .Values.dex.service.enabled .Values.dex.ingress.enabled -}}
 {{- $pgadmin4IngressEnabled := and .Values.pgadmin4.enabled .Values.pgadmin4.service.enabled .Values.pgadmin4.ingress.enabled -}}
-{{- if and .Values.ingress.enabled (or $apiIngressEnabled $uiIngressEnabled $pgadmin4IngressEnabled) -}}
+{{- $apiIngressHosts := list -}}
+{{- if $apiIngressEnabled -}}
+{{- $apiIngressHosts = .Values.api.ingress.hosts -}}
+{{- $apiWebBaseHost := include "ccf-app.urlHost" (include "ccf-app.apiWebBaseUrl" .) -}}
+{{- if and $apiIngressEnabled (not $apiIngressHosts) $apiWebBaseHost -}}
+{{- $apiIngressHosts = list (dict "host" $apiWebBaseHost "paths" (list (dict "path" (include "ccf-app.apiIngressDefaultPath" .) "pathType" "ImplementationSpecific"))) -}}
+{{- end -}}
+{{- end -}}
+{{- $uiIngressHosts := list -}}
+{{- if $uiIngressEnabled -}}
+{{- $uiIngressHosts = .Values.ui.ingress.hosts -}}
+{{- $webBaseHost := include "ccf-app.webBaseHost" . -}}
+{{- if and $uiIngressEnabled (not $uiIngressHosts) $webBaseHost -}}
+{{- $uiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" (include "ccf-app.uiIngressDefaultPath" .) "pathType" "ImplementationSpecific"))) -}}
+{{- end -}}
+{{- end -}}
+{{- $dexIngressHosts := list -}}
+{{- if $dexIngressEnabled -}}
+{{- $dexIngressHosts = .Values.dex.ingress.hosts -}}
+{{- $dexIssuerHost := include "ccf-app.urlHost" (include "ccf-app.dexIssuerUrl" .) -}}
+{{- if and $dexIngressEnabled (not $dexIngressHosts) $dexIssuerHost -}}
+{{- $dexIngressHosts = list (dict "host" $dexIssuerHost "paths" (list (dict "path" (include "ccf-app.dexIngressDefaultPath" .) "pathType" "Prefix"))) -}}
+{{- end -}}
+{{- end -}}
+{{- $pgadmin4IngressHosts := list -}}
+{{- if $pgadmin4IngressEnabled -}}
+{{- $pgadmin4IngressHosts = .Values.pgadmin4.ingress.hosts -}}
+{{- end -}}
+{{- if and .Values.ingress.enabled (or $apiIngressHosts $uiIngressHosts $dexIngressHosts $pgadmin4IngressHosts) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,6 +46,9 @@ metadata:
   {{- end }}
   {{- if $uiIngressEnabled }}
   {{- $annotations = merge $annotations (default (dict) .Values.ui.ingress.annotations) -}}
+  {{- end }}
+  {{- if $dexIngressEnabled }}
+  {{- $annotations = merge $annotations (default (dict) .Values.dex.ingress.annotations) -}}
   {{- end }}
   {{- if $pgadmin4IngressEnabled }}
   {{- $annotations = merge $annotations (default (dict) .Values.pgadmin4.ingress.annotations) -}}
@@ -41,7 +73,7 @@ spec:
   {{- end }}
   rules:
     {{- if $apiIngressEnabled }}
-    {{- range .Values.api.ingress.hosts }}
+    {{- range $apiIngressHosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -72,7 +104,7 @@ spec:
     {{- end }}
     {{- end }}
     {{- if $uiIngressEnabled }}
-    {{- range .Values.ui.ingress.hosts }}
+    {{- range $uiIngressHosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -102,8 +134,39 @@ spec:
           {{- end }}
     {{- end }}
     {{- end }}
+    {{- if $dexIngressEnabled }}
+    {{- range $dexIngressHosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                {{- $defaultName := printf "%s-dex" (include "ccf-app.fullname" $) -}}
+                {{- $serviceName := $defaultName -}}
+                {{- $servicePort := $.Values.dex.service.port -}}
+                {{- if .service }}
+                  {{- if .service.name }}
+                    {{- $serviceName = .service.name -}}
+                  {{- else if .service.shortName }}
+                    {{- $serviceName = printf "%s-%s" (include "ccf-app.fullname" $) .service.shortName -}}
+                  {{- end }}
+                  {{- if .service.port }}
+                    {{- $servicePort = .service.port -}}
+                  {{- end }}
+                {{- end }}
+                name: {{ $serviceName }}
+                port:
+                  number: {{ $servicePort }}
+          {{- end }}
+    {{- end }}
+    {{- end }}
     {{- if $pgadmin4IngressEnabled }}
-    {{- range .Values.pgadmin4.ingress.hosts }}
+    {{- range $pgadmin4IngressHosts }}
     - host: {{ .host | quote }}
       http:
         paths:

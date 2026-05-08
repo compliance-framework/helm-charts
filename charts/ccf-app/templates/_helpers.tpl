@@ -148,6 +148,7 @@ Resolve and validate JWT runtime configuration once for reuse across templates.
 {{- $jwtPublicGenerationEnabled := and (eq $jwtSource "generated") $jwtPublicGenerationEnabledValue -}}
 {{- $jwtFileMountsEnabled := ne $jwtSource "inMemory" -}}
 {{- $apiHasConfigMounts := or .Values.api.sso.enabled .Values.api.email.enabled .Values.api.workflow.enabled .Values.api.slack.enabled -}}
+{{- $apiHasConfigMounts = or $apiHasConfigMounts .Values.dex.enabled -}}
 {{- $apiHasVolumeMounts := or $jwtFileMountsEnabled $apiHasConfigMounts -}}
 source: {{ $jwtSource | quote }}
 inMemory: {{ eq $jwtSource "inMemory" }}
@@ -222,5 +223,150 @@ Merge helper for component service labels.
 {{- end }}
 
 {{/*
-Convert camelCase to snake_case
+webBaseUrl and URL/ingress helper functions
 */}}
+
+{{- define "ccf-app.webBaseUrl" -}}
+{{- $baseUrl := default "" .Values.webBaseUrl | trimSuffix "/" -}}
+{{- if and $baseUrl (not (regexMatch "^https?://" $baseUrl)) -}}
+{{- fail "webBaseUrl must be an absolute HTTP(S) URL (e.g., https://example.com) when non-empty" -}}
+{{- end -}}
+{{- $baseUrl -}}
+{{- end -}}
+
+{{- define "ccf-app.webBaseHost" -}}
+{{- $base := include "ccf-app.webBaseUrl" . -}}
+{{- include "ccf-app.urlHost" $base -}}
+{{- end -}}
+
+{{- define "ccf-app.apiWebBaseUrl" -}}
+{{- $apiBaseUrl := default (include "ccf-app.webBaseUrl" .) .Values.api.webBaseUrl | trimSuffix "/" -}}
+{{- if and $apiBaseUrl (not (regexMatch "^https?://" $apiBaseUrl)) -}}
+{{- fail "api.webBaseUrl must be an absolute HTTP(S) URL (e.g., https://example.com) when non-empty" -}}
+{{- end -}}
+{{- $apiBaseUrl -}}
+{{- end -}}
+
+{{- define "ccf-app.apiCorsOrigins" -}}
+{{- if .Values.api.corsOrigins -}}
+{{- join "," .Values.api.corsOrigins -}}
+{{- else -}}
+{{- default "http://localhost:3000" (include "ccf-app.urlOrigin" (include "ccf-app.apiWebBaseUrl" .)) -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ccf-app.urlOrigin" -}}
+{{- $url := . | trimSuffix "/" -}}
+{{- regexReplaceAll "^([^?#]*://[^/?#]*).*$" $url "${1}" -}}
+{{- end -}}
+
+{{- define "ccf-app.urlHost" -}}
+{{- $withoutScheme := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://" . "" -}}
+{{- $hostPort := regexReplaceAll "[/?#].*$" $withoutScheme "" -}}
+{{- regexReplaceAll ":[0-9]+$" $hostPort "" -}}
+{{- end -}}
+
+{{- define "ccf-app.urlPath" -}}
+{{- $withoutScheme := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://[^/]*" . "" -}}
+{{- $path := regexReplaceAll "[?#].*$" $withoutScheme "" | trimSuffix "/" -}}
+{{- if and $path (ne $path "/") -}}
+{{- $path -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ccf-app.apiIngressDefaultPath" -}}
+{{- printf "%s/api/" (include "ccf-app.urlPath" (include "ccf-app.apiWebBaseUrl" .)) -}}
+{{- end -}}
+
+{{- define "ccf-app.uiIngressDefaultPath" -}}
+{{- default "/" (include "ccf-app.urlPath" (include "ccf-app.webBaseUrl" .)) -}}
+{{- end -}}
+
+{{- define "ccf-app.dexIngressDefaultPath" -}}
+{{- default "/" (include "ccf-app.urlPath" (include "ccf-app.dexIssuerUrl" .)) -}}
+{{- end -}}
+
+{{- define "ccf-app.apiSSOBaseUrl" -}}
+{{- default (include "ccf-app.apiWebBaseUrl" .) .Values.api.sso.baseUrl | trimSuffix "/" -}}
+{{- end -}}
+
+{{- define "ccf-app.apiSSOCallbackUrl" -}}
+{{- $url := default (printf "%s/api/auth/sso/callback" (include "ccf-app.apiWebBaseUrl" .)) .Values.api.sso.callbackUrl | trimSuffix "/" -}}
+{{- if not (regexMatch "^https?://" $url) -}}
+{{- fail "api.sso.callbackUrl, api.webBaseUrl, or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled" -}}
+{{- end -}}
+{{- $url -}}
+{{- end -}}
+
+{{- define "ccf-app.apiSlackRedirectUrl" -}}
+{{- $apiWebBaseUrl := include "ccf-app.apiWebBaseUrl" . -}}
+{{- if .Values.api.slack.redirectUrl -}}
+{{- .Values.api.slack.redirectUrl | trimSuffix "/" -}}
+{{- else if $apiWebBaseUrl -}}
+{{- printf "%s/api/auth/slack/link/callback" $apiWebBaseUrl -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ccf-app.uiApiUrl" -}}
+{{- default (include "ccf-app.webBaseUrl" .) .Values.ui.apiUrl | trimSuffix "/" -}}
+{{- end -}}
+
+{{- define "ccf-app.dexIssuerUrl" -}}
+{{- $url := default (printf "%s/dex" (include "ccf-app.webBaseUrl" .)) .Values.dex.issuerUrl | trimSuffix "/" -}}
+{{- if not (regexMatch "^https?://" $url) -}}
+{{- fail "dex.issuerUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when dex.enabled is true" -}}
+{{- end -}}
+{{- $url -}}
+{{- end -}}
+
+{{- define "ccf-app.dexWellKnownUrl" -}}
+{{- if not .Values.dex.service.enabled -}}
+{{- fail "dex.service.enabled must be true when dex.enabled is true" -}}
+{{- end -}}
+{{- $issuerUrl := include "ccf-app.dexIssuerUrl" . -}}
+{{- $issuerPath := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://[^/]*" $issuerUrl "" | trimSuffix "/" -}}
+{{- printf "http://%s-dex:%v%s/.well-known/openid-configuration" (include "ccf-app.fullname" .) .Values.dex.service.port $issuerPath -}}
+{{- end -}}
+
+{{- define "ccf-app.dexSSOProviderName" -}}
+{{- $name := required "dex.sso.name is required when dex.enabled is true" .Values.dex.sso.name -}}
+{{- if not (regexMatch "^[A-Za-z_][A-Za-z0-9_]*$" $name) -}}
+{{- fail "dex.sso.name must contain only letters, numbers, and underscores, and must not start with a number" -}}
+{{- end -}}
+{{- $name -}}
+{{- end -}}
+
+{{- define "ccf-app.dexSSOProviderEnvPrefix" -}}
+{{- include "ccf-app.dexSSOProviderName" . | upper -}}
+{{- end -}}
+
+{{- define "ccf-app.dexClientSecretName" -}}
+{{- if .Values.dex.clientSecret.createSecret -}}
+{{- printf "%s-dex" (include "ccf-app.fullname" .) -}}
+{{- else if .Values.dex.clientSecret.existingSecret -}}
+{{- .Values.dex.clientSecret.existingSecret -}}
+{{- else -}}
+{{- fail "dex.clientSecret.existingSecret is required when dex.clientSecret.createSecret is false" -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ccf-app.dexClientSecretKey" -}}
+{{- default "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET" .Values.dex.clientSecret.secretKey -}}
+{{- end -}}
+
+{{- define "ccf-app.dexClientSecretEnvName" -}}
+{{- default "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET" .Values.dex.clientSecret.envName -}}
+{{- end -}}
+
+{{- define "ccf-app.dexClientSecretB64" -}}
+{{- $secretName := printf "%s-dex" (include "ccf-app.fullname" .) -}}
+{{- $key := include "ccf-app.dexClientSecretKey" . -}}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
+{{- if and $existing (index $existing.data $key) -}}
+{{- index $existing.data $key -}}
+{{- else if .Values.dex.clientSecret.value -}}
+{{- trim .Values.dex.clientSecret.value | b64enc -}}
+{{- else -}}
+{{- randAlphaNum 32 | b64enc -}}
+{{- end -}}
+{{- end -}}

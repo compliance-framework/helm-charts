@@ -17,13 +17,13 @@ data:
   CCF_JWT_PRIVATE_KEY: "/var/ccf/private_key/private_key.pem"
   CCF_JWT_PUBLIC_KEY: "/var/ccf/public_key/public_key.pem"
   {{- end }}
-  CCF_WEB_BASE_URL: {{ .Values.api.webBaseUrl | quote }}
+  CCF_WEB_BASE_URL: {{ include "ccf-app.apiWebBaseUrl" . | quote }}
   CCF_ENVIRONMENT: {{ .Values.api.environment | default "production" | quote }}
-  CCF_API_ALLOWED_ORIGINS: {{ if .Values.api.corsOrigins }}{{ .Values.api.corsOrigins | join "," | quote }}{{ else }}"http://localhost:3000"{{ end }}
+  CCF_API_ALLOWED_ORIGINS: {{ include "ccf-app.apiCorsOrigins" . | quote }}
   {{- range $key, $val := .Values.api.extraConfig }}
   {{ $key }}: {{ $val | quote }}
   {{- end }}
-  {{- if .Values.api.sso.enabled }}
+  {{- if or .Values.api.sso.enabled .Values.dex.enabled }}
   CCF_SSO_CONFIG: "/etc/ccf/sso.yaml"
   {{- end }}
   {{- if .Values.api.email.enabled }}
