@@ -47,7 +47,7 @@ spec:
               protocol: TCP
           env:
             - name: API_URL
-              value: {{ .Values.ui.apiUrl | quote }}
+              value: {{ include "ccf-app.uiApiUrl" . | quote }}
             {{- with .Values.ui.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

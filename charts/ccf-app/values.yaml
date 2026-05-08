@@ -120,7 +120,7 @@ api:
     httpGet:
       path: /api/auth/publickey
       port: http
-  corsOrigins: []
+  corsOrigins: [] # @schema item:string
   user:
     username: admin@localhost
     email: admin@localhost
@@ -137,7 +137,7 @@ api:
     enabled: true
     labels: {}
     annotations: {}
-    hosts: []
+    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
 
   # SSO configuration
   sso:
@@ -252,7 +252,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.9.0"
+    tag: "2.9.1"
   containerPort: 80
   service:
     enabled: true
@@ -282,7 +282,7 @@ ui:
     enabled: true
     labels: {}
     annotations: {}
-    hosts: []
+    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
 
 dex:
   enabled: false
@@ -290,7 +290,7 @@ dex:
   image:
     repository: ghcr.io/dexidp/dex
     pullPolicy: IfNotPresent
-    tag: "latest"
+    tag: "v2.44.0"
   command:
     - dex
     - serve
@@ -308,11 +308,11 @@ dex:
     enabled: true
     labels: {}
     annotations: {}
-    hosts: []
+    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
   staticClient:
     id: ccf-ui
     name: CCF UI
-    redirectUris: []
+    redirectUris: [] # @schema item:string
   clientSecret:
     value: ""
     createSecret: true

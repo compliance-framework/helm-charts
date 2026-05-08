@@ -41,7 +41,7 @@ tests:
       api.slack.redirectUrl: ""
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.redirectUrl is required when api.slack.clientId and api.slack.clientSecret are provided"
+          errorMessage: "api.slack.redirectUrl or webBaseUrl is required when api.slack.clientId and api.slack.clientSecret are provided"
         template: templates/configmap_api_slack.yaml
 
   - it: Slack OAuth redirectUrl defaults from webBaseUrl
