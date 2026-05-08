@@ -174,6 +174,10 @@ tests:
           path: data["sso.yaml"]
           pattern: "well_known_url: \"http://ccf-app-dex:5556/custom-issuer/.well-known/openid-configuration\""
         template: templates/configmap_api_sso.yaml
+      - equal:
+          path: spec.rules[?(@.host == "dex.example.com")].http.paths[?(@.path == "/custom-issuer")].backend.service.name
+          value: ccf-app-dex
+        template: templates/ingress.yaml
 
   - it: derives Dex SSO provider config and API env vars from dex.sso.name
     set:
@@ -218,7 +222,7 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "dex.issuerUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when dex.enabled is true"
-        template: templates/deployment_dex.yaml
+        template: templates/ingress.yaml
 
   - it: fails when Dex SSO callback URL cannot be derived as an absolute URL
     set:
@@ -229,4 +233,27 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "api.sso.callbackUrl, api.webBaseUrl, or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
+        template: templates/deployment_dex.yaml
+
+  - it: mounts Dex configuration from an existing Secret instead of rendering a ConfigMap
+    set:
+      dex:
+        enabled: true
+        config:
+          existingSecret: external-dex-config
+          secretKey: dex-config.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_dex.yaml
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "dex-config")].secret.secretName
+          value: external-dex-config
+        template: templates/deployment_dex.yaml
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "dex-config")].secret.items[0].key
+          value: dex-config.yaml
+        template: templates/deployment_dex.yaml
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/config"]
         template: templates/deployment_dex.yaml

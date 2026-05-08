@@ -799,6 +799,17 @@
                         "type": "string"
                     }
                 },
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "existingSecret": {
+                            "type": "string"
+                        },
+                        "secretKey": {
+                            "type": "string"
+                        }
+                    }
+                },
                 "connectors": {
                     "type": "array"
                 },

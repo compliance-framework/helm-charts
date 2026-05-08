@@ -14,9 +14,11 @@ spec:
     metadata:
       {{- $podAnnotations := merge (dict) (default (dict) .Values.podAnnotations) }}
       {{- $podAnnotations = merge $podAnnotations (default (dict) .Values.dex.podAnnotations) }}
+      {{- if not .Values.dex.config.existingSecret }}
       {{- $_ := set $podAnnotations "checksum/config" (include (print $.Template.BasePath "/configmap_dex.yaml") . | sha256sum) }}
+      {{- end }}
       {{- if .Values.dex.clientSecret.createSecret }}
-      {{- $_ = set $podAnnotations "checksum/secret" (include (print $.Template.BasePath "/secrets_dex.yaml") . | sha256sum) }}
+      {{- $_ := set $podAnnotations "checksum/secret" (include (print $.Template.BasePath "/secrets_dex.yaml") . | sha256sum) }}
       {{- end }}
       annotations:
         {{- toYaml $podAnnotations | nindent 8 }}
@@ -72,8 +74,16 @@ spec:
               readOnly: true
       volumes:
         - name: dex-config
+          {{- if .Values.dex.config.existingSecret }}
+          secret:
+            secretName: {{ .Values.dex.config.existingSecret }}
+            items:
+              - key: {{ .Values.dex.config.secretKey }}
+                path: config.yaml
+          {{- else }}
           configMap:
             name: {{ include "ccf-app.fullname" . }}-dex
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

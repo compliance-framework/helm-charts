@@ -2,17 +2,18 @@
 {{- $uiIngressEnabled := and .Values.ui.enabled .Values.ui.service.enabled .Values.ui.ingress.enabled -}}
 {{- $dexIngressEnabled := and .Values.dex.enabled .Values.dex.service.enabled .Values.dex.ingress.enabled -}}
 {{- $pgadmin4IngressEnabled := and .Values.pgadmin4.enabled .Values.pgadmin4.service.enabled .Values.pgadmin4.ingress.enabled -}}
-{{- $webBaseHost := include "ccf-app.webBaseHost" . -}}
 {{- $apiIngressHosts := list -}}
 {{- if $apiIngressEnabled -}}
 {{- $apiIngressHosts = .Values.api.ingress.hosts -}}
-{{- if and $apiIngressEnabled (not $apiIngressHosts) $webBaseHost -}}
-{{- $apiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/api/" "pathType" "ImplementationSpecific"))) -}}
+{{- $apiWebBaseHost := include "ccf-app.urlHost" (include "ccf-app.apiWebBaseUrl" .) -}}
+{{- if and $apiIngressEnabled (not $apiIngressHosts) $apiWebBaseHost -}}
+{{- $apiIngressHosts = list (dict "host" $apiWebBaseHost "paths" (list (dict "path" (include "ccf-app.apiIngressDefaultPath" .) "pathType" "ImplementationSpecific"))) -}}
 {{- end -}}
 {{- end -}}
 {{- $uiIngressHosts := list -}}
 {{- if $uiIngressEnabled -}}
 {{- $uiIngressHosts = .Values.ui.ingress.hosts -}}
+{{- $webBaseHost := include "ccf-app.webBaseHost" . -}}
 {{- if and $uiIngressEnabled (not $uiIngressHosts) $webBaseHost -}}
 {{- $uiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/" "pathType" "ImplementationSpecific"))) -}}
 {{- end -}}
@@ -20,8 +21,9 @@
 {{- $dexIngressHosts := list -}}
 {{- if $dexIngressEnabled -}}
 {{- $dexIngressHosts = .Values.dex.ingress.hosts -}}
-{{- if and $dexIngressEnabled (not $dexIngressHosts) $webBaseHost -}}
-{{- $dexIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/dex" "pathType" "Prefix"))) -}}
+{{- $dexIssuerHost := include "ccf-app.urlHost" (include "ccf-app.dexIssuerUrl" .) -}}
+{{- if and $dexIngressEnabled (not $dexIngressHosts) $dexIssuerHost -}}
+{{- $dexIngressHosts = list (dict "host" $dexIssuerHost "paths" (list (dict "path" (include "ccf-app.dexIngressDefaultPath" .) "pathType" "Prefix"))) -}}
 {{- end -}}
 {{- end -}}
 {{- $pgadmin4IngressHosts := list -}}

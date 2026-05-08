@@ -232,9 +232,7 @@ Convert camelCase to snake_case
 
 {{- define "ccf-app.webBaseHost" -}}
 {{- $base := include "ccf-app.webBaseUrl" . -}}
-{{- $withoutScheme := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://" $base "" -}}
-{{- $hostPort := regexReplaceAll "/.*$" $withoutScheme "" -}}
-{{- regexReplaceAll ":[0-9]+$" $hostPort "" -}}
+{{- include "ccf-app.urlHost" $base -}}
 {{- end -}}
 
 {{- define "ccf-app.apiWebBaseUrl" -}}
@@ -245,13 +243,35 @@ Convert camelCase to snake_case
 {{- if .Values.api.corsOrigins -}}
 {{- join "," .Values.api.corsOrigins -}}
 {{- else -}}
-{{- include "ccf-app.urlOrigin" (include "ccf-app.apiWebBaseUrl" .) -}}
+{{- default "http://localhost:3000" (include "ccf-app.urlOrigin" (include "ccf-app.apiWebBaseUrl" .)) -}}
 {{- end -}}
 {{- end -}}
 
 {{- define "ccf-app.urlOrigin" -}}
 {{- $url := . | trimSuffix "/" -}}
 {{- regexReplaceAll "^([^?#]*://[^/?#]*).*$" $url "${1}" -}}
+{{- end -}}
+
+{{- define "ccf-app.urlHost" -}}
+{{- $withoutScheme := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://" . "" -}}
+{{- $hostPort := regexReplaceAll "[/?#].*$" $withoutScheme "" -}}
+{{- regexReplaceAll ":[0-9]+$" $hostPort "" -}}
+{{- end -}}
+
+{{- define "ccf-app.urlPath" -}}
+{{- $withoutScheme := regexReplaceAll "^[A-Za-z][A-Za-z0-9+.-]*://[^/]*" . "" -}}
+{{- $path := regexReplaceAll "[?#].*$" $withoutScheme "" | trimSuffix "/" -}}
+{{- if and $path (ne $path "/") -}}
+{{- $path -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ccf-app.apiIngressDefaultPath" -}}
+{{- printf "%s/api/" (include "ccf-app.urlPath" (include "ccf-app.apiWebBaseUrl" .)) -}}
+{{- end -}}
+
+{{- define "ccf-app.dexIngressDefaultPath" -}}
+{{- default "/" (include "ccf-app.urlPath" (include "ccf-app.dexIssuerUrl" .)) -}}
 {{- end -}}
 
 {{- define "ccf-app.apiSSOBaseUrl" -}}

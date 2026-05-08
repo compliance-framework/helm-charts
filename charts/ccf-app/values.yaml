@@ -295,6 +295,9 @@ dex:
     - dex
     - serve
     - /etc/dex/config.yaml
+  config:
+    existingSecret: ""
+    secretKey: config.yaml
   issuerUrl: ""
   containerPort: 5556
   service:

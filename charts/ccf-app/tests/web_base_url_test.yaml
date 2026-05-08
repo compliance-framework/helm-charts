@@ -88,6 +88,10 @@ tests:
           path: data["sso.yaml"]
           pattern: 'callback_url: "https://api.example.com/ccf/api/auth/sso/callback"'
         template: templates/configmap_api_sso.yaml
+      - equal:
+          path: spec.rules[?(@.host == "api.example.com")].http.paths[?(@.path == "/ccf/api/")].backend.service.name
+          value: ccf-app-api
+        template: templates/ingress.yaml
       - matchRegex:
           path: data["config.json"]
           pattern: '"API_URL": "https://ccf.example.com"'
@@ -97,6 +101,10 @@ tests:
     set:
       webBaseUrl: ""
     asserts:
+      - equal:
+          path: data["CCF_API_ALLOWED_ORIGINS"]
+          value: http://localhost:3000
+        template: templates/configmap_api.yaml
       - hasDocuments:
           count: 0
         template: templates/ingress.yaml
