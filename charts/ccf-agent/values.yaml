@@ -122,19 +122,21 @@ agent:
   api:
     # URL of the CCF API server
     url: "http://ccf-api:8080"
-  # @schema
-  # description: Agent Credentials for secure communication with CCF
-  # additionalProperties:
-  #   type: object
-  #   properties:
-  #     client_id:
-  #       type: string
-  #       description: Client ID for authentication
-  #     client_secret:
-  #       type: string
-  #       description: Client secret for authentication
-  # @schema
-    auth: {}
+    # Agent authentication credentials
+    auth:
+      enabled: false
+      # createSecret: If true, a secret will be created with sensitive values
+      createSecret: false
+      # existingSecret: If provided, sensitive values will be pulled from this secret
+      existingSecret: ""
+      # Client ID for authentication
+      clientId:
+        value: "" # if set, we use this value
+        secretKeyRef: "" # if set, we reference this secret key instead
+      # Client secret for authentication (should be in secret for production)
+      clientSecret:
+        value: "" # if set, we use this value
+        secretKeyRef: "" # if set, we reference this secret key instead
   # Plugin configurations
   # Each plugin can have: schedule, source, policies, config, labels
   # Example:

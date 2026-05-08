@@ -10,10 +10,6 @@ data:
     verbosity: {{ .Values.agent.verbosity }}
     api:
       url: {{ .Values.agent.api.url }}
-      {{- with .Values.agent.api.auth }}
-      auth:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
     agent_evidence:
       enabled: {{ .Values.agent.agentEvidence.enabled }}
       interval: {{ .Values.agent.agentEvidence.interval | default "1h" }}

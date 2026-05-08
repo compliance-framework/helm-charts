@@ -71,3 +71,32 @@ Agent hostname - defaults to pod name if not specified
 {{- include "ccf-agent.fullname" . }}
 {{- end }}
 {{- end }}
+
+{{/*
+Validate agent API authentication configuration
+*/}}
+{{- define "ccf-agent.validateAuthConfig" -}}
+{{- if .Values.agent.api.auth.enabled }}
+{{- $auth := .Values.agent.api.auth }}
+{{- if $auth.createSecret }}
+{{- if not $auth.clientId.value }}
+{{- fail "agent.api.auth: when createSecret is true, clientId.value must be set" }}
+{{- end }}
+{{- if not $auth.clientSecret.value }}
+{{- fail "agent.api.auth: when createSecret is true, clientSecret.value must be set" }}
+{{- end }}
+{{- end }}
+{{- if $auth.existingSecret }}
+{{- if $auth.clientId }}
+{{- if not $auth.clientId.secretKeyRef }}
+{{- fail "agent.api.auth: when existingSecret is set, clientId.secretKeyRef must be set" }}
+{{- end }}
+{{- end }}
+{{- if $auth.clientSecret }}
+{{- if not $auth.clientSecret.secretKeyRef }}
+{{- fail "agent.api.auth: when existingSecret is set, clientSecret.secretKeyRef must be set" }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

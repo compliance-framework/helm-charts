@@ -1,0 +1,171 @@
+suite: Agent authentication
+templates:
+  - templates/secret.yaml
+  - templates/configmap.yaml
+  - templates/deployment.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: does not render secret by default
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secret.yaml
+
+  - it: does not render secret or env vars when auth is disabled even with credentials
+    set:
+      agent.api.auth.enabled: false
+      agent.api.auth.createSecret: true
+      agent.api.auth.clientId.value: "test-client-id"
+      agent.api.auth.clientSecret.value: "test-client-secret"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secret.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AGENT_API_AUTH_CLIENT_ID")]
+        template: templates/deployment.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AGENT_API_AUTH_CLIENT_SECRET")]
+        template: templates/deployment.yaml
+
+  - it: creates secret when createSecret is true and auth is enabled
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.createSecret: true
+      agent.api.auth.clientId.value: "test-client-id"
+      agent.api.auth.clientSecret.value: "test-client-secret"
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: ccf-agent-auth
+        template: templates/secret.yaml
+      - equal:
+          path: data["CCF_AGENT_API_AUTH_CLIENT_ID"]
+          value: "dGVzdC1jbGllbnQtaWQ=" # base64 for test-client-id
+        template: templates/secret.yaml
+      - equal:
+          path: data["CCF_AGENT_API_AUTH_CLIENT_SECRET"]
+          value: "dGVzdC1jbGllbnQtc2VjcmV0" # base64 for test-client-secret
+        template: templates/secret.yaml
+
+  - it: uses secret in deployment when createSecret is true
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.createSecret: true
+      agent.api.auth.clientId.value: "test-client-id"
+      agent.api.auth.clientSecret.value: "test-client-secret"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: ccf-agent-auth
+                key: CCF_AGENT_API_AUTH_CLIENT_ID
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: ccf-agent-auth
+                key: CCF_AGENT_API_AUTH_CLIENT_SECRET
+        template: templates/deployment.yaml
+
+  - it: uses secretKeyRef from existing secret when set
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.existingSecret: "external-agent-auth"
+      agent.api.auth.clientId.secretKeyRef: "custom-client-id-key"
+      agent.api.auth.clientSecret.secretKeyRef: "custom-client-secret-key"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secret.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: external-agent-auth
+                key: custom-client-id-key
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: external-agent-auth
+                key: custom-client-secret-key
+        template: templates/deployment.yaml
+
+  - it: uses plain values when neither createSecret nor existingSecret is set
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.clientId.value: "test-client-id"
+      agent.api.auth.clientSecret.value: "test-client-secret"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secret.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_ID
+            value: test-client-id
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            value: test-client-secret
+        template: templates/deployment.yaml
+
+  - it: only renders clientId env var when clientSecret is empty
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.clientId.value: "test-client-id"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_ID
+            value: test-client-id
+        template: templates/deployment.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AGENT_API_AUTH_CLIENT_SECRET")]
+        template: templates/deployment.yaml
+
+  - it: only renders clientSecret env var when clientId is empty
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.clientSecret.value: "test-client-secret"
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AGENT_API_AUTH_CLIENT_ID")]
+        template: templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_AGENT_API_AUTH_CLIENT_SECRET
+            value: test-client-secret
+        template: templates/deployment.yaml
+
+  - it: does not render auth env vars when both clientId and clientSecret are empty
+    set:
+      agent.api.auth.enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AGENT_API_AUTH_CLIENT_ID")]
+        template: templates/deployment.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AGENT_API_AUTH_CLIENT_SECRET")]
+        template: templates/deployment.yaml
