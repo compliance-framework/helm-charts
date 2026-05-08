@@ -227,7 +227,11 @@ webBaseUrl and URL/ingress helper functions
 */}}
 
 {{- define "ccf-app.webBaseUrl" -}}
-{{- default "" .Values.webBaseUrl | trimSuffix "/" -}}
+{{- $baseUrl := default "" .Values.webBaseUrl | trimSuffix "/" -}}
+{{- if and $baseUrl (not (regexMatch "^https?://" $baseUrl)) -}}
+{{- fail "webBaseUrl must be an absolute HTTP(S) URL (e.g., https://example.com) when non-empty" -}}
+{{- end -}}
+{{- $baseUrl -}}
 {{- end -}}
 
 {{- define "ccf-app.webBaseHost" -}}
@@ -236,7 +240,11 @@ webBaseUrl and URL/ingress helper functions
 {{- end -}}
 
 {{- define "ccf-app.apiWebBaseUrl" -}}
-{{- default (include "ccf-app.webBaseUrl" .) .Values.api.webBaseUrl | trimSuffix "/" -}}
+{{- $apiBaseUrl := default (include "ccf-app.webBaseUrl" .) .Values.api.webBaseUrl | trimSuffix "/" -}}
+{{- if and $apiBaseUrl (not (regexMatch "^https?://" $apiBaseUrl)) -}}
+{{- fail "api.webBaseUrl must be an absolute HTTP(S) URL (e.g., https://example.com) when non-empty" -}}
+{{- end -}}
+{{- $apiBaseUrl -}}
 {{- end -}}
 
 {{- define "ccf-app.apiCorsOrigins" -}}
@@ -268,6 +276,10 @@ webBaseUrl and URL/ingress helper functions
 
 {{- define "ccf-app.apiIngressDefaultPath" -}}
 {{- printf "%s/api/" (include "ccf-app.urlPath" (include "ccf-app.apiWebBaseUrl" .)) -}}
+{{- end -}}
+
+{{- define "ccf-app.uiIngressDefaultPath" -}}
+{{- default "/" (include "ccf-app.urlPath" (include "ccf-app.webBaseUrl" .)) -}}
 {{- end -}}
 
 {{- define "ccf-app.dexIngressDefaultPath" -}}

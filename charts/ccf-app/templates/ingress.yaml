@@ -15,7 +15,7 @@
 {{- $uiIngressHosts = .Values.ui.ingress.hosts -}}
 {{- $webBaseHost := include "ccf-app.webBaseHost" . -}}
 {{- if and $uiIngressEnabled (not $uiIngressHosts) $webBaseHost -}}
-{{- $uiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" "/" "pathType" "ImplementationSpecific"))) -}}
+{{- $uiIngressHosts = list (dict "host" $webBaseHost "paths" (list (dict "path" (include "ccf-app.uiIngressDefaultPath" .) "pathType" "ImplementationSpecific"))) -}}
 {{- end -}}
 {{- end -}}
 {{- $dexIngressHosts := list -}}
