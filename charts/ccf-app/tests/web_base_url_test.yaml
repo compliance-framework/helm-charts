@@ -69,6 +69,8 @@ tests:
       webBaseUrl: https://ccf.example.com
       api:
         webBaseUrl: https://api.example.com/ccf
+        sso:
+          enabled: true
     asserts:
       - equal:
           path: data["CCF_WEB_BASE_URL"]
@@ -78,6 +80,14 @@ tests:
           path: data["CCF_API_ALLOWED_ORIGINS"]
           value: https://api.example.com
         template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: 'base_url: "https://api.example.com/ccf"'
+        template: templates/configmap_api_sso.yaml
+      - matchRegex:
+          path: data["sso.yaml"]
+          pattern: 'callback_url: "https://api.example.com/ccf/api/auth/sso/callback"'
+        template: templates/configmap_api_sso.yaml
       - matchRegex:
           path: data["config.json"]
           pattern: '"API_URL": "https://ccf.example.com"'
@@ -99,5 +109,5 @@ tests:
           enabled: true
     asserts:
       - failedTemplate:
-          errorMessage: "api.sso.callbackUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
+          errorMessage: "api.sso.callbackUrl, api.webBaseUrl, or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
         template: templates/configmap_api_sso.yaml

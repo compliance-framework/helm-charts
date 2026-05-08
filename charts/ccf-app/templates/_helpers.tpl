@@ -255,23 +255,23 @@ Convert camelCase to snake_case
 {{- end -}}
 
 {{- define "ccf-app.apiSSOBaseUrl" -}}
-{{- default (include "ccf-app.webBaseUrl" .) .Values.api.sso.baseUrl | trimSuffix "/" -}}
+{{- default (include "ccf-app.apiWebBaseUrl" .) .Values.api.sso.baseUrl | trimSuffix "/" -}}
 {{- end -}}
 
 {{- define "ccf-app.apiSSOCallbackUrl" -}}
-{{- $url := default (printf "%s/api/auth/sso/callback" (include "ccf-app.webBaseUrl" .)) .Values.api.sso.callbackUrl | trimSuffix "/" -}}
+{{- $url := default (printf "%s/api/auth/sso/callback" (include "ccf-app.apiWebBaseUrl" .)) .Values.api.sso.callbackUrl | trimSuffix "/" -}}
 {{- if not (regexMatch "^https?://" $url) -}}
-{{- fail "api.sso.callbackUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled" -}}
+{{- fail "api.sso.callbackUrl, api.webBaseUrl, or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled" -}}
 {{- end -}}
 {{- $url -}}
 {{- end -}}
 
 {{- define "ccf-app.apiSlackRedirectUrl" -}}
-{{- $webBaseUrl := include "ccf-app.webBaseUrl" . -}}
+{{- $apiWebBaseUrl := include "ccf-app.apiWebBaseUrl" . -}}
 {{- if .Values.api.slack.redirectUrl -}}
 {{- .Values.api.slack.redirectUrl | trimSuffix "/" -}}
-{{- else if $webBaseUrl -}}
-{{- printf "%s/api/auth/slack/link/callback" $webBaseUrl -}}
+{{- else if $apiWebBaseUrl -}}
+{{- printf "%s/api/auth/slack/link/callback" $apiWebBaseUrl -}}
 {{- end -}}
 {{- end -}}
 

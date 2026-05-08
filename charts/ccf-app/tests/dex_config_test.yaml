@@ -228,5 +228,5 @@ tests:
         issuerUrl: https://dex.example.com/dex
     asserts:
       - failedTemplate:
-          errorMessage: "api.sso.callbackUrl or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
+          errorMessage: "api.sso.callbackUrl, api.webBaseUrl, or webBaseUrl must resolve to an absolute HTTP(S) URL when SSO or Dex is enabled"
         template: templates/deployment_dex.yaml
