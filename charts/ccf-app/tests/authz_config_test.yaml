@@ -1,0 +1,116 @@
+suite: Authorization configuration
+templates:
+  - templates/configmap_api.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/deployment_api.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: AuthZ enabled defaults to the builtin engine
+    set:
+      api.enabled: true
+    asserts:
+      - equal:
+          path: data["CCF_AUTHZ_DRIVER"]
+          value: "builtin"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AUTHZ_FAIL_MODE"]
+          value: "closed"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AUTHZ_ROLE_ASSIGNMENTS"]
+          value: "/etc/ccf/authz-roles.yaml"
+        template: templates/configmap_api.yaml
+      - notExists:
+          path: data["CCF_AUTHZ_CEDAR_POLICY_DIR"]
+        template: templates/configmap_api.yaml
+      - containsDocument:
+          kind: ConfigMap
+          apiVersion: v1
+          name: ccf-app-api-authz
+        template: templates/configmap_api_authz.yaml
+      - matchRegex:
+          path: data["authz-roles.yaml"]
+          pattern: "agents: agent"
+        template: templates/configmap_api_authz.yaml
+
+  - it: Cedar engine renders role assignments from values
+    set:
+      api.enabled: true
+      api.authz.driver: "cedar"
+      api.authz.failMode: "open"
+      api.authz.roleAssignments:
+        users:
+          admin@example.com: admin
+        groups:
+          ccf-admins: admin
+          ccf-users: contributor
+        agents: agent
+    asserts:
+      - equal:
+          path: data["CCF_AUTHZ_DRIVER"]
+          value: "cedar"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AUTHZ_FAIL_MODE"]
+          value: "open"
+        template: templates/configmap_api.yaml
+      - matchRegex:
+          path: data["authz-roles.yaml"]
+          pattern: "admin@example.com: admin"
+        template: templates/configmap_api_authz.yaml
+      - matchRegex:
+          path: data["authz-roles.yaml"]
+          pattern: "ccf-users: contributor"
+        template: templates/configmap_api_authz.yaml
+
+  - it: AuthZ enabled mounts the roles file into the api container
+    set:
+      api.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /etc/ccf/authz-roles.yaml
+            name: api-authz-config
+            subPath: authz-roles.yaml
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: api-authz-config
+            configMap:
+              name: ccf-app-api-authz
+        template: templates/deployment_api.yaml
+
+  - it: cedarPolicyDir injects the policy dir env var when set
+    set:
+      api.enabled: true
+      api.authz.driver: "cedar"
+      api.authz.cedar.policyDir: "/authz-policies"
+    asserts:
+      - equal:
+          path: data["CCF_AUTHZ_CEDAR_POLICY_DIR"]
+          value: "/authz-policies"
+        template: templates/configmap_api.yaml
+
+  # Invalid enum values are rejected by the values.schema.json `enum` constraint
+  # (generated from the `@schema enum:` annotations in values.yaml). These guard
+  # against the annotation being dropped.
+  - it: Rejects an invalid driver
+    set:
+      api.enabled: true
+      api.authz.driver: "bogus"
+    asserts:
+      - failedTemplate: {}
+
+  - it: Rejects an invalid failMode
+    set:
+      api.enabled: true
+      api.authz.failMode: "maybe"
+    asserts:
+      - failedTemplate: {}

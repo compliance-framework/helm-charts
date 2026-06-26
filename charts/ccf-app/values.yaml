@@ -81,7 +81,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.16.0"
+    tag: "0.17.0"
   # JWT signing key management for the API.
   jwt:
     # generated: chart generates a private key and (optionally) derives public key via init container
@@ -227,6 +227,55 @@ api:
         # secretAccessKey: ""
         # sessionToken: ""
 
+  # AI suggestions configuration.
+  # Only the API key is sensitive; everything else is plain runtime config injected
+  # as CCF_AI_* environment variables. The key follows the same secret management
+  # standard as sso/slack/email (inline value, createSecret, or existingSecret).
+  ai:
+    enabled: false
+    # createSecret: true # If true, the API key is stored in a chart-managed secret
+    # existingSecret: "" # If provided, the API key is read from this existing secret (key: CCF_AI_API_KEY)
+    provider: "anthropic"
+    apiKey: "" # sensitive – sourced into CCF_AI_API_KEY
+    model: "claude-haiku-4-5"
+    requestTimeout: "120s"
+    maxControlsPerChunk: 40
+    maxLabelSetsPerChunk: 200
+    queueWorkers: 4
+    maxCallsPerRun: 0
+    maxSuggestionsPerRun: 500
+
+  # Authorization (AuthZ) configuration.
+  # Selects the PDP engine that authorizes API requests and (for the cedar engine)
+  authz:
+    # builtin — in-process, reproduces CCF's pre-authz rules (the default).
+    # cedar   — embedded Cedar RBAC engine, DENY-BY-DEFAULT; reads roleAssignments below.
+    # WARNING: be sure to properly set up `roleAssignments` before switching to cedar driver!
+    driver: "builtin" # @schema enum:[builtin, cedar]
+    # Behaviour when the PDP is unavailable. No-op for the in-process engines.
+    failMode: "closed" # @schema enum:[closed, open]
+    # Optional configuration for Cedar driver
+    cedar:
+      # Optional operator .cedar policy directory escape hatch. When set, only the
+      # CCF_AUTHZ_CEDAR_POLICY_DIR env var is injected; the operator is responsible for
+      # mounting the directory at this path (e.g. via extraObjects + a custom volume).
+      policyDir: ""
+    # Static role assignments consumed ONLY by the cedar engine (ignored by builtin).
+    # This whole map is rendered verbatim into authz-roles.yaml and mounted into the API,
+    # so it can be configured directly here. Cedar is deny-by-default: a subject with no
+    # grant (directly or via a group) is denied every request.
+    roleAssignments:
+      # Per-user grants: login email -> role (admin | contributor | auditor | viewer | agent)
+      users: {}
+        # admin@example.com: admin
+      # Per-group grants: resolved group name -> role (recommended GitOps pattern)
+      groups: {}
+        # ccf-admins: admin
+        # ccf-users: contributor
+        # ccf-viewers: viewer
+      # Default role granted to every authenticated agent.
+      agents: agent
+
 ui:
   enabled: true
   replicaCount: 1
@@ -253,7 +302,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.9.1"
+    tag: "2.10.0"
   containerPort: 80
   service:
     enabled: true

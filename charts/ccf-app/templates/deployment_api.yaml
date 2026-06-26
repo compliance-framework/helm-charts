@@ -172,6 +172,17 @@ spec:
               {{- end }}
             {{- end }}
             {{- end }}
+            {{- if .Values.api.ai.enabled }}
+            - name: CCF_AI_API_KEY
+              {{- if or .Values.api.ai.createSecret .Values.api.ai.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.api.ai.createSecret }}{{ include "ccf-app.fullname" . }}-api-config{{ else }}{{ .Values.api.ai.existingSecret }}{{ end }}
+                  key: CCF_AI_API_KEY
+              {{- else }}
+              value: {{ .Values.api.ai.apiKey | quote }}
+              {{- end }}
+            {{- end }}
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -213,6 +224,10 @@ spec:
               subPath: slack.yaml
               readOnly: true
             {{- end }}
+            - mountPath: /etc/ccf/authz-roles.yaml
+              name: api-authz-config
+              subPath: authz-roles.yaml
+              readOnly: true
           {{- end }}
           livenessProbe:
             {{- with .Values.api.livenessProbe }}
@@ -374,6 +389,9 @@ spec:
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-slack
         {{- end }}
+        - name: api-authz-config
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-api-authz
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
