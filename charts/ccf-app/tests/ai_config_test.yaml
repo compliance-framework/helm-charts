@@ -1,0 +1,141 @@
+suite: AI configuration
+templates:
+  - templates/configmap_api.yaml
+  - templates/deployment_api.yaml
+  - templates/secrets_api_config.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: AI disabled produces no AI config or secret
+    set:
+      api.enabled: true
+      api.ai.enabled: false
+    asserts:
+      - notExists:
+          path: data["CCF_AI_ENABLED"]
+        template: templates/configmap_api.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_api_config.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")]
+        template: templates/deployment_api.yaml
+
+  - it: Fails when enabled without apiKey or existingSecret
+    set:
+      api.enabled: true
+      api.ai.enabled: true
+      api.ai.apiKey: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.ai.apiKey is required when api.ai.enabled is true (unless api.ai.existingSecret is set)"
+        template: templates/configmap_api.yaml
+
+  - it: Fails when createSecret is true but apiKey is missing
+    set:
+      api.enabled: true
+      api.ai.enabled: true
+      api.ai.createSecret: true
+      api.ai.existingSecret: "external"
+      api.ai.apiKey: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.ai.apiKey is required when api.ai.enabled and api.ai.createSecret are true"
+        template: templates/secrets_api_config.yaml
+
+  - it: AI enabled writes non-sensitive config to the api configmap
+    set:
+      api.enabled: true
+      api.ai.enabled: true
+      api.ai.apiKey: "test-ai-key"
+      api.ai.model: "claude-sonnet-4-6"
+      api.ai.requestTimeout: "90s"
+      api.ai.maxControlsPerChunk: 25
+      api.ai.queueWorkers: 8
+    asserts:
+      - equal:
+          path: data["CCF_AI_ENABLED"]
+          value: "true"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AI_PROVIDER"]
+          value: "anthropic"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AI_MODEL"]
+          value: "claude-sonnet-4-6"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AI_REQUEST_TIMEOUT"]
+          value: "90s"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AI_MAX_CONTROLS_PER_CHUNK"]
+          value: "25"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AI_QUEUE_WORKERS"]
+          value: "8"
+        template: templates/configmap_api.yaml
+      - notExists:
+          path: data["CCF_AI_API_KEY"]
+        template: templates/configmap_api.yaml
+
+  - it: AI enabled with createSecret stores the key in the api-config secret
+    set:
+      api.enabled: true
+      api.ai.enabled: true
+      api.ai.createSecret: true
+      api.ai.apiKey: "test-ai-key"
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: ccf-app-api-config
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: data["CCF_AI_API_KEY"]
+          value: "dGVzdC1haS1rZXk=" # base64 for test-ai-key
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")].valueFrom.secretKeyRef.name
+          value: "ccf-app-api-config"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")].valueFrom.secretKeyRef.key
+          value: "CCF_AI_API_KEY"
+        template: templates/deployment_api.yaml
+
+  - it: AI enabled with existingSecret references the external secret
+    set:
+      api.enabled: true
+      api.ai.enabled: true
+      api.ai.existingSecret: "external-ai-secret"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")].valueFrom.secretKeyRef.name
+          value: "external-ai-secret"
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")].valueFrom.secretKeyRef.key
+          value: "CCF_AI_API_KEY"
+        template: templates/deployment_api.yaml
+
+  - it: AI enabled inline injects the key as a plain env value
+    set:
+      api.enabled: true
+      api.ai.enabled: true
+      api.ai.apiKey: "test-ai-key"
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/secrets_api_config.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")].value
+          value: "test-ai-key"
+        template: templates/deployment_api.yaml

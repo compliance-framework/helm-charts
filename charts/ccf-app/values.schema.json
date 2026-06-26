@@ -8,6 +8,82 @@
         "api": {
             "type": "object",
             "properties": {
+                "ai": {
+                    "type": "object",
+                    "properties": {
+                        "apiKey": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "maxCallsPerRun": {
+                            "type": "integer"
+                        },
+                        "maxControlsPerChunk": {
+                            "type": "integer"
+                        },
+                        "maxLabelSetsPerChunk": {
+                            "type": "integer"
+                        },
+                        "maxSuggestionsPerRun": {
+                            "type": "integer"
+                        },
+                        "model": {
+                            "type": "string"
+                        },
+                        "provider": {
+                            "type": "string"
+                        },
+                        "queueWorkers": {
+                            "type": "integer"
+                        },
+                        "requestTimeout": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "authz": {
+                    "type": "object",
+                    "properties": {
+                        "cedar": {
+                            "type": "object",
+                            "properties": {
+                                "policyDir": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "driver": {
+                            "type": "string",
+                            "enum": [
+                                "builtin",
+                                "cedar"
+                            ]
+                        },
+                        "failMode": {
+                            "type": "string",
+                            "enum": [
+                                "closed",
+                                "open"
+                            ]
+                        },
+                        "roleAssignments": {
+                            "type": "object",
+                            "properties": {
+                                "agents": {
+                                    "type": "string"
+                                },
+                                "groups": {
+                                    "type": "object"
+                                },
+                                "users": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
                 "autoscaling": {
                     "type": "object",
                     "properties": {

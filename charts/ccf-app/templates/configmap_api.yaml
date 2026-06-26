@@ -35,4 +35,24 @@ data:
   {{- if .Values.api.slack.enabled }}
   CCF_SLACK_CONFIG: "/etc/ccf/slack.yaml"
   {{- end }}
+  {{- if .Values.api.ai.enabled }}
+  {{- if and (not .Values.api.ai.existingSecret) (not .Values.api.ai.apiKey) }}
+  {{- fail "api.ai.apiKey is required when api.ai.enabled is true (unless api.ai.existingSecret is set)" }}
+  {{- end }}
+  CCF_AI_ENABLED: "true"
+  CCF_AI_PROVIDER: {{ .Values.api.ai.provider | quote }}
+  CCF_AI_MODEL: {{ .Values.api.ai.model | quote }}
+  CCF_AI_REQUEST_TIMEOUT: {{ .Values.api.ai.requestTimeout | quote }}
+  CCF_AI_MAX_CONTROLS_PER_CHUNK: {{ .Values.api.ai.maxControlsPerChunk | quote }}
+  CCF_AI_MAX_LABEL_SETS_PER_CHUNK: {{ .Values.api.ai.maxLabelSetsPerChunk | quote }}
+  CCF_AI_QUEUE_WORKERS: {{ .Values.api.ai.queueWorkers | quote }}
+  CCF_AI_MAX_CALLS_PER_RUN: {{ .Values.api.ai.maxCallsPerRun | quote }}
+  CCF_AI_MAX_SUGGESTIONS_PER_RUN: {{ .Values.api.ai.maxSuggestionsPerRun | quote }}
+  {{- end }}
+  CCF_AUTHZ_DRIVER: {{ .Values.api.authz.driver | default "builtin" | quote }}
+  CCF_AUTHZ_FAIL_MODE: {{ .Values.api.authz.failMode | default "closed" | quote }}
+  CCF_AUTHZ_ROLE_ASSIGNMENTS: "/etc/ccf/authz-roles.yaml"
+  {{- if .Values.api.authz.cedar.policyDir }}
+  CCF_AUTHZ_CEDAR_POLICY_DIR: {{ .Values.api.authz.cedar.policyDir | quote }}
+  {{- end }}
 {{- end }}
