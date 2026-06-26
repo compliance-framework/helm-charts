@@ -46,15 +46,20 @@
                 "authz": {
                     "type": "object",
                     "properties": {
+                        "cedar": {
+                            "type": "object",
+                            "properties": {
+                                "policyDir": {
+                                    "type": "string"
+                                }
+                            }
+                        },
                         "driver": {
                             "type": "string",
                             "enum": [
                                 "builtin",
                                 "cedar"
                             ]
-                        },
-                        "enabled": {
-                            "type": "boolean"
                         },
                         "failMode": {
                             "type": "string",
