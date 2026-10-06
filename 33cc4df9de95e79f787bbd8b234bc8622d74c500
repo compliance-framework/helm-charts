@@ -1,0 +1,5 @@
+lisa-design:
+- Checksums include the rendered templates (not a hand-picked list of values) so every input is covered; only templates that render something get an annotation. The JWT/initial-user secrets are deliberately excluded: generated values would change on every `helm template` (GitOps) and roll the pods each sync.
+- Because deployment_api.yaml now includes the API config templates, test suites rendering it must list them (helm-unittest loads only listed templates), and fail() errors in those templates surface first in the Deployment; six failure tests assert there by errorPattern.
+- JWT key reuse uses lookup like psqlPasswordB64; with `helm template` (e.g. Argo CD) lookup is empty and the key is still regenerated: existingSecret is the answer there (pre-existing limitation, documented in the README PR).
+- APP_PORT (never read: the API binds CCF_-prefixed env) is replaced by CCF_APP_PORT from api.containerPort, the port the probes and Service targetPort use.
