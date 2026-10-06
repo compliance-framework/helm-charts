@@ -1,0 +1,5 @@
+lisa-design:
+- No persistence (chart owner decision): CCF_STATE_DIR is pinned to /app/.compliance-framework/state/agent on the existing ccf-tmp emptyDir. Do not add PVCs/StatefulSets. The path is not a value on purpose (spec: "always set").
+- CCF_INSTANCE_ID is rendered only from agent.instanceId; the chart must never generate or lookup() one (rejected: concurrent pods sharing an ID during rollouts).
+- strategy defaults to Recreate; when type is Recreate and no rollingUpdate is given we render rollingUpdate: null so a helm upgrade from a RollingUpdate Deployment clears the API-server-defaulted block (otherwise the API server rejects the patch).
+- HPA and replicaCount stay as they are (chart owner decision).
