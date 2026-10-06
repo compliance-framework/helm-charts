@@ -3,3 +3,7 @@ lisa-design:
 - Because deployment_api.yaml now includes the API config templates, test suites rendering it must list them (helm-unittest loads only listed templates), and fail() errors in those templates surface first in the Deployment; six failure tests assert there by errorPattern.
 - JWT key reuse uses lookup like psqlPasswordB64; with `helm template` (e.g. Argo CD) lookup is empty and the key is still regenerated: existingSecret is the answer there (pre-existing limitation, documented in the README PR).
 - APP_PORT (never read: the API binds CCF_-prefixed env) is replaced by CCF_APP_PORT from api.containerPort, the port the probes and Service targetPort use.
+
+lisa-selfreview:
+pass 1 (strict): request_changes -> fixed. Full-suite run after the first commit showed 50 failures: suites rendering deployment_api.yaml did not load the newly included templates. Fixed in the follow-up test commit.
+pass 2 (strict): approve. Tests: checksum presence by integration, user annotations preserved, CCF_APP_PORT from containerPort, JWT key generated on install and reused via kubernetesProvider lookup.
