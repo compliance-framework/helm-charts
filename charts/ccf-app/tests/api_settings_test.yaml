@@ -1,6 +1,8 @@
 suite: API agent, worker, playback, artifact and evidence settings
 templates:
   - templates/configmap_api.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
