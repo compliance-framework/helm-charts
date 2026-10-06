@@ -16,10 +16,9 @@ spec:
   template:
     metadata:
       {{- $annotations := merge (dict) (default (dict) .Values.podAnnotations) (default (dict) .Values.api.podAnnotations) }}
-      {{- if $annotations }}
+      {{- $annotations = merge (include "ccf-app.apiChecksumAnnotations" . | fromYaml) $annotations }}
       annotations:
         {{- toYaml $annotations | nindent 8 }}
-      {{- end }}
       labels:
         {{- include "ccf-app.componentPodLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 8 }}
     spec:

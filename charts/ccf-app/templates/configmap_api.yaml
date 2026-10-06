@@ -7,7 +7,7 @@ metadata:
   labels:
     {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
 data:
-  APP_PORT: "{{ .Values.api.service.port }}"
+  CCF_APP_PORT: "{{ .Values.api.containerPort }}"
   CCF_DB_DRIVER: "postgres"
   CCF_DB_HOST: {{ if .Values.database.local.enabled }}"{{ include "ccf-app.fullname" . }}-postgresql"{{ else }}"{{ coalesce .Values.database.external.host .Values.database.external.hostname }}"{{ end }}
   CCF_DB_PORT: "{{ if .Values.database.local.enabled }}5432{{ else }}{{ .Values.database.external.port }}{{ end }}"

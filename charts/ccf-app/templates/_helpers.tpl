@@ -81,6 +81,21 @@ and return a new random password.
 {{- end -}}
 {{- end -}}
 
+{{/*
+Return the base64 encoded JWT private key for api.jwt.source=generated. Reuse the key in the
+release's existing secret so an upgrade does not rotate it (which would log every user out
+and invalidate agent tokens); generate one only on first install.
+*/}}
+{{- define "ccf-app.jwtPrivateKeyB64" -}}
+{{- $secretName := printf "%s-jwt-private-key" (include "ccf-app.fullname" .) -}}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
+{{- if and $existing (index (default (dict) $existing.data) "private_key.pem") -}}
+{{- index $existing.data "private_key.pem" -}}
+{{- else -}}
+{{- genPrivateKey "rsa" | b64enc -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "ccf-app.initialUserPasword" -}}
 {{- $secretName := printf "%s-initial-user-password" (include "ccf-app.fullname" .) -}}
 {{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
@@ -175,6 +190,32 @@ config-owned grant (api internal/authz/reconcile.go).
   name: api-authz-config
   subPath: authz-roles.yaml
   readOnly: true
+{{- end }}
+
+{{/*
+checksum/* pod annotations for the API: a change to any API ConfigMap or the chart-managed
+API config Secret rolls the API pods, so new settings (including authz-roles.yaml, which the
+API reconciles only at boot) take effect. Only templates that render something are listed.
+The JWT and initial-user secrets are left out: they are generated, and a fresh value on every
+`helm template` would roll the pods on every GitOps sync.
+*/}}
+{{- define "ccf-app.apiChecksumAnnotations" -}}
+{{- $files := dict
+  "checksum/config" "/configmap_api.yaml"
+  "checksum/authz" "/configmap_api_authz.yaml"
+  "checksum/sso" "/configmap_api_sso.yaml"
+  "checksum/email" "/configmap_api_email.yaml"
+  "checksum/slack" "/configmap_api_slack.yaml"
+  "checksum/workflow" "/configmap_api_workflow.yaml"
+  "checksum/secret-config" "/secrets_api_config.yaml" -}}
+{{- $out := dict -}}
+{{- range $key, $file := $files -}}
+{{- $rendered := include (print $.Template.BasePath $file) $ -}}
+{{- if trim $rendered -}}
+{{- $_ := set $out $key ($rendered | sha256sum) -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $out -}}
 {{- end }}
 
 {{/*
