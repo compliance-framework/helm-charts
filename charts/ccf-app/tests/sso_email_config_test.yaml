@@ -5,6 +5,9 @@ templates:
   - templates/configmap_api_email.yaml
   - templates/deployment_api.yaml
   - templates/secrets_api_config.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/configmap_api_slack.yaml
+  - templates/configmap_api_workflow.yaml
 release:
   name: ccf-app
   namespace: default
