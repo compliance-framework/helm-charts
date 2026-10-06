@@ -3,3 +3,6 @@ lisa-design:
 - "Both or neither" is enforced only for inline values (createSecret / plain). auth.enabled with no credentials and no existingSecret renders no env (the agent runs anonymously), matching the agent's own both-or-neither rule.
 - UUID check is both a schema pattern (^$|UUID) and a template fail with a readable message; the schema applies even when auth.enabled=false (a non-UUID value could never have worked).
 - Validation is included from both secret.yaml and deployment.yaml so rendering a subset still fails; helm-unittest reports the failure on secret.yaml (first in render order), so failedTemplate asserts target it.
+
+lisa-design:
+- Series rule (spec, chart owner): only the LAST PR of each series edits Chart.yaml, because release-*.yaml publishes on any Chart.yaml change on main. HELM-VER-001 ("chart changed without version bump") is therefore intentionally not satisfied per PR; the bump lands in the release PR.
