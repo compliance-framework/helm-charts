@@ -1,0 +1,3 @@
+lisa-design:
+- config.json is built as a dict and rendered with toPrettyJson (proper JSON escaping); ui.extraConfig is the base and the first-class keys are set on top, so they always win.
+- The UI container's API_URL env was removed rather than documented: ui v2.12.1 reads only VITE_* at build time and /config.json at runtime, so it never had an effect. ui.extraEnv still renders, and env is omitted when empty.
