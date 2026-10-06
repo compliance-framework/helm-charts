@@ -796,11 +796,28 @@
                                 }
                             }
                         },
+                        "podSecurityContext": {
+                            "type": "object"
+                        },
                         "resources": {
+                            "type": "object"
+                        },
+                        "securityContext": {
                             "type": "object"
                         },
                         "username": {
                             "type": "string"
+                        },
+                        "volumePermissions": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                },
+                                "user": {
+                                    "type": "integer"
+                                }
+                            }
                         },
                         "vpa": {
                             "type": "object",

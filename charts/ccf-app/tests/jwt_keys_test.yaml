@@ -24,7 +24,7 @@ tests:
         template: templates/deployment_api.yaml
       - equal:
           path: spec.template.spec.initContainers[1].image
-          value: "alpine:3.21"
+          value: "alpine/openssl:3.5.9"
         template: templates/deployment_api.yaml
       - equal:
           path: spec.template.spec.volumes[0].secret.secretName

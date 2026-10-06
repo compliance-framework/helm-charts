@@ -231,6 +231,8 @@ spec:
         - name: wait-for-postgres
           image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
           imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
+          securityContext:
+            {{- include "ccf-app.apiSecurityContext" . | nindent 12 }}
           command: ['sh', '-c', 'until pg_isready -h ${CCF_DB_HOST} -p ${CCF_DB_PORT} -U ${CCF_DB_USER}; do echo waiting for database; sleep 2; done;']
           envFrom:
             - configMapRef:
@@ -258,10 +260,12 @@ spec:
         - name: {{ $jwt.generationContainerName }}
           image: "{{ $jwt.generationImageRepository }}:{{ $jwt.generationImageTag }}"
           imagePullPolicy: {{ $jwt.generationImagePullPolicy }}
-          {{- with (dig "publicKeyGeneration" "initContainer" "securityContext" (dict) (default (dict) .Values.api.jwt)) }}
           securityContext:
+            {{- with (dig "publicKeyGeneration" "initContainer" "securityContext" (dict) (default (dict) .Values.api.jwt)) }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- else }}
+            {{- include "ccf-app.apiSecurityContext" . | nindent 12 }}
+            {{- end }}
           command:
             {{- toYaml $jwt.generationCommand | nindent 12 }}
           args:

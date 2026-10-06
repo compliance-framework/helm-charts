@@ -25,18 +25,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
-      {{- $podSecurityContext := coalesce .Values.ui.podSecurityContext .Values.podSecurityContext }}
-      {{- if $podSecurityContext }}
       securityContext:
-        {{- toYaml $podSecurityContext | nindent 8 }}
-      {{- end }}
+        {{- include "ccf-app.pgadmin4PodSecurityContext" . | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-pgadmin4
-          {{- $containerSecurityContext := coalesce .Values.pgadmin4.securityContext .Values.securityContext }}
-          {{- if $containerSecurityContext }}
           securityContext:
-            {{- toYaml $containerSecurityContext | nindent 12 }}
-          {{- end }}
+            {{- include "ccf-app.pgadmin4SecurityContext" . | nindent 12 }}
           image: "{{ .Values.pgadmin4.image.repository }}:{{ .Values.pgadmin4.image.tag }}"
           imagePullPolicy: {{ .Values.pgadmin4.image.pullPolicy }}
           ports:
@@ -44,6 +38,11 @@ spec:
               containerPort: {{ .Values.pgadmin4.containerPort }}
               protocol: TCP
           env:
+            - name: PGADMIN_LISTEN_PORT
+              value: {{ .Values.pgadmin4.containerPort | quote }}
+            # Keep the generated config out of /pgadmin4, so the root filesystem can be read-only.
+            - name: PGADMIN_CUSTOM_CONFIG_DISTRO_FILE
+              value: /var/lib/pgadmin/config_distro.py
             - name: PGADMIN_DEFAULT_EMAIL
               value: {{ .Values.pgadmin4.pgadmin4_default_email | quote }}
             - name: PGADMIN_DEFAULT_PASSWORD
@@ -57,12 +56,20 @@ spec:
           volumeMounts:
             - name: pgadmin-data
               mountPath: /var/lib/pgadmin
+            - name: pgadmin-run
+              mountPath: /run/pgadmin
+            - name: tmp
+              mountPath: /tmp
           {{- with .Values.pgadmin4.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
         - name: pgadmin-data
+          emptyDir: {}
+        - name: pgadmin-run
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:

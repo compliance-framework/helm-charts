@@ -8,6 +8,8 @@ templates:
   - templates/configmap_api_slack.yaml
   - templates/configmap_api_workflow.yaml
   - templates/secrets_api_config.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
@@ -19,6 +21,9 @@ tests:
       - equal:
           path: spec.template.spec.securityContext
           value:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
             fsGroup: 65532
             seccompProfile:
               type: RuntimeDefault
@@ -52,21 +57,40 @@ tests:
           path: spec.template.spec.initContainers[?(@.name == "create-user")].securityContext.readOnlyRootFilesystem
           value: true
 
-  - it: leaves generate-public-key able to run apk as root by default
+  - it: runs generate-public-key from an openssl image as non-root with a read-only root filesystem
     template: templates/deployment_api.yaml
     asserts:
-      - notExists:
-          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].securityContext
-      - notExists:
-          path: spec.template.spec.securityContext.runAsNonRoot
-      - notExists:
-          path: spec.template.spec.securityContext.runAsUser
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].image
+          value: alpine/openssl:3.5.9
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].command
+          value: ["openssl"]
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].args
+          value: ["rsa", "-in", "/var/ccf/private_key/private_key.pem", "-pubout", "-out", "/var/ccf/public_key/public_key.pem"]
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].securityContext.readOnlyRootFilesystem
+          value: true
       - contains:
           path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].volumeMounts
           content:
             mountPath: /var/ccf/public_key/
             name: publickey
             readOnly: false
+
+  - it: runs wait-for-postgres hardened too
+    template: templates/deployment_api.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "wait-for-postgres")].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "wait-for-postgres")].securityContext.readOnlyRootFilesystem
+          value: true
 
   - it: lets generate-public-key take its own securityContext
     template: templates/deployment_api.yaml

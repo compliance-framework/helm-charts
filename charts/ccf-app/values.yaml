@@ -64,10 +64,14 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template.
   name: ""
 
-# Pod security context shared by all workloads.
+# Pod security context shared by all workloads unless overridden per component. Empty (the
+# default) uses each component's hardened default: non-root as the image's own user, seccomp
+# RuntimeDefault (see the component's podSecurityContext comment and the README).
 podSecurityContext: {}
 
-# Container security context shared by all workloads unless overridden per component.
+# Container security context shared by all workloads unless overridden per component. Empty uses
+# the hardened default: read-only root filesystem, no privilege escalation, all capabilities
+# dropped, seccomp RuntimeDefault, with emptyDirs for every path the image writes.
 securityContext: {}
 
 nodeSelector: {}
@@ -141,22 +145,26 @@ api:
       publicKey: public_key.pem
     publicKeyGeneration:
       enabled: true
+      # Derives /var/ccf/public_key/public_key.pem from the private key. The default image ships
+      # openssl (nothing is installed at runtime) and runs as the API pod's non-root user with a
+      # read-only root filesystem, writing only to the shared publickey emptyDir.
       initContainer:
         name: generate-public-key
         image:
-          repository: alpine
-          tag: "3.21"
+          repository: alpine/openssl
+          tag: "3.5.9"
           pullPolicy: IfNotPresent
         command:
-          - sh
-          - -c
+          - openssl
         args:
-          - apk add --no-cache openssl && echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem
-        # securityContext for this init container. Empty by default: the default command
-        # installs openssl with apk, which needs root and a writable root filesystem. It
-        # writes public_key.pem to the shared publickey emptyDir, which the API (uid 65532)
-        # reads. With an image that already ships openssl you can harden it, e.g.
-        # {runAsNonRoot: true, runAsUser: 65532, readOnlyRootFilesystem: true}.
+          - rsa
+          - -in
+          - /var/ccf/private_key/private_key.pem
+          - -pubout
+          - -out
+          - /var/ccf/public_key/public_key.pem
+        # securityContext for this init container. Empty uses the API container's context
+        # (api.securityContext, the global securityContext, or the hardened default).
         securityContext: {}
   containerPort: 8080
   service:
@@ -196,12 +204,16 @@ api:
   podAnnotations: {}
   resources: {}
   # Pod securityContext for the API. Empty falls back to the global podSecurityContext, and
-  # then to the chart default:
+  # then to the chart default (every container of the pod, init containers included, runs as
+  # 65532):
+  #   runAsNonRoot: true
+  #   runAsUser: 65532
+  #   runAsGroup: 65532
   #   fsGroup: 65532
   #   seccompProfile: {type: RuntimeDefault}
   podSecurityContext: {}
-  # Container securityContext for the API container and the migrate-db and create-user init
-  # containers (they run /api). Empty falls back to the global securityContext, and then to
+  # Container securityContext for the API container and its init containers (wait-for-postgres,
+  # migrate-db, create-user, and generate-public-key unless it has its own). Empty falls back to the global securityContext, and then to
   # the chart default:
   #   runAsNonRoot: true
   #   runAsUser: 65532
@@ -404,7 +416,14 @@ ui:
   podLabels: {}
   podAnnotations: {}
   resources: {}
+  # Pod securityContext for the UI. Empty falls back to the global podSecurityContext, then to:
+  #   runAsNonRoot: true, runAsUser: 101, runAsGroup: 101, fsGroup: 101 (the image's nginx user)
+  #   seccompProfile: {type: RuntimeDefault}
+  #   sysctls: [{name: net.ipv4.ip_unprivileged_port_start, value: "0"}]  (nginx listens on 80)
   podSecurityContext: {}
+  # Container securityContext for the UI. Empty falls back to the global securityContext, then
+  # to the hardened default (read-only root filesystem; /var/cache/nginx, /run and /tmp are
+  # emptyDirs).
   securityContext: {}
   extraEnv: []
   extraEnvFrom: []
@@ -482,7 +501,12 @@ dex:
   podLabels: {}
   podAnnotations: {}
   resources: {}
+  # Pod securityContext for Dex. Empty falls back to the global podSecurityContext, then to
+  # runAsNonRoot as the image's user 1001 (runAsUser/runAsGroup/fsGroup 1001), seccomp
+  # RuntimeDefault.
   podSecurityContext: {}
+  # Container securityContext for Dex. Empty falls back to the global securityContext, then to
+  # the hardened default (read-only root filesystem; /tmp is an emptyDir).
   securityContext: {}
   extraEnv: []
   extraEnvFrom: []
@@ -536,6 +560,23 @@ database:
       nodeAffinity: {}
     resources: {}
     extraEnv: []
+    # Pod securityContext for PostgreSQL. Empty falls back to the global podSecurityContext,
+    # then to runAsNonRoot as the image's postgres user (runAsUser/runAsGroup/fsGroup 999),
+    # seccomp RuntimeDefault.
+    podSecurityContext: {}
+    # Container securityContext for PostgreSQL. Empty falls back to the global securityContext,
+    # then to the hardened default (read-only root filesystem; /var/run/postgresql and /tmp are
+    # emptyDirs; data on the persistent volume).
+    securityContext: {}
+    # Init container that chowns the data volume's root to the postgres user before it starts.
+    # It is the only root container of the chart (CHOWN and FOWNER only, read-only root
+    # filesystem). Needed for volumes without fsGroup support, such as the chart's hostPath PV.
+    # Disable it when the volume root is already owned by uid 999 (for example a volume created
+    # by an earlier release of this chart) for a pod that meets the Pod Security "restricted"
+    # profile.
+    volumePermissions:
+      enabled: true
+      user: 999
   external:
     secretRef: ""
     hostname: ""
@@ -586,7 +627,9 @@ pgadmin4:
     repository: dpage/pgadmin4
     pullPolicy: IfNotPresent
     tag: "latest"
-  containerPort: 80
+  # pgAdmin listens on this port (PGADMIN_LISTEN_PORT). An unprivileged port, so it runs without
+  # the bind capability; the Service targets it by name.
+  containerPort: 8080
   pgadmin4_default_email: admin@example.com
   pgadmin4_default_password: ""
   extraEnv: []
@@ -610,7 +653,13 @@ pgadmin4:
   podLabels: {}
   podAnnotations: {}
   resources: {}
+  # Pod securityContext for pgAdmin. Empty falls back to the global podSecurityContext, then to
+  # runAsNonRoot as the image's pgadmin user (runAsUser/runAsGroup/fsGroup 5050), seccomp
+  # RuntimeDefault.
   podSecurityContext: {}
+  # Container securityContext for pgAdmin. Empty falls back to the global securityContext, then
+  # to the hardened default (read-only root filesystem; /var/lib/pgadmin, /run/pgadmin and /tmp
+  # are emptyDirs).
   securityContext: {}
   ingress:
     enabled: true

@@ -27,16 +27,35 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8 }}
+        {{- include "ccf-app.psqlPodSecurityContext" . | nindent 8 }}
+      {{- if .Values.database.local.volumePermissions.enabled }}
+      initContainers:
+        # The data volume must belong to the postgres user (999). Volumes without fsGroup
+        # support (such as the chart's hostPath PV) start root-owned, so chown its root once.
+        - name: volume-permissions
+          image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
+          imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
+          securityContext:
+            {{- include "ccf-app.psqlVolumePermissionsSecurityContext" . | nindent 12 }}
+          command: ["sh", "-c"]
+          args:
+            - chown {{ .Values.database.local.volumePermissions.user }}:{{ .Values.database.local.volumePermissions.user }} "$PGDATA_MOUNT" && chmod 0700 "$PGDATA_MOUNT"
+          env:
+            - name: PGDATA_MOUNT
+              value: {{ .Values.database.local.persistence.mountPath | quote }}
+          {{- with .Values.database.local.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: {{ .Values.database.local.persistence.mountPath }}
+              name: postgresdata
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}-db
-          {{- with .Values.securityContext }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- include "ccf-app.psqlSecurityContext" . | nindent 12 }}
           image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
           imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
           envFrom:
@@ -64,7 +83,16 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.database.local.persistence.mountPath }}
               name: postgresdata
+            # postgres writes its socket and lock files here and temp files to /tmp.
+            - mountPath: /var/run/postgresql
+              name: postgres-run
+            - mountPath: /tmp
+              name: tmp
       volumes:
+        - name: postgres-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
         - name: postgresdata
           persistentVolumeClaim:
             claimName: {{ if .Values.database.local.persistence.existingClaim }}{{ .Values.database.local.persistence.existingClaim }}{{ else }}{{ include "ccf-app.fullname" . }}-postgresql{{ end }}

@@ -132,13 +132,13 @@ existingPublicKey: {{ default "public_key.pem" $jwtExistingSecretValues.publicKe
 publicGenerationEnabled: {{ $jwtPublicGenerationEnabled }}
 fileMountsEnabled: {{ $jwtFileMountsEnabled }}
 generationContainerName: {{ default "generate-public-key" $jwtGenerationInitContainerValues.name | quote }}
-generationImageRepository: {{ default "alpine" $jwtGenerationImageValues.repository | quote }}
-generationImageTag: {{ default "3.21" $jwtGenerationImageValues.tag | quote }}
+generationImageRepository: {{ default "alpine/openssl" $jwtGenerationImageValues.repository | quote }}
+generationImageTag: {{ default "3.5.9" $jwtGenerationImageValues.tag | quote }}
 generationImagePullPolicy: {{ default "IfNotPresent" $jwtGenerationImageValues.pullPolicy | quote }}
 generationCommand:
-{{- toYaml (default (list "sh" "-c") $jwtGenerationInitContainerValues.command) | nindent 2 }}
+{{- toYaml (default (list "openssl") $jwtGenerationInitContainerValues.command) | nindent 2 }}
 generationArgs:
-{{- toYaml (default (list "apk add --no-cache openssl && echo \"Generating public key from private key...\" && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem") $jwtGenerationInitContainerValues.args) | nindent 2 }}
+{{- toYaml (default (list "rsa" "-in" "/var/ccf/private_key/private_key.pem" "-pubout" "-out" "/var/ccf/public_key/public_key.pem") $jwtGenerationInitContainerValues.args) | nindent 2 }}
 {{- end -}}
 
 {{/*
@@ -177,42 +177,6 @@ The JWT and initial-user secrets are left out: they are generated, and a fresh v
 {{- end -}}
 {{- end -}}
 {{- toYaml $out -}}
-{{- end }}
-
-{{/*
-API pod securityContext: api.podSecurityContext, else the global podSecurityContext, else the
-chart default. The API image (distroless base-debian12) has no USER, so the default sets the
-group and seccomp here and runs the containers as non-root in apiSecurityContext. runAsNonRoot
-is not set at pod level, because the generate-public-key init container (alpine) installs
-openssl with apk and runs as root.
-*/}}
-{{- define "ccf-app.apiPodSecurityContext" -}}
-{{- $ctx := coalesce .Values.api.podSecurityContext .Values.podSecurityContext -}}
-{{- if not $ctx -}}
-{{- $ctx = dict "fsGroup" 65532 "seccompProfile" (dict "type" "RuntimeDefault") -}}
-{{- end -}}
-{{- toYaml $ctx -}}
-{{- end }}
-
-{{/*
-securityContext for the API container and the init containers that run /api (migrate-db,
-create-user): api.securityContext, else the global securityContext, else the chart default
-(non-root 65532, read-only root filesystem, no privilege escalation, no capabilities). The API
-writes only to its temp dir, an emptyDir at /tmp.
-*/}}
-{{- define "ccf-app.apiSecurityContext" -}}
-{{- $ctx := coalesce .Values.api.securityContext .Values.securityContext -}}
-{{- if not $ctx -}}
-{{- $ctx = dict
-  "runAsNonRoot" true
-  "runAsUser" 65532
-  "runAsGroup" 65532
-  "readOnlyRootFilesystem" true
-  "allowPrivilegeEscalation" false
-  "capabilities" (dict "drop" (list "ALL"))
-  "seccompProfile" (dict "type" "RuntimeDefault") -}}
-{{- end -}}
-{{- toYaml $ctx -}}
 {{- end }}
 
 {{/*
