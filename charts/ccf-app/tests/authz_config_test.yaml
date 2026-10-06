@@ -114,3 +114,69 @@ tests:
       api.authz.failMode: "maybe"
     asserts:
       - failedTemplate: {}
+
+  - it: mounts the roles file in migrate-db and create-user, which run the API binary
+    set:
+      api.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "migrate-db")].volumeMounts
+          content:
+            mountPath: /etc/ccf/authz-roles.yaml
+            name: api-authz-config
+            subPath: authz-roles.yaml
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "create-user")].volumeMounts
+          content:
+            mountPath: /etc/ccf/authz-roles.yaml
+            name: api-authz-config
+            subPath: authz-roles.yaml
+            readOnly: true
+        template: templates/deployment_api.yaml
+
+  - it: mounts the roles file with in-memory JWT keys and no other config files (cedar)
+    set:
+      api.enabled: true
+      api.jwt.source: inMemory
+      api.authz.driver: cedar
+      api.authz.roleAssignments:
+        users:
+          admin@example.com: admin
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          value:
+            - mountPath: /etc/ccf/authz-roles.yaml
+              name: api-authz-config
+              subPath: authz-roles.yaml
+              readOnly: true
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "migrate-db")].volumeMounts
+          value:
+            - mountPath: /etc/ccf/authz-roles.yaml
+              name: api-authz-config
+              subPath: authz-roles.yaml
+              readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "create-user")].volumeMounts
+          content:
+            mountPath: /etc/ccf/authz-roles.yaml
+            name: api-authz-config
+            subPath: authz-roles.yaml
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - equal:
+          path: spec.template.spec.volumes
+          value:
+            - name: api-authz-config
+              configMap:
+                name: ccf-app-api-authz
+        template: templates/deployment_api.yaml
+      - equal:
+          path: data["CCF_AUTHZ_ROLE_ASSIGNMENTS"]
+          value: "/etc/ccf/authz-roles.yaml"
+        template: templates/configmap_api.yaml

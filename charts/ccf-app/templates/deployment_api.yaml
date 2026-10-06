@@ -190,7 +190,6 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if $jwt.apiHasVolumeMounts }}
           volumeMounts:
             {{- if $jwt.fileMountsEnabled }}
             - mountPath: /var/ccf/private_key/
@@ -224,11 +223,7 @@ spec:
               subPath: slack.yaml
               readOnly: true
             {{- end }}
-            - mountPath: /etc/ccf/authz-roles.yaml
-              name: api-authz-config
-              subPath: authz-roles.yaml
-              readOnly: true
-          {{- end }}
+            {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
           livenessProbe:
             {{- with .Values.api.livenessProbe }}
             {{- toYaml . | nindent 12 }}
@@ -304,15 +299,16 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if $jwt.fileMountsEnabled }}
           volumeMounts:
+            {{- if $jwt.fileMountsEnabled }}
             - mountPath: /var/ccf/private_key/
               name: privatekey
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: true
-          {{- end }}
+            {{- end }}
+            {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
@@ -338,16 +334,16 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if $jwt.fileMountsEnabled }}
           volumeMounts:
+            {{- if $jwt.fileMountsEnabled }}
             - mountPath: /var/ccf/private_key/
               name: privatekey
               readOnly: true
             - mountPath: /var/ccf/public_key/
               name: publickey
               readOnly: true
-          {{- end }}
-      {{- if $jwt.apiHasVolumes }}
+            {{- end }}
+            {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
       volumes:
         {{- if $jwt.fileMountsEnabled }}
         - name: privatekey
@@ -392,7 +388,6 @@ spec:
         - name: api-authz-config
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-authz
-      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
