@@ -2,3 +2,6 @@ lisa-design:
 - Series rule (spec, chart owner): only the LAST PR of the ccf-app series edits Chart.yaml (release-app.yaml publishes on any Chart.yaml change on main). HELM-VER-001 is intentionally deferred to the release PR.
 - The authz mount is a shared helper (ccf-app.apiAuthzVolumeMount) used by the API container, migrate-db and create-user, so the path cannot drift between them. The apiHasVolumeMounts/apiHasVolumes gate was removed because volumes are now always non-empty.
 - wait-for-postgres and generate-public-key do not run the API binary and do not get the mount.
+
+lisa-selfreview:
+pass 1 (strict): approve. Tests: migrate-db/create-user mounts (default), inMemory+cedar renders exactly the authz mount/volume in api and migrate-db. No values changed, so the schema is unchanged (regenerated, no diff).
