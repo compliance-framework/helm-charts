@@ -373,6 +373,54 @@ api:
     # API default false).
     manualRequireSubject: null # @schema type:[boolean, null]
 
+  # Optional agent bootstrap: a post-install/post-upgrade Job that, for each entry in agents,
+  # creates the agent in the CCF API (Admin -> Agents) if it does not exist, creates a
+  # never-expiring key, and stores it in a Secret with the keys CCF_API_AUTH_CLIENT_ID and
+  # CCF_API_AUTH_CLIENT_SECRET, ready for the ccf-agent chart's
+  # agent.api.auth.existingSecret. A Secret that already exists is left alone (a key's secret
+  # can only be read when the key is created), so re-runs are no-ops; delete the Secret to
+  # issue a new key. The Secrets are not part of the release and survive helm uninstall.
+  agentBootstrap:
+    enabled: false
+    # Agents to bootstrap, one key and Secret each.
+    agents: [] # @schema item:object;itemProperties:{"name":{"type":"string"},"description":{"type":"string"},"secretName":{"type":"string"},"namespace":{"type":"string"}}
+      # - name: ccf-agent                    # agent name in the API (found by name, else created)
+      #   description: "Cluster agent"       # used only when the agent is created
+      #   secretName: ccf-agent-credentials  # Secret to create
+      #   namespace: ccf-agents              # Secret namespace; default: the release namespace
+    # Admin login used to call the API. By default the chart's initial user: api.user.email
+    # and the password in the <fullname>-initial-user-password Secret. Under cedar the user
+    # needs the admin role in authz.roleAssignments.
+    adminCredentials:
+      existingSecret: "" # Secret with the admin password (default: <fullname>-initial-user-password)
+      passwordKey: password
+      emailKey: "" # key in existingSecret holding the login email; empty uses email below
+      email: "" # login email; default api.user.email
+    # Override the API base URL (including /api). Default: the in-cluster API Service.
+    apiUrl: ""
+    # Seconds to wait for GET /api/health/ready before giving up. Helm waits for the hook only
+    # up to --timeout (default 5m), so raise both together.
+    waitSeconds: 300 # @schema type:integer;minimum:0
+    backoffLimit: 2 # @schema type:integer;minimum:0
+    # An image with a POSIX shell, curl and jq. The default alpine image installs curl and jq
+    # with apk at start (root, egress to the Alpine mirror); for air-gapped clusters use an
+    # image that ships both, and the apk step is skipped.
+    image:
+      repository: alpine
+      tag: "3.21"
+      pullPolicy: IfNotPresent
+    podSecurityContext:
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources: {}
+    labels: {}
+    podLabels: {}
+
   # AI suggestions configuration.
   # Only the API key is sensitive; everything else is plain runtime config injected
   # as CCF_AI_* environment variables. The key follows the same secret management

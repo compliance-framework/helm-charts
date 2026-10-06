@@ -8,6 +8,117 @@
         "api": {
             "type": "object",
             "properties": {
+                "agentBootstrap": {
+                    "type": "object",
+                    "properties": {
+                        "adminCredentials": {
+                            "type": "object",
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                },
+                                "emailKey": {
+                                    "type": "string"
+                                },
+                                "existingSecret": {
+                                    "type": "string"
+                                },
+                                "passwordKey": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "agents": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "type": "string"
+                                    },
+                                    "secretName": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "apiUrl": {
+                            "type": "string"
+                        },
+                        "backoffLimit": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "image": {
+                            "type": "object",
+                            "properties": {
+                                "pullPolicy": {
+                                    "type": "string"
+                                },
+                                "repository": {
+                                    "type": "string"
+                                },
+                                "tag": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "labels": {
+                            "type": "object"
+                        },
+                        "podLabels": {
+                            "type": "object"
+                        },
+                        "podSecurityContext": {
+                            "type": "object",
+                            "properties": {
+                                "seccompProfile": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "resources": {
+                            "type": "object"
+                        },
+                        "securityContext": {
+                            "type": "object",
+                            "properties": {
+                                "allowPrivilegeEscalation": {
+                                    "type": "boolean"
+                                },
+                                "capabilities": {
+                                    "type": "object",
+                                    "properties": {
+                                        "drop": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "waitSeconds": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    }
+                },
                 "agents": {
                     "type": "object",
                     "properties": {
