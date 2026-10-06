@@ -28,18 +28,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
-      {{- $podSecurityContext := coalesce .Values.api.podSecurityContext .Values.podSecurityContext }}
-      {{- if $podSecurityContext }}
       securityContext:
-        {{- toYaml $podSecurityContext | nindent 8 }}
-      {{- end }}
+        {{- include "ccf-app.apiPodSecurityContext" . | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-api
-          {{- $containerSecurityContext := coalesce .Values.api.securityContext .Values.securityContext }}
-          {{- if $containerSecurityContext }}
           securityContext:
-            {{- toYaml $containerSecurityContext | nindent 12 }}
-          {{- end }}
+            {{- include "ccf-app.apiSecurityContext" . | nindent 12 }}
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           ports:
@@ -224,6 +218,7 @@ spec:
               readOnly: true
             {{- end }}
             {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
+            {{- include "ccf-app.apiTmpVolumeMount" . | nindent 12 }}
           livenessProbe:
             {{- with .Values.api.livenessProbe }}
             {{- toYaml . | nindent 12 }}
@@ -263,6 +258,10 @@ spec:
         - name: {{ $jwt.generationContainerName }}
           image: "{{ $jwt.generationImageRepository }}:{{ $jwt.generationImageTag }}"
           imagePullPolicy: {{ $jwt.generationImagePullPolicy }}
+          {{- with (dig "publicKeyGeneration" "initContainer" "securityContext" (dict) (default (dict) .Values.api.jwt)) }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command:
             {{- toYaml $jwt.generationCommand | nindent 12 }}
           args:
@@ -282,6 +281,8 @@ spec:
         - name: migrate-db
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          securityContext:
+            {{- include "ccf-app.apiSecurityContext" . | nindent 12 }}
           command: ["/api"]
           args: ["migrate", "up"]
           envFrom:
@@ -309,9 +310,12 @@ spec:
               readOnly: true
             {{- end }}
             {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
+            {{- include "ccf-app.apiTmpVolumeMount" . | nindent 12 }}
         - name: create-user
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          securityContext:
+            {{- include "ccf-app.apiSecurityContext" . | nindent 12 }}
           command: ["/api"]
           args: ["users", "add", "-f", "admin", "-l", "user", "-e", "{{ .Values.api.user.email }}", "-p", "$(CCF_INITIAL_USER_PASSWORD)"]
           envFrom:
@@ -344,6 +348,7 @@ spec:
               readOnly: true
             {{- end }}
             {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
+            {{- include "ccf-app.apiTmpVolumeMount" . | nindent 12 }}
       volumes:
         {{- if $jwt.fileMountsEnabled }}
         - name: privatekey
@@ -388,6 +393,8 @@ spec:
         - name: api-authz-config
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-authz
+        - name: tmp
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

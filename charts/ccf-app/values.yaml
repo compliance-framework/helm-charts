@@ -152,6 +152,12 @@ api:
           - -c
         args:
           - apk add --no-cache openssl && echo "Generating public key from private key..." && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem
+        # securityContext for this init container. Empty by default: the default command
+        # installs openssl with apk, which needs root and a writable root filesystem. It
+        # writes public_key.pem to the shared publickey emptyDir, which the API (uid 65532)
+        # reads. With an image that already ships openssl you can harden it, e.g.
+        # {runAsNonRoot: true, runAsUser: 65532, readOnlyRootFilesystem: true}.
+        securityContext: {}
   containerPort: 8080
   service:
     enabled: true
@@ -160,13 +166,15 @@ api:
     targetPort: http
     annotations: {}
     labels: {}
+  # Liveness: GET /api/health (process up). Readiness: GET /api/health/ready (database ping
+  # and, with the authzen driver, the remote PDP).
   livenessProbe:
     httpGet:
-      path: /api/auth/publickey
+      path: /api/health
       port: http
   readinessProbe:
     httpGet:
-      path: /api/auth/publickey
+      path: /api/health/ready
       port: http
   corsOrigins: [] # @schema item:string
   # Initial admin user, created by the create-user init container. Its password comes from
@@ -187,7 +195,22 @@ api:
   podLabels: {}
   podAnnotations: {}
   resources: {}
+  # Pod securityContext for the API. Empty falls back to the global podSecurityContext, and
+  # then to the chart default:
+  #   fsGroup: 65532
+  #   seccompProfile: {type: RuntimeDefault}
   podSecurityContext: {}
+  # Container securityContext for the API container and the migrate-db and create-user init
+  # containers (they run /api). Empty falls back to the global securityContext, and then to
+  # the chart default:
+  #   runAsNonRoot: true
+  #   runAsUser: 65532
+  #   runAsGroup: 65532
+  #   readOnlyRootFilesystem: true
+  #   allowPrivilegeEscalation: false
+  #   capabilities: {drop: [ALL]}
+  #   seccompProfile: {type: RuntimeDefault}
+  # The API writes only to /tmp, which the chart mounts as an emptyDir.
   securityContext: {}
   extraEnv: []
   extraEnvFrom: []

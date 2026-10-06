@@ -303,6 +303,9 @@
                                         },
                                         "name": {
                                             "type": "string"
+                                        },
+                                        "securityContext": {
+                                            "type": "object"
                                         }
                                     }
                                 }

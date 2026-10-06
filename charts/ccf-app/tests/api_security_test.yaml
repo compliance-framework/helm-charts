@@ -1,0 +1,154 @@
+suite: API pod hardening and probes
+templates:
+  - templates/deployment_api.yaml
+  - templates/configmap_api.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
+  - templates/configmap_api_slack.yaml
+  - templates/configmap_api_workflow.yaml
+  - templates/secrets_api_config.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: runs the API pod with the hardened defaults
+    template: templates/deployment_api.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: hardens the init containers that run /api
+    template: templates/deployment_api.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "migrate-db")].securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "migrate-db")].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "create-user")].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "create-user")].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: leaves generate-public-key able to run apk as root by default
+    template: templates/deployment_api.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].securityContext
+      - notExists:
+          path: spec.template.spec.securityContext.runAsNonRoot
+      - notExists:
+          path: spec.template.spec.securityContext.runAsUser
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].volumeMounts
+          content:
+            mountPath: /var/ccf/public_key/
+            name: publickey
+            readOnly: false
+
+  - it: lets generate-public-key take its own securityContext
+    template: templates/deployment_api.yaml
+    set:
+      api.jwt.publicKeyGeneration.initContainer.securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "generate-public-key")].securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 65532
+
+  - it: mounts a writable /tmp emptyDir in every container that runs /api
+    template: templates/deployment_api.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /tmp
+            name: tmp
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "migrate-db")].volumeMounts
+          content:
+            mountPath: /tmp
+            name: tmp
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "create-user")].volumeMounts
+          content:
+            mountPath: /tmp
+            name: tmp
+
+  - it: uses api.podSecurityContext and api.securityContext when set
+    template: templates/deployment_api.yaml
+    set:
+      api.podSecurityContext:
+        fsGroup: 2000
+      api.securityContext:
+        runAsUser: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            fsGroup: 2000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            runAsUser: 2000
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "migrate-db")].securityContext
+          value:
+            runAsUser: 2000
+
+  - it: still honours the global security contexts when api ones are empty
+    template: templates/deployment_api.yaml
+    set:
+      podSecurityContext:
+        fsGroup: 3000
+      securityContext:
+        runAsUser: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            fsGroup: 3000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            runAsUser: 3000
+
+  - it: probes the health endpoints
+    template: templates/deployment_api.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /api/health
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /api/health/ready
