@@ -1,0 +1,2 @@
+lisa-selfreview:
+pass 1 (strict): approve. Only Chart.yaml version/appVersion, the appVersion test pattern and README upgrade notes change. Verified ghcr agent, agent-custodian and agent-ci :0.9.0 manifests return 200 (2026-10-06).
