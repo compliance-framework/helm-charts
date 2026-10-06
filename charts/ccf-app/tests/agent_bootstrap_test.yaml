@@ -108,6 +108,7 @@ tests:
               secretKeyRef:
                 name: ccf-app-initial-user-password
                 key: password
+                optional: true
       - equal:
           path: spec.template.spec.restartPolicy
           value: Never
@@ -249,6 +250,7 @@ tests:
               secretKeyRef:
                 name: ccf-admin
                 key: email
+                optional: true
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -257,6 +259,7 @@ tests:
               secretKeyRef:
                 name: ccf-admin
                 key: pass
+                optional: true
 
   - it: uses an explicit API URL
     set:
@@ -301,3 +304,38 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "api.agentBootstrap.agents: Secret ccf/creds is listed twice"
+
+  - it: reads the admin password from the initial user's existing Secret by default
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+      api.user.existingSecret: ccf-initial-admin
+      api.user.passwordKey: admin-password
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ccf-initial-admin
+                key: admin-password
+                optional: true
+
+  - it: ships a script that checks every Secret before logging in and fails on duplicate names
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "all \\$total Secrets exist; nothing to do"
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "rename or remove the duplicates"

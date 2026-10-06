@@ -120,15 +120,24 @@ spec:
                 secretKeyRef:
                   name: {{ $admin.existingSecret }}
                   key: {{ $admin.emailKey }}
+                  optional: true
             {{- else }}
             - name: ADMIN_EMAIL
               value: {{ default .Values.api.user.email $admin.email | quote }}
             {{- end }}
+            # optional: a no-op run (every Secret exists) never reads it, so a missing or rotated
+            # admin Secret does not block upgrades.
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-initial-user-password" (include "ccf-app.fullname" .)) $admin.existingSecret }}
+                  {{- if $admin.existingSecret }}
+                  name: {{ $admin.existingSecret }}
                   key: {{ default "password" $admin.passwordKey }}
+                  {{- else }}
+                  name: {{ include "ccf-app.initialUserPasswordSecret" . }}
+                  key: {{ include "ccf-app.initialUserPasswordKey" . }}
+                  {{- end }}
+                  optional: true
           {{- with $bootstrap.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

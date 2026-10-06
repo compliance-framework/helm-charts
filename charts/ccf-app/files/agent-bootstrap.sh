@@ -26,7 +26,13 @@
 #
 # Inputs (env): BOOTSTRAP_API_URL, BOOTSTRAP_WAIT_SECONDS, BOOTSTRAP_RELEASE, BOOTSTRAP_AGENTS
 # ("<index> <namespace> <secretName> <name>" per line), BOOTSTRAP_AGENT_<index>_DESCRIPTION,
-# ADMIN_EMAIL, ADMIN_PASSWORD.
+# ADMIN_EMAIL, ADMIN_PASSWORD (only needed when a Secret is missing). For tests:
+# BOOTSTRAP_KUBERNETES_URL and BOOTSTRAP_SERVICEACCOUNT_DIR.
+#
+# Flow: check every Secret first and exit 0 when none is missing (no API call, no login); else
+# wait for the API, log in, and for each missing Secret find the agent by exact name (fail when
+# several agents share it) or create it, create a key, and store it in the Secret (revoking the
+# key if the Secret cannot be created).
 set -eu
 
 log() { echo "agent-bootstrap: $*" >&2; }
@@ -39,8 +45,9 @@ trap 'rm -rf "$work"' EXIT
 umask 077
 
 api="${BOOTSTRAP_API_URL%/}"
-sa=/var/run/secrets/kubernetes.io/serviceaccount
-k8s="https://kubernetes.default.svc"
+# Overridable for the script's tests (ci/agent-bootstrap); the defaults are the in-cluster ones.
+sa="${BOOTSTRAP_SERVICEACCOUNT_DIR:-/var/run/secrets/kubernetes.io/serviceaccount}"
+k8s="${BOOTSTRAP_KUBERNETES_URL:-https://kubernetes.default.svc}"
 s='[[:space:]]*'
 printf 'Authorization: Bearer %s\n' "$(cat "$sa/token")" > "$work/k8s-auth"
 : > "$work/no-auth"
@@ -64,7 +71,28 @@ field() {
 
 uuid_chars='0-9a-f-'
 
-# 1. Wait for the API to be ready.
+# 1. Which Secrets are missing? A key's secret is readable only when the key is created, so an
+# existing Secret is kept and its agent skipped. When none is missing the Job is done: it never
+# needs the API or the admin password on a no-op upgrade.
+printf '%s\n' "$BOOTSTRAP_AGENTS" > "$work/agents"
+: > "$work/missing"
+total=0
+while read -r index ns secret name; do
+  [ -n "$index" ] || continue
+  total=$((total + 1))
+  http GET "$k8s/api/v1/namespaces/$ns/secrets/$secret" "$work/k8s-auth"
+  case "$STATUS" in
+    200) log "secret $ns/$secret exists; skipping agent '$name'" ;;
+    404) printf '%s %s %s %s\n' "$index" "$ns" "$secret" "$name" >> "$work/missing" ;;
+    *) die "reading secret $ns/$secret returned $STATUS: $(cat "$work/body")" ;;
+  esac
+done < "$work/agents"
+if [ ! -s "$work/missing" ]; then
+  log "all $total Secrets exist; nothing to do"
+  exit 0
+fi
+
+# 2. Wait for the API to be ready.
 deadline=$(( $(date +%s) + ${BOOTSTRAP_WAIT_SECONDS:-300} ))
 log "waiting for $api/health/ready"
 until curl -q -fsS -o /dev/null "$api/health/ready" 2>/dev/null; do
@@ -72,7 +100,8 @@ until curl -q -fsS -o /dev/null "$api/health/ready" 2>/dev/null; do
   sleep 5
 done
 
-# 2. Log in as the admin user.
+# 3. Log in as the admin user.
+[ -n "${ADMIN_PASSWORD:-}" ] || die "no admin password (its Secret or key is missing): set api.agentBootstrap.adminCredentials, or check the initial user's password source"
 http POST "$api/auth/login" "$work/no-auth" --variable '%ADMIN_EMAIL' --variable '%ADMIN_PASSWORD' \
   --expand-data '{"email":"{{ADMIN_EMAIL:json}}","password":"{{ADMIN_PASSWORD:json}}"}'
 [ "$STATUS" = 200 ] || die "POST /api/auth/login as $ADMIN_EMAIL returned $STATUS"
@@ -82,25 +111,21 @@ printf 'Authorization: Bearer %s\n' "$token" > "$work/api-auth"
 unset token
 rm -f "$work/body"
 
-# 3. One agent, key and Secret per line: "<index> <namespace> <secretName> <name>".
-printf '%s\n' "$BOOTSTRAP_AGENTS" > "$work/agents"
+# 4. For each missing Secret: find or create the agent, create a key, store it.
 while read -r index ns secret name; do
   [ -n "$index" ] || continue
-
-  # A key's secret is readable only when the key is created: keep an existing Secret.
-  http GET "$k8s/api/v1/namespaces/$ns/secrets/$secret" "$work/k8s-auth"
-  case "$STATUS" in
-    200) log "secret $ns/$secret exists; skipping agent '$name'"; continue ;;
-    404) ;;
-    *) die "reading secret $ns/$secret returned $STATUS: $(cat "$work/body")" ;;
-  esac
 
   http GET "$api/admin/agents" "$work/api-auth"
   [ "$STATUS" = 200 ] || die "GET /api/admin/agents returned $STATUS: $(cat "$work/body")"
   name_re="$(printf '%s' "$name" | sed 's/[.]/[.]/g')"
-  id="$(tr -d '\r\n' < "$work/body" \
+  tr -d '\r\n' < "$work/body" \
     | grep -o "\"id\"$s:$s\"[$uuid_chars]*\"$s,$s\"created-at\"$s:$s\"[^\"]*\"$s,$s\"updated-at\"$s:$s\"[^\"]*\"$s,$s\"name\"$s:$s\"$name_re\"" \
-    | head -n 1 | sed "s/^\"id\"$s:$s\"\\([$uuid_chars]*\\)\".*/\\1/")"
+    | sed "s/^\"id\"$s:$s\"\\([$uuid_chars]*\\)\".*/\\1/" > "$work/ids" || true
+  matches="$(grep -c . "$work/ids" || true)"
+  if [ "$matches" -gt 1 ]; then
+    die "$matches agents are named '$name' ($(tr '\n' ' ' < "$work/ids")); rename or remove the duplicates in Admin -> Agents, then re-run"
+  fi
+  id="$(head -n 1 "$work/ids")"
   if [ -z "$id" ]; then
     description_var="BOOTSTRAP_AGENT_${index}_DESCRIPTION"
     if [ -n "$(printenv "$description_var" || true)" ]; then
@@ -140,6 +165,6 @@ while read -r index ns secret name; do
     exit 1
   fi
   log "stored a key for agent '$name' in secret $ns/$secret"
-done < "$work/agents"
+done < "$work/missing"
 
 log "done"
