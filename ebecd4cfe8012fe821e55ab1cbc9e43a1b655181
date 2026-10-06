@@ -1,0 +1,5 @@
+lisa-design:
+- cedar policyDir keeps its old meaning when used alone (env only, operator mounts the dir). Only when policies/existingConfigMap is set does the chart mount, defaulting the dir to /etc/ccf/cedar-policies.
+- Policy file names must match ^[A-Za-z0-9][A-Za-z0-9._-]*[.]cedar$ because the API loads only *.cedar files (internal/authz/cedar.go loadOperatorPolicies); a silently ignored file would be worse than a render error.
+- Policies are mounted only in the API container: migrate/create-user never evaluate policies.
+- No schema enum on roleAssignments role values: the API already fails startup on an unknown role, and maps with enum'd values are awkward in helm-values-schema-json annotations.
