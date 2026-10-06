@@ -20,6 +20,9 @@ data:
   CCF_WEB_BASE_URL: {{ include "ccf-app.apiWebBaseUrl" . | quote }}
   CCF_ENVIRONMENT: {{ .Values.api.environment | default "production" | quote }}
   CCF_API_ALLOWED_ORIGINS: {{ include "ccf-app.apiCorsOrigins" . | quote }}
+  {{- range $key, $val := (include "ccf-app.apiSettingsEnv" . | fromYaml) }}
+  {{ $key }}: {{ $val | quote }}
+  {{- end }}
   {{- range $key, $val := .Values.api.extraConfig }}
   {{ $key }}: {{ $val | quote }}
   {{- end }}

@@ -1,0 +1,22 @@
+api:
+  agents:
+    strictDisablePublicEndpoints: true
+    instanceStaleAfter: 15m
+    instanceRetention: 360h
+    oneShotInstanceRetention: 12h
+    instancePruneEnabled: false
+    instancePruneSchedule: "0 30 * * * *"
+    maxInstances: 1000
+  worker:
+    enabled: true
+  playback:
+    enabled: false
+    timeout: 10s
+    maxBytes: 4194304
+    maxConcurrent: 2
+  artifacts:
+    maxBytes: 33554432
+    maxConcurrent: 16
+  evidence:
+    requireSubject: "off"
+    manualRequireSubject: true

@@ -8,6 +8,42 @@
         "api": {
             "type": "object",
             "properties": {
+                "agents": {
+                    "type": "object",
+                    "properties": {
+                        "instancePruneEnabled": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        },
+                        "instancePruneSchedule": {
+                            "type": "string"
+                        },
+                        "instanceRetention": {
+                            "type": "string",
+                            "pattern": "^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
+                        },
+                        "instanceStaleAfter": {
+                            "type": "string",
+                            "pattern": "^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
+                        },
+                        "maxInstances": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1
+                        },
+                        "oneShotInstanceRetention": {
+                            "type": "string",
+                            "pattern": "^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
+                        },
+                        "strictDisablePublicEndpoints": {
+                            "type": "boolean"
+                        }
+                    }
+                },
                 "ai": {
                     "type": "object",
                     "properties": {
@@ -40,6 +76,25 @@
                         },
                         "requestTimeout": {
                             "type": "string"
+                        }
+                    }
+                },
+                "artifacts": {
+                    "type": "object",
+                    "properties": {
+                        "maxBytes": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1
+                        },
+                        "maxConcurrent": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1
                         }
                     }
                 },
@@ -206,6 +261,26 @@
                 "environment": {
                     "type": "string"
                 },
+                "evidence": {
+                    "type": "object",
+                    "properties": {
+                        "manualRequireSubject": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        },
+                        "requireSubject": {
+                            "type": "string",
+                            "enum": [
+                                "",
+                                "off",
+                                "warn",
+                                "enforce"
+                            ]
+                        }
+                    }
+                },
                 "extraConfig": {
                     "type": "object"
                 },
@@ -358,6 +433,35 @@
                                     "type": "string"
                                 }
                             }
+                        }
+                    }
+                },
+                "playback": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        },
+                        "maxBytes": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1
+                        },
+                        "maxConcurrent": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1
+                        },
+                        "timeout": {
+                            "type": "string",
+                            "pattern": "^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
                         }
                     }
                 },
@@ -658,6 +762,17 @@
                 },
                 "webBaseUrl": {
                     "type": "string"
+                },
+                "worker": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        }
+                    }
                 },
                 "workflow": {
                     "type": "object",
