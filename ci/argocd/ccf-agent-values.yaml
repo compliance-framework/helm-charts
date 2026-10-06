@@ -1,4 +1,7 @@
 # Values for the Argo CD check (ci/argocd/check.sh).
 agent:
+  # Run continuously: a run-once agent exits and restarts, which Argo CD reports as Progressing
+  # (chart versions before 0.4.0 default to daemon: false).
+  daemon: true
   api:
     url: http://ccf-ccf-api.ccf.svc:8080
