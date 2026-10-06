@@ -1,0 +1,4 @@
+lisa-design:
+- remote_config keys are rendered only when set (empty string / empty list / null bool = unset) so the agent's own defaults (report with credentials, off without) stay authoritative. allowLocalSources defaults to null (type [boolean,null]) so an explicit false can still be rendered.
+- poll_interval >= 15s is enforced in the template (ccf-agent.durationSeconds sums the Go duration units with addf/mulf) because JSON schema cannot compare durations; the schema only checks the Go duration shape.
+- The mode is emitted via toYaml, which quotes "off" so the agent never sees a YAML boolean.
