@@ -382,7 +382,8 @@ api:
   # issue a new key. The Secrets are not part of the release and survive helm uninstall.
   agentBootstrap:
     enabled: false
-    # Agents to bootstrap, one key and Secret each.
+    # Agents to bootstrap, one key and Secret each. Names may contain letters, digits, spaces,
+    # '.', '_' and '-'.
     agents: [] # @schema item:object;itemProperties:{"name":{"type":"string"},"description":{"type":"string"},"secretName":{"type":"string"},"namespace":{"type":"string"}}
       # - name: ccf-agent                    # agent name in the API (found by name, else created)
       #   description: "Cluster agent"       # used only when the agent is created
@@ -402,17 +403,25 @@ api:
     # up to --timeout (default 5m), so raise both together.
     waitSeconds: 300 # @schema type:integer;minimum:0
     backoffLimit: 2 # @schema type:integer;minimum:0
-    # An image with a POSIX shell, curl and jq. The default alpine image installs curl and jq
-    # with apk at start (root, egress to the Alpine mirror); for air-gapped clusters use an
-    # image that ships both, and the apk step is skipped.
+    # An image with a POSIX shell, curl >= 8.3 (for --variable/--expand-data) and busybox
+    # tools (grep, sed, tr, head, mktemp, printenv). Nothing is installed at runtime. The
+    # default is the official curl image, which runs as curl_user (uid 100, gid 101).
     image:
-      repository: alpine
-      tag: "3.21"
+      repository: curlimages/curl
+      tag: "8.22.0"
       pullPolicy: IfNotPresent
+    # runAsUser/runAsGroup are numeric because the image's USER is a name, which kubelet cannot
+    # check against runAsNonRoot. Change them together with the image.
     podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 100
+      runAsGroup: 101
+      fsGroup: 101
       seccompProfile:
         type: RuntimeDefault
+    # The script writes only to /tmp, an emptyDir.
     securityContext:
+      readOnlyRootFilesystem: true
       allowPrivilegeEscalation: false
       capabilities:
         drop:

@@ -81,6 +81,18 @@
                         "podSecurityContext": {
                             "type": "object",
                             "properties": {
+                                "fsGroup": {
+                                    "type": "integer"
+                                },
+                                "runAsGroup": {
+                                    "type": "integer"
+                                },
+                                "runAsNonRoot": {
+                                    "type": "boolean"
+                                },
+                                "runAsUser": {
+                                    "type": "integer"
+                                },
                                 "seccompProfile": {
                                     "type": "object",
                                     "properties": {
@@ -110,6 +122,9 @@
                                             }
                                         }
                                     }
+                                },
+                                "readOnlyRootFilesystem": {
+                                    "type": "boolean"
                                 }
                             }
                         },

@@ -107,7 +107,13 @@ spec:
             - name: BOOTSTRAP_RELEASE
               value: {{ printf "%s/%s" .Release.Namespace .Release.Name | quote }}
             - name: BOOTSTRAP_AGENTS
-              value: {{ toJson $agents | quote }}
+              value: {{ include "ccf-app.agentBootstrap.agentLines" . | trim | quote }}
+            {{- range $i, $agent := $agents }}
+            {{- if $agent.description }}
+            - name: BOOTSTRAP_AGENT_{{ $i }}_DESCRIPTION
+              value: {{ $agent.description | quote }}
+            {{- end }}
+            {{- end }}
             {{- if and $admin.existingSecret $admin.emailKey }}
             - name: ADMIN_EMAIL
               valueFrom:

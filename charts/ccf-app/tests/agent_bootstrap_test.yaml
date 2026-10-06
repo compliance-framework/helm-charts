@@ -89,7 +89,12 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: BOOTSTRAP_AGENTS
-            value: '[{"description":"Cluster agent","name":"ccf-agent","namespace":"ccf","secretName":"ccf-agent-credentials"}]'
+            value: "0 ccf ccf-agent-credentials ccf-agent"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_AGENT_0_DESCRIPTION
+            value: Cluster agent
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -108,13 +113,86 @@ tests:
           value: Never
       - equal:
           path: spec.template.spec.containers[0].image
-          value: alpine:3.21
+          value: curlimages/curl:8.22.0
       - matchRegex:
           path: spec.template.spec.containers[0].args[0]
-          pattern: "CCF_API_AUTH_CLIENT_ID: .data.\"client-id\", CCF_API_AUTH_CLIENT_SECRET: .data.\"client-secret\""
+          pattern: "CCF_API_AUTH_CLIENT_ID[^{]*\\{\\{CLIENT_ID:b64\\}\\}"
       - notMatchRegex:
           path: spec.template.spec.containers[0].args[0]
-          pattern: "set -x"
+          pattern: "set -x|jq |apk "
+
+  - it: runs as the curl image's non-root user with a read-only root filesystem
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+            fsGroup: 101
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+
+  - it: does not render a description variable for agents without one
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf agent 1.0
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "BOOTSTRAP_AGENT_0_DESCRIPTION")]
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_AGENTS
+            value: "0 ccf ccf-agent-credentials ccf agent 1.0"
+
+  - it: rejects agent names the script cannot match literally
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: 'agent "prod"'
+          secretName: ccf-agent-credentials
+    asserts:
+      - failedTemplate:
+          errorPattern: "may only contain letters, digits, spaces"
+
+  - it: rejects an invalid namespace
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+          namespace: Agents
+    asserts:
+      - failedTemplate:
+          errorPattern: "is not a valid namespace name"
 
   - it: creates a Role and RoleBinding in every target namespace
     set:
