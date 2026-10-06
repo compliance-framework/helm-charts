@@ -120,7 +120,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.17.1"
+    tag: "0.21.0"
   # JWT signing key management for the API.
   jwt:
     # Where the API's JWT signing key comes from:
@@ -531,7 +531,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.10.1"
+    tag: "2.12.1"
   # nginx listens on this unprivileged port through the chart's server configuration
   # (configmap_ui_nginx.yaml); the Service targets it by name.
   containerPort: 8080
