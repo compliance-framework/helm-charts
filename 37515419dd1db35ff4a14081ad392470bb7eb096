@@ -1,0 +1,4 @@
+lisa-design:
+- agent.hostname is deprecated but still rendered as HOSTNAME (no-op) so existing values render unchanged; it is NOT mapped to KUBERNETES_POD_NAME (that would change the anonymous _agent label on every restart).
+- emitOnRunCompletion defaults to null and renders only when set, so existing installs get no config change (and no checksum-driven restart).
+- Custodian example mounts an emptyDir at /home/custodian with HOME pointing at it, because the chart keeps readOnlyRootFilesystem and c7n writes a cache under HOME.
