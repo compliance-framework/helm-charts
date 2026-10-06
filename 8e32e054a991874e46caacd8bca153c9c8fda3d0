@@ -2,3 +2,6 @@ lisa-design:
 - Hardened security contexts are template-level defaults (ccf-app.apiPodSecurityContext / ccf-app.apiSecurityContext) used only when api.* AND the global podSecurityContext/securityContext are empty. Rejected putting them in values.yaml: that would silently stop the existing global security contexts from reaching the API pod (a break for installs that set them). The defaults are listed in values.yaml comments.
 - runAsNonRoot/runAsUser are container-level, not pod-level: generate-public-key (alpine, `apk add openssl`) must run as root with a writable root FS. Pod level carries only fsGroup 65532 + seccomp RuntimeDefault; the publickey emptyDir is group 65532 and the openssl output is 0644, so the API can read it.
 - /tmp emptyDir is mounted in the API container, migrate-db and create-user; api v0.21.0 writes only to os.TempDir() (jwt_bootstrap lock, multipart >32 MiB). Main server never calls BootstrapJWTKeyPair, so no key files are written with chart-provided keys.
+
+lisa-selfreview:
+pass 1 (strict): approve. Fixed during implementation: nil-safe lookup of publicKeyGeneration.initContainer.securityContext (dig). Tests: defaults, init containers, generate-public-key default/override, /tmp mounts, api.* override, global fallback, probes. Question for reviewers: whether to harden generate-public-key by default (needs an image that ships openssl).
