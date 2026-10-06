@@ -5,6 +5,8 @@ templates:
   - templates/configmap_dex.yaml
   - templates/configmap_ui.yaml
   - templates/ingress.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default

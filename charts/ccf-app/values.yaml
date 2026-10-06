@@ -18,6 +18,34 @@ fullnameOverride: ""
 # Web Base URL - Use it to configure default networking configuration for ccf
 webBaseUrl: ""
 
+# Credentials. The chart never generates or looks up secrets at render time (both break
+# `helm template` / Argo CD), so every credential needs a source: an existingSecret, an
+# External Secrets Operator ExternalSecret, an explicit value, or (development only) the seed
+# below. Rendering fails, naming the missing values, when one has none.
+devSecrets:
+  # DEVELOPMENT ONLY. When set, the Postgres password, the initial user's password and the Dex
+  # client secret default to values derived from this seed (sha256 of purpose + seed). They stay
+  # the same across renders and upgrades, but anyone who knows the seed knows them. Never use it
+  # in production or commit a real seed. Empty (the default) disables it.
+  seed: ""
+
+# External Secrets Operator (https://external-secrets.io) settings, used by every
+# `externalSecret.enabled: true` below. Needs ESO with the external-secrets.io/v1 API and the
+# Password generator (ESO 0.17 or later).
+externalSecrets:
+  apiVersion: external-secrets.io/v1
+  generatorApiVersion: generators.external-secrets.io/v1alpha1
+  # CreatedOnce: the value is generated once and never rotated (a rotated database password
+  # would lock the API out of an initialised database).
+  refreshPolicy: CreatedOnce # @schema enum:[CreatedOnce, Periodic, OnChange]
+  # Spec of the Password generators (no symbols: the password goes into a connection string).
+  passwordGenerator:
+    length: 32
+    digits: 6
+    symbols: 0
+    noUpper: false
+    allowRepeat: true
+
 serviceAccount:
   # Specifies whether a service account should be created.
   create: true
@@ -84,13 +112,20 @@ api:
     tag: "0.17.1"
   # JWT signing key management for the API.
   jwt:
-    # generated: chart generates a private key and (optionally) derives public key via init container
-    # existingSecret: mount both keys from an existing Kubernetes Secret
-    # inMemory: API generates and stores JWT keys in memory (no key env vars, volumes, or key mounts)
-    source: generated
+    # Required. Where the API's JWT signing key comes from:
+    # existingSecret: an existing Secret (api.jwt.existingSecret). With publicKey empty, the
+    #                 public key is derived from the private key by the init container below.
+    # externalSecret: External Secrets Operator creates <fullname>-jwt-private-key once (an RSA
+    #                 key made by the ESO template function genPrivateKey); the public key is
+    #                 derived by the init container below.
+    # inMemory:       DEVELOPMENT ONLY. The API generates a key at every start (sessions and agent
+    #                 tokens end on every restart; one replica only).
+    # The former default, generated, was removed: it changed the key on every helm template.
+    source: "" # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
     existingSecret:
       name: ""
       privateKey: private_key.pem
+      # Key holding the PEM public key. Empty: derive it from the private key.
       publicKey: public_key.pem
     publicKeyGeneration:
       enabled: true
@@ -122,10 +157,19 @@ api:
       path: /api/auth/publickey
       port: http
   corsOrigins: [] # @schema item:string
+  # Initial admin user, created by the create-user init container. Its password needs a
+  # source: existingSecret, externalSecret, password, or devSecrets.seed (development only).
   user:
     username: admin@localhost
     email: admin@localhost
+    # Explicit password, rendered into the <fullname>-initial-user-password Secret.
     password: ""
+    # Existing Secret holding the password, and its key.
+    existingSecret: ""
+    passwordKey: password
+    # External Secrets Operator generates <fullname>-initial-user-password once.
+    externalSecret:
+      enabled: false
   labels: {}
   podLabels: {}
   podAnnotations: {}
@@ -366,11 +410,16 @@ dex:
     id: ccf-ui
     name: CCF UI
     redirectUris: [] # @schema item:string
+  # Dex static client secret. Needs a source when dex is enabled: existingSecret (with
+  # createSecret: false), externalSecret, value, or devSecrets.seed (development only).
   clientSecret:
     value: ""
     createSecret: true
     existingSecret: ""
     secretKey: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
+    # External Secrets Operator generates <fullname>-dex once.
+    externalSecret:
+      enabled: false
     envName: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
   sso:
     name: dex # @schema pattern: ^[A-Za-z_][A-Za-z0-9_]*$
@@ -406,11 +455,17 @@ dex:
 database:
   local:
     enabled: true
+    # The Postgres password needs a source: existingSecret (with createSecret: false; key
+    # POSTGRES_PASSWORD), externalSecret, password (with createSecret: true), or
+    # devSecrets.seed (development only, with createSecret: true).
     createSecret: true
     existingSecret: ""
     username: ccf
     database: ccf
     password: ""
+    # External Secrets Operator generates <fullname>-psql (key POSTGRES_PASSWORD) once.
+    externalSecret:
+      enabled: false
     vpa:
       enabled: false
       updatePolicy:

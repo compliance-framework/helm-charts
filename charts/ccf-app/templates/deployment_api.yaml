@@ -1,4 +1,5 @@
 {{- if .Values.api.enabled }}
+{{- include "ccf-app.validateSecretSources" . }}
 {{- $jwt := include "ccf-app.jwtRuntimeConfig" . | fromYaml -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -325,8 +326,8 @@ spec:
             - name: CCF_INITIAL_USER_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ccf-app.fullname" . }}-initial-user-password
-                  key: password
+                  name: {{ include "ccf-app.initialUserPasswordSecret" . }}
+                  key: {{ include "ccf-app.initialUserPasswordKey" . }}
             - name: CCF_DB_CONNECTION
               value: "host=$(CCF_DB_HOST) port=$(CCF_DB_PORT) dbname=$(CCF_DB_NAME) user=$(CCF_DB_USER) password=$(CCF_DB_PASSWORD) sslmode=disable"
           {{- with .Values.api.initResources }}
@@ -354,7 +355,7 @@ spec:
                 path: private_key.pem
             {{- end }}
         - name: publickey
-          {{- if $jwt.useExistingSecret }}
+          {{- if $jwt.publicKeyFromSecret }}
           secret:
             secretName: {{ $jwt.existingSecretName }}
             items:

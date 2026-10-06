@@ -48,7 +48,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.database.local.createSecret }}{{ include "ccf-app.fullname" . }}-psql{{ else }}{{ .Values.database.local.existingSecret }}{{ end }}
+                  name: {{ include "ccf-app.databasePasswordSecret" . }}
                   key: POSTGRES_PASSWORD
             {{- with .Values.database.local.extraEnv }}
             {{- toYaml . | nindent 12 }}

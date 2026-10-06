@@ -1,0 +1,17 @@
+# Render-only (no ESO in the CI cluster): every credential from External Secrets Operator.
+webBaseUrl: https://ccf.example.com
+api:
+  jwt:
+    source: externalSecret
+  user:
+    externalSecret:
+      enabled: true
+database:
+  local:
+    externalSecret:
+      enabled: true
+dex:
+  enabled: true
+  clientSecret:
+    externalSecret:
+      enabled: true

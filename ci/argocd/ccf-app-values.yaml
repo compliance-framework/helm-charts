@@ -1,0 +1,20 @@
+# Values for the Argo CD check (ci/argocd/check.sh). Credentials come from Secrets the check
+# creates before the sync: the chart must not generate anything at render time.
+api:
+  jwt:
+    source: existingSecret
+    existingSecret:
+      name: ccf-jwt
+      # derive the public key in the init container
+      publicKey: ""
+  user:
+    existingSecret: ccf-admin
+database:
+  local:
+    createSecret: false
+    existingSecret: ccf-postgres
+    persistence:
+      createPersistentVolume: false
+      storageClass: standard
+ingress:
+  enabled: false

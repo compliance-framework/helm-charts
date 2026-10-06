@@ -1,0 +1,4 @@
+# Values for the Argo CD check (ci/argocd/check.sh).
+agent:
+  api:
+    url: http://ccf-ccf-api.ccf.svc:8080

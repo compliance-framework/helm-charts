@@ -9,12 +9,14 @@ templates:
   - templates/configmap_api_slack.yaml
   - templates/configmap_api_workflow.yaml
   - templates/secrets_api_config.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
 
 tests:
-  - it: uses generated private key secret and public key init container by default
+  - it: mounts the External Secrets Operator key and derives the public key in the init container
     asserts:
       - equal:
           path: spec.template.spec.initContainers[1].name
@@ -33,7 +35,11 @@ tests:
           value: {}
         template: templates/deployment_api.yaml
       - hasDocuments:
-          count: 2
+          count: 1
+        template: templates/secrets_api.yaml
+      - equal:
+          path: metadata.name
+          value: ccf-app-initial-user-password
         template: templates/secrets_api.yaml
 
   - it: allows overriding JWT public key init container image and command
@@ -162,4 +168,4 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "api.jwt.existingSecret.name is required when api.jwt.source is 'existingSecret'"
-        template: templates/secrets_api.yaml
+        template: templates/deployment_api.yaml

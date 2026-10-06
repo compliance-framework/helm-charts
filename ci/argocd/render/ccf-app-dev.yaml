@@ -1,0 +1,9 @@
+# Render-only: the development fallback (seeded passwords, in-memory JWT key) must be stable too.
+webBaseUrl: https://ccf.example.com
+devSecrets:
+  seed: ci-render-check
+api:
+  jwt:
+    source: inMemory
+dex:
+  enabled: true

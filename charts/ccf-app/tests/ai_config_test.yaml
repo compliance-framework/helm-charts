@@ -8,6 +8,8 @@ templates:
   - templates/configmap_api_email.yaml
   - templates/configmap_api_slack.yaml
   - templates/configmap_api_workflow.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default

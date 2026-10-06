@@ -3,6 +3,8 @@ templates:
   - templates/configmap_api.yaml
   - templates/configmap_api_sso.yaml
   - templates/configmap_api_email.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default

@@ -1,6 +1,8 @@
 suite: postgresql deployment test
 templates:
   - templates/deployment_psql.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default

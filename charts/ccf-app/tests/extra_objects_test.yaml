@@ -1,6 +1,8 @@
 suite: extraObjects parameter
 templates:
   - templates/extra-objects.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
