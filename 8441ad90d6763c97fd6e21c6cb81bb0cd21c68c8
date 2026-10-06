@@ -6,3 +6,6 @@ lisa-design:
 
 lisa-design:
 - Series rule (spec, chart owner): only the LAST PR of each series edits Chart.yaml, because release-*.yaml publishes on any Chart.yaml change on main. HELM-VER-001 ("chart changed without version bump") is therefore intentionally not satisfied per PR; the bump lands in the release PR.
+
+lisa-selfreview:
+pass 1 (strict): approve. Checked HELM-COMPAT-001 (no values key renamed; only the chart-owned secret's keys), HELM-SCHEMA-001 (schema regenerated), HELM-TEST-001 (agent_auth_test covers create/existing default keys/custom keys/plain/both-or-neither/UUID/createSecret+existingSecret/secretKeyRef without existingSecret), CORE-REL-001 (commit uses ! and BREAKING CHANGE footer). HELM-VER-001 deferred by design (release PR bumps Chart.yaml).
