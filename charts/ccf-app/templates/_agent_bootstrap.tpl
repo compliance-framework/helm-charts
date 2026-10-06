@@ -103,7 +103,7 @@ until curl -fsS -o /dev/null "$api/health/ready" 2>/dev/null; do
 done
 
 # 2. Log in as the admin user.
-jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" '{email: $e, password: $p}' > "$work/login.json"
+jq -n '{email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD}' > "$work/login.json"
 : > "$work/no-auth"
 http POST "$api/auth/login" "$work/no-auth" "$work/login.json"
 rm -f "$work/login.json"
