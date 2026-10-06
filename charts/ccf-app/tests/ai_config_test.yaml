@@ -149,3 +149,31 @@ tests:
           path: spec.template.spec.containers[0].env[?(@.name == "CCF_AI_API_KEY")].value
           value: "test-ai-key"
         template: templates/deployment_api.yaml
+
+  - it: AI base URL is rendered only when set
+    set:
+      api.ai.enabled: true
+      api.ai.apiKey: "sk-test"
+      api.ai.baseUrl: "https://llm-proxy.internal"
+    asserts:
+      - equal:
+          path: data["CCF_AI_BASE_URL"]
+          value: "https://llm-proxy.internal"
+        template: templates/configmap_api.yaml
+
+  - it: AI base URL is not rendered by default
+    set:
+      api.ai.enabled: true
+      api.ai.apiKey: "sk-test"
+    asserts:
+      - notExists:
+          path: data["CCF_AI_BASE_URL"]
+        template: templates/configmap_api.yaml
+
+  - it: Rejects a provider other than anthropic
+    set:
+      api.ai.enabled: true
+      api.ai.apiKey: "sk-test"
+      api.ai.provider: "openai"
+    asserts:
+      - failedTemplate: {}

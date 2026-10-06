@@ -45,6 +45,9 @@ data:
   CCF_AI_ENABLED: "true"
   CCF_AI_PROVIDER: {{ .Values.api.ai.provider | quote }}
   CCF_AI_MODEL: {{ .Values.api.ai.model | quote }}
+  {{- with .Values.api.ai.baseUrl }}
+  CCF_AI_BASE_URL: {{ . | quote }}
+  {{- end }}
   CCF_AI_REQUEST_TIMEOUT: {{ .Values.api.ai.requestTimeout | quote }}
   CCF_AI_MAX_CONTROLS_PER_CHUNK: {{ .Values.api.ai.maxControlsPerChunk | quote }}
   CCF_AI_MAX_LABEL_SETS_PER_CHUNK: {{ .Values.api.ai.maxLabelSetsPerChunk | quote }}

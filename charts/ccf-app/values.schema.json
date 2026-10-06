@@ -176,6 +176,9 @@
                         "apiKey": {
                             "type": "string"
                         },
+                        "baseUrl": {
+                            "type": "string"
+                        },
                         "enabled": {
                             "type": "boolean"
                         },
@@ -195,7 +198,10 @@
                             "type": "string"
                         },
                         "provider": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "anthropic"
+                            ]
                         },
                         "queueWorkers": {
                             "type": "integer"
@@ -1774,11 +1780,34 @@
                         }
                     }
                 },
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "filterComponentLinkingEnabled": {
+                            "type": "boolean"
+                        },
+                        "loginBanner": {
+                            "type": "string"
+                        },
+                        "loginBannerSeverity": {
+                            "type": "string",
+                            "enum": [
+                                "info",
+                                "warn",
+                                "error",
+                                "success"
+                            ]
+                        }
+                    }
+                },
                 "containerPort": {
                     "type": "integer"
                 },
                 "enabled": {
                     "type": "boolean"
+                },
+                "extraConfig": {
+                    "type": "object"
                 },
                 "extraEnv": {
                     "type": "array"
