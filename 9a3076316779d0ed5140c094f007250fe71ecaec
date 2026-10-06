@@ -1,0 +1,6 @@
+lisa-design:
+- SUPERSEDES the API-only hardening: every workload uses own -> global -> hardened default security contexts (templates/_security.tpl), so explicit settings are never overridden.
+- generate-public-key: alpine/openssl:3.5.9 (no USER, entrypoint openssl) run as 65532 read-only; verified locally. With all API pod containers non-root, runAsNonRoot/runAsUser move to pod level.
+- UI keeps port 80 via the safe sysctl net.ipv4.ip_unprivileged_port_start=0 instead of copying the UI's nginx config into the chart (drift risk).
+- PostgreSQL: runs as 999; a root init container with only CHOWN+FOWNER chowns the volume root because hostPath (the default PV) ignores fsGroup. It is the documented exception; volumePermissions.enabled=false gives a restricted pod for volumes already owned by 999.
+- pgAdmin: PGADMIN_LISTEN_PORT=containerPort (default now 8080) and PGADMIN_CUSTOM_CONFIG_DISTRO_FILE in /var/lib/pgadmin keep the root FS read-only; fixed it reading ui.podSecurityContext.
