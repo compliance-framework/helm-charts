@@ -4,3 +4,6 @@ lisa-design:
 - UI keeps port 80 via the safe sysctl net.ipv4.ip_unprivileged_port_start=0 instead of copying the UI's nginx config into the chart (drift risk).
 - PostgreSQL: runs as 999; a root init container with only CHOWN+FOWNER chowns the volume root because hostPath (the default PV) ignores fsGroup. It is the documented exception; volumePermissions.enabled=false gives a restricted pod for volumes already owned by 999.
 - pgAdmin: PGADMIN_LISTEN_PORT=containerPort (default now 8080) and PGADMIN_CUSTOM_CONFIG_DISTRO_FILE in /var/lib/pgadmin keep the root FS read-only; fixed it reading ui.podSecurityContext.
+
+lisa-selfreview:
+pass 2 (owner review round): approve. Unit tests per workload (defaults, overrides, global fallback, init container). kind: API, UI (200 + config.json), Dex (login page), PostgreSQL (psql select 1 as uid 999, data dir 0700 postgres-owned), pgAdmin (/misc/ping, /login 200) all Running with the hardened defaults.
