@@ -1,0 +1,5 @@
+lisa-design:
+- existingSecret keys DEFAULT to CCF_API_AUTH_CLIENT_ID/SECRET instead of being mandatory; an explicit clientId/clientSecret.secretKeyRef still wins, so existing values with custom key names keep working while a bootstrap-Job secret needs only existingSecret.
+- "Both or neither" is enforced only for inline values (createSecret / plain). auth.enabled with no credentials and no existingSecret renders no env (the agent runs anonymously), matching the agent's own both-or-neither rule.
+- UUID check is both a schema pattern (^$|UUID) and a template fail with a readable message; the schema applies even when auth.enabled=false (a non-UUID value could never have worked).
+- Validation is included from both secret.yaml and deployment.yaml so rendering a subset still fails; helm-unittest reports the failure on secret.yaml (first in render order), so failedTemplate asserts target it.
