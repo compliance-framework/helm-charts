@@ -1,0 +1,50 @@
+suite: NOTES
+templates:
+  - templates/NOTES.txt
+release:
+  name: ccf-app
+  namespace: ccf
+
+tests:
+  - it: prints the admin login, the in-cluster API URL and the ccf-agent next step
+    asserts:
+      - matchRegexRaw:
+          pattern: "Email:    admin@localhost"
+      - matchRegexRaw:
+          pattern: "get secret ccf-app-initial-user-password"
+      - matchRegexRaw:
+          pattern: "API inside the cluster \\(for agents\\): http://ccf-app-api.ccf.svc:8080"
+      - matchRegexRaw:
+          pattern: "Create an agent and a key in the UI under Admin -> Agents"
+      - matchRegexRaw:
+          pattern: "public agent endpoints are allowed"
+
+  - it: prints the URLs derived from webBaseUrl
+    set:
+      webBaseUrl: https://ccf.example.com
+    asserts:
+      - matchRegexRaw:
+          pattern: "UI:  https://ccf.example.com"
+      - matchRegexRaw:
+          pattern: "API: https://ccf.example.com/api"
+
+  - it: lists the bootstrap Secrets and drops the strict-mode note when strict
+    set:
+      api.agents.strictDisablePublicEndpoints: true
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+          namespace: ccf-agents
+    asserts:
+      - matchRegexRaw:
+          pattern: "ccf-agents/ccf-agent-credentials \\(agent \"ccf-agent\"\\)"
+      - notMatchRegexRaw:
+          pattern: "public agent endpoints are allowed"
+
+  - it: reminds cedar users that the admin needs a role
+    set:
+      api.authz.driver: cedar
+    asserts:
+      - matchRegexRaw:
+          pattern: "needs the admin role"

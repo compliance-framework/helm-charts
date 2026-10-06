@@ -29,6 +29,51 @@
   echo "Visit http://127.0.0.1:{{ .Values.api.service.port }} to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.api.service.port }}:$CONTAINER_PORT
 {{- end }}
+
+{{- $fullname := include "ccf-app.fullname" . }}
+{{- $webBaseUrl := include "ccf-app.webBaseUrl" . }}
+{{- $apiWebBaseUrl := include "ccf-app.apiWebBaseUrl" . }}
+
+2. URLs:
+{{- if $webBaseUrl }}
+  UI:  {{ $webBaseUrl }}
+{{- end }}
+{{- if $apiWebBaseUrl }}
+  API: {{ $apiWebBaseUrl }}/api
+{{- end }}
+{{- if .Values.api.enabled }}
+  API inside the cluster (for agents): http://{{ $fullname }}-api.{{ .Release.Namespace }}.svc:{{ .Values.api.service.port }}
+{{- end }}
+
+3. Log in as the initial admin user:
+  Email:    {{ .Values.api.user.email }}
+  Password: kubectl -n {{ .Release.Namespace }} get secret {{ $fullname }}-initial-user-password -o jsonpath='{.data.password}' | base64 -d
+{{- if eq (toString .Values.api.authz.driver) "cedar" }}
+  (authz driver cedar: the user needs the admin role in api.authz.roleAssignments.users)
+{{- end }}
+
+4. Next step: install an agent with the ccf-agent chart.
+{{- if .Values.api.agentBootstrap.enabled }}
+  The agent bootstrap Job writes agent keys to these Secrets (keys CCF_API_AUTH_CLIENT_ID and
+  CCF_API_AUTH_CLIENT_SECRET), skipping Secrets that already exist:
+{{- range (include "ccf-app.agentBootstrap.agents" . | fromJsonArray) }}
+    - {{ .namespace }}/{{ .secretName }} (agent "{{ .name }}")
+{{- end }}
+{{- else }}
+  Create an agent and a key in the UI under Admin -> Agents (or enable api.agentBootstrap),
+  store the key in a Secret with the keys CCF_API_AUTH_CLIENT_ID and CCF_API_AUTH_CLIENT_SECRET,
+{{- end }}
+  then:
+    helm install ccf-agent oci://ghcr.io/compliance-framework/helm-charts/ccf-agent \
+      --set agent.api.url=http://{{ $fullname }}-api.{{ .Release.Namespace }}.svc:{{ .Values.api.service.port }} \
+      --set agent.api.auth.enabled=true \
+      --set agent.api.auth.existingSecret=<secret name>
+{{- if not .Values.api.agents.strictDisablePublicEndpoints }}
+
+NOTE: public agent endpoints are allowed (api.agents.strictDisablePublicEndpoints=false), so
+anonymous callers can send evidence, upload artifacts and run Rego playback. Set it to true
+once every agent has a key.
+{{- end }}
 {{- with (include "ccf-app.deprecatedGeneratedCredentials" .) }}
 
 DEPRECATED: generated credentials ({{ . }}).
