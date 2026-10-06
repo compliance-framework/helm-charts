@@ -163,3 +163,22 @@ writes); clientId.secretKeyRef / clientSecret.secretKeyRef override them.
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Agent state directory. Pinned so the state key does not depend on the config file path;
+it lives on the ccf-tmp emptyDir mounted at /app/.compliance-framework.
+*/}}
+{{- define "ccf-agent.stateDir" -}}
+/app/.compliance-framework/state/agent
+{{- end }}
+
+{{/*
+Validate the optional agent instance ID (the agent refuses anything but a UUID).
+*/}}
+{{- define "ccf-agent.validateInstanceId" -}}
+{{- with .Values.agent.instanceId }}
+{{- if not (regexMatch (include "ccf-agent.uuidPattern" $) .) }}
+{{- fail "agent.instanceId must be a UUID" }}
+{{- end }}
+{{- end }}
+{{- end }}
