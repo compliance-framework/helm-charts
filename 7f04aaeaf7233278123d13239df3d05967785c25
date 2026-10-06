@@ -1,0 +1,4 @@
+lisa-design:
+- Secrets are checked before any API call; all present => exit 0 without login (owner review). ADMIN_PASSWORD/ADMIN_EMAIL secretKeyRefs are optional so a missing admin Secret cannot block a no-op upgrade.
+- Duplicate agent names fail with the ids listed; the script never picks the first match.
+- Base URLs (BOOTSTRAP_KUBERNETES_URL, BOOTSTRAP_SERVICEACCOUNT_DIR) are overridable only for ci/agent-bootstrap; the Job never sets them.
