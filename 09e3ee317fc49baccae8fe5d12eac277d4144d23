@@ -5,3 +5,7 @@ lisa-design:
 - Idempotency: an existing Secret skips the agent (the client-secret cannot be read back). If Secret creation fails after a key was created, the key is revoked (DELETE /api/admin/agents/{id}/keys/{keyId}).
 - No secret in argv or logs: request bodies via files (--data-binary @file), Authorization headers via -H @file, admin login via jq env.*; only non-2xx bodies are logged.
 - Created Secrets are not Helm-managed (no ownership), so helm uninstall keeps working credentials.
+
+lisa-selfreview:
+pass 1 (strict): request_changes -> fixed: the admin password was passed to jq via --arg (argv). Now env.ADMIN_PASSWORD.
+pass 2 (strict): approve. Unit tests (disabled, enabled RBAC/Job, multi-namespace, admin secret, apiUrl override, validation) plus an e2e run on a throwaway kind cluster (api 0.21.0): install created the agent+key+Secret; upgrade skipped the existing Secret and created a second; inMemory JWT + cedar (admin@localhost: admin) path worked; ccf-agent 0.4.0 with existingSecret heartbeated and registered as an instance (report mode). shellcheck clean on the rendered script.
