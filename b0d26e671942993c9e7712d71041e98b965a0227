@@ -1,3 +1,6 @@
 lisa-design:
 - config.json is built as a dict and rendered with toPrettyJson (proper JSON escaping); ui.extraConfig is the base and the first-class keys are set on top, so they always win.
 - The UI container's API_URL env was removed rather than documented: ui v2.12.1 reads only VITE_* at build time and /config.json at runtime, so it never had an effect. ui.extraEnv still renders, and env is omitted when empty.
+
+lisa-selfreview:
+pass 1 (strict): approve. Tests: exact default config.json, custom banner/severity/linking/extra keys with precedence and JSON escaping, invalid severity, no API_URL env, extraEnv kept; AI baseUrl set/unset, provider enum. e2e: the UI pod served the rendered config.json from the kind cluster.
