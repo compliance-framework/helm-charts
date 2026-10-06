@@ -79,8 +79,12 @@ api:
 - The Secrets are not part of the release, so `helm uninstall` keeps them.
 - The Job has a ServiceAccount and, in each target namespace, a Role allowing `get` on the listed Secrets and `create`
   on Secrets. All are hook resources, deleted when the Job succeeds.
-- The default image, `alpine:3.21`, installs `curl` and `jq` with `apk` when it starts, which needs root and egress
-  to the Alpine mirror. Set `api.agentBootstrap.image` to an image that ships both to skip that step.
+- The Job runs on the official curl image (`curlimages/curl:8.22.0`) as its non-root user (uid 100, gid 101), with a
+  read-only root filesystem and an `emptyDir` at `/tmp`. It installs nothing at runtime, so it needs no package
+  mirror. A custom `api.agentBootstrap.image` needs a POSIX shell, curl 8.3 or later and busybox-style `grep`,
+  `sed`, `tr`, `head` and `mktemp`; update `api.agentBootstrap.podSecurityContext` to match its user.
+- Agent names may contain letters, digits, spaces, `.`, `_` and `-`. The Job finds an existing agent by its exact
+  name before creating one, so it never adds a second agent with the same name.
 - Helm waits for the hook up to `--timeout` (default 5m). Raise it together with `api.agentBootstrap.waitSeconds` if
   the API takes longer to become ready.
 
