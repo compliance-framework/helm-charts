@@ -3,3 +3,6 @@ lisa-design:
 - Integers go through int64 before toString: YAML numbers arrive as float64 and would render as 1.6777216e+07.
 - First-class keys yield to api.extraConfig (the helper unsets any key extraConfig sets) to avoid duplicate ConfigMap keys and keep installs that already used extraConfig unchanged.
 - No validation of instancePruneSchedule beyond string: River's 6-field cron is validated by the API.
+
+lisa-selfreview:
+pass 1 (strict): approve. Tests: defaults (only the strict flag), full set incl. large ints, extraConfig precedence, invalid enum/duration/int. Rendered ConfigMap checked by hand for duplicate keys with extraConfig overlap (none).
