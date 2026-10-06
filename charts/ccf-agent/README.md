@@ -50,6 +50,11 @@ helm install ccf-agent ./ccf-agent \
 | `agent.verbosity` | Logging verbosity (0-3) | `0` |
 | `agent.agentEvidence.enabled` | Enable agent evidence reporting | `false` |
 | `agent.agentEvidence.interval` | Evidence reporting interval | `1h` |
+| `agent.remoteConfig.mode` | `remote_config.mode`: `off`, `report`, `apply_safe` or `apply_all` | `""` (agent default) |
+| `agent.remoteConfig.pollInterval` | `remote_config.poll_interval`, a Go duration of at least `15s` | `""` (agent default `60s`) |
+| `agent.remoteConfig.trustedSources` | `remote_config.trusted_sources`, globs of sources an overlay may add | `[]` |
+| `agent.remoteConfig.overridableConfigFlags` | `remote_config.overridable_config_flags`, plugin config keys an overlay may change | `[]` |
+| `agent.remoteConfig.allowLocalSources` | `remote_config.allow_local_sources` | `null` (agent default `false`) |
 | `agent.api.url` | CCF API URL | `http://ccf-api:8080` |
 | `agent.api.auth.enabled` | Enable API authentication | `false` |
 | `agent.api.auth.createSecret` | Create a secret with credentials | `false` |
@@ -165,6 +170,29 @@ agent:
 This sets the credentials as environment variables directly (not recommended for production).
 
 Rendering fails when only one of the two values is set, or when `clientId.value` is not a UUID.
+
+### Remote Configuration
+
+With API credentials, agent v0.9.0 reports its configuration to the API and can apply a configuration overlay stored
+there. `agent.remoteConfig` renders the agent's `remote_config` block. Only the keys you set are rendered; with none
+set there is no block and the agent defaults apply: mode `report` with credentials, `off` without (missing credentials
+always force `off`). `report` sends configuration reports but never fetches an overlay, so applying remote changes is
+opt-in:
+
+```yaml
+agent:
+  remoteConfig:
+    mode: apply_safe            # or apply_all; quote "off" if you set it
+    pollInterval: 60s           # at least 15s
+    trustedSources:
+      - ghcr.io/compliance-framework/*
+    overridableConfigFlags:
+      - "github:token"
+```
+
+`remote_config` is set locally only: an overlay that tries to change it (or `api` or `daemon`) is rejected. See the
+agent's [configuration docs](https://github.com/compliance-framework/agent/blob/main/docs/configuration.md#remote-configuration)
+for how changes are classified as safe, unsafe or forbidden.
 
 ### Secret References
 

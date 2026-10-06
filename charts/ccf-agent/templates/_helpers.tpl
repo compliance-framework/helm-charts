@@ -182,3 +182,51 @@ Validate the optional agent instance ID (the agent refuses anything but a UUID).
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Total seconds of a Go duration string such as 1m30s (no sign). Used to enforce
+remote_config.poll_interval >= 15s, which the agent requires.
+*/}}
+{{- define "ccf-agent.durationSeconds" -}}
+{{- $units := dict "ns" 0.000000001 "us" 0.000001 "µs" 0.000001 "ms" 0.001 "s" 1.0 "m" 60.0 "h" 3600.0 -}}
+{{- $total := 0.0 -}}
+{{- range (regexFindAll "[0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h)" . -1) -}}
+{{- $num := regexFind "^[0-9]*[.]?[0-9]+" . | float64 -}}
+{{- $unit := regexReplaceAll "^[0-9]*[.]?[0-9]+" . "" -}}
+{{- $total = addf $total (mulf $num (get $units $unit)) -}}
+{{- end -}}
+{{- $total -}}
+{{- end }}
+
+{{/*
+The agent's remote_config block as YAML, with only the keys that are set. Empty when
+nothing is set, so the agent defaults apply.
+*/}}
+{{- define "ccf-agent.remoteConfig" -}}
+{{- $in := default (dict) .Values.agent.remoteConfig -}}
+{{- $rc := dict -}}
+{{- with $in.mode }}
+{{- $_ := set $rc "mode" (toString .) -}}
+{{- end }}
+{{- with $in.pollInterval }}
+{{- if not (regexMatch "^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$" .) }}
+{{- fail (printf "agent.remoteConfig.pollInterval %q is not a Go duration such as 60s or 5m" .) }}
+{{- end }}
+{{- if lt (include "ccf-agent.durationSeconds" . | float64) 15.0 }}
+{{- fail (printf "agent.remoteConfig.pollInterval %q must be at least 15s" .) }}
+{{- end }}
+{{- $_ := set $rc "poll_interval" . -}}
+{{- end }}
+{{- with $in.trustedSources }}
+{{- $_ := set $rc "trusted_sources" . -}}
+{{- end }}
+{{- with $in.overridableConfigFlags }}
+{{- $_ := set $rc "overridable_config_flags" . -}}
+{{- end }}
+{{- if not (kindIs "invalid" $in.allowLocalSources) }}
+{{- $_ := set $rc "allow_local_sources" $in.allowLocalSources -}}
+{{- end }}
+{{- if $rc }}
+{{- toYaml $rc }}
+{{- end }}
+{{- end }}

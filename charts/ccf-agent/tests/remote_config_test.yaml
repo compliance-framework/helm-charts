@@ -1,0 +1,92 @@
+suite: remote configuration
+templates:
+  - templates/configmap.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: renders no remote_config block by default so the agent defaults apply
+    asserts:
+      - notMatchRegex:
+          path: data["config.yml"]
+          pattern: "remote_config"
+
+  - it: renders only the keys that are set
+    set:
+      agent.remoteConfig.mode: apply_safe
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "remote_config:\n  mode: apply_safe\n"
+      - notMatchRegex:
+          path: data["config.yml"]
+          pattern: "poll_interval|trusted_sources|overridable_config_flags|allow_local_sources"
+
+  - it: quotes the off mode so the agent reads a string
+    set:
+      agent.remoteConfig.mode: "off"
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "mode: \"off\""
+
+  - it: renders the full block
+    values:
+      - values/remote_config_full.yaml
+    asserts:
+      - equal:
+          path: data["config.yml"]
+          value: |
+            daemon: true
+            verbosity: 0
+            api:
+              url: http://ccf-api:8080
+            agent_evidence:
+              enabled: false
+              interval: 1h
+            remote_config:
+              allow_local_sources: true
+              mode: apply_all
+              overridable_config_flags:
+              - schedule_window
+              - github:token
+              poll_interval: 2m
+              trusted_sources:
+              - ghcr.io/compliance-framework/*
+              - ghcr.io/my-org/*
+
+  - it: renders allowLocalSources false when it is set explicitly
+    set:
+      agent.remoteConfig.allowLocalSources: false
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "remote_config:\n  allow_local_sources: false\n"
+
+  - it: accepts a poll interval of exactly 15s written as minutes
+    set:
+      agent.remoteConfig.pollInterval: 0.25m
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "poll_interval: 0.25m"
+
+  - it: rejects a poll interval below 15s
+    set:
+      agent.remoteConfig.pollInterval: 10s
+    asserts:
+      - failedTemplate:
+          errorPattern: "must be at least 15s"
+
+  - it: rejects a poll interval that is not a duration
+    set:
+      agent.remoteConfig.pollInterval: "60"
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects an unknown mode
+    set:
+      agent.remoteConfig.mode: apply
+    asserts:
+      - failedTemplate: {}
