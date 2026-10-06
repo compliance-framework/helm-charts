@@ -338,35 +338,58 @@ api:
     maxSuggestionsPerRun: 500
 
   # Authorization (AuthZ) configuration.
-  # Selects the PDP engine that authorizes API requests and (for the cedar engine)
+  # Selects the PDP engine that authorizes API requests.
   authz:
     # builtin — in-process, reproduces CCF's pre-authz rules (the default).
     # cedar   — embedded Cedar RBAC engine, DENY-BY-DEFAULT; reads roleAssignments below.
+    # authzen — a remote AuthZEN PDP at authzen.endpoint.
     # WARNING: be sure to properly set up `roleAssignments` before switching to cedar driver!
-    driver: "builtin" # @schema enum:[builtin, cedar]
-    # Behaviour when the PDP is unavailable. No-op for the in-process engines.
+    driver: "builtin" # @schema enum:[builtin, cedar, authzen]
+    # Behaviour when the PDP is unavailable (authzen only; no-op for the in-process engines).
     failMode: "closed" # @schema enum:[closed, open]
+    # Remote AuthZEN PDP (driver: authzen).
+    authzen:
+      # The PDP's single-evaluation URL (CCF_AUTHZ_ENDPOINT). Required with driver authzen.
+      endpoint: ""
+      # Decision cache TTL, a Go duration such as 5s (CCF_AUTHZ_CACHE_TTL). Empty disables
+      # the cache.
+      cacheTtl: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # Optional configuration for Cedar driver
     cedar:
-      # Optional operator .cedar policy directory escape hatch. When set, only the
-      # CCF_AUTHZ_CEDAR_POLICY_DIR env var is injected; the operator is responsible for
-      # mounting the directory at this path (e.g. via extraObjects + a custom volume).
+      # Directory of operator *.cedar policy files (CCF_AUTHZ_CEDAR_POLICY_DIR). They augment
+      # the bundled roles. When policies or existingConfigMap is set, the chart mounts them
+      # here (default /etc/ccf/cedar-policies when empty). Otherwise the operator mounts the
+      # directory (e.g. via extraObjects + a custom volume).
       policyDir: ""
-    # Static role assignments consumed ONLY by the cedar engine (ignored by builtin).
-    # This whole map is rendered verbatim into authz-roles.yaml and mounted into the API,
-    # so it can be configured directly here. Cedar is deny-by-default: a subject with no
-    # grant (directly or via a group) is denied every request.
+      # Operator policy files rendered into a ConfigMap and mounted at policyDir: a map of
+      # file name (must end in .cedar) to Cedar policy text.
+      policies: {}
+        # deny-imports.cedar: |
+        #   forbid (principal, action, resource) when { ... };
+      # Mount an existing ConfigMap of *.cedar files at policyDir instead of policies.
+      existingConfigMap: ""
+    # Static role assignments, rendered verbatim into authz-roles.yaml and mounted into the
+    # API. The API reconciles this file into its role-assignment table at every migrate and
+    # start, for every driver (so the grants also show in the admin UI); cedar enforces them.
+    # Removing an entry removes that grant. Cedar is deny-by-default: a subject with no grant
+    # (directly or via a group) is denied every request.
+    # Valid roles: admin | contributor | auditor | viewer | agent | ssp-subscriber.
     roleAssignments:
-      # Per-user grants: login email -> role (admin | contributor | auditor | viewer | agent)
+      # Per-user grants: login email -> role (matched case-insensitively).
       users: {}
         # admin@example.com: admin
-      # Per-group grants: resolved group name -> role (recommended GitOps pattern)
+      # Per-group grants: group name -> role. Under cedar these apply to native CCF groups
+      # and to SSO groups mapped through the provider's group_mapping
+      # (api.sso.providers.<p>.groupMapping, dex.sso.groupMapping).
       groups: {}
         # ccf-admins: admin
         # ccf-users: contributor
         # ccf-viewers: viewer
       # Default role granted to every authenticated agent.
       agents: agent
+      # Role granted to unauthenticated requests. No default: unset or empty means deny.
+      # Use with care: `anonymous: viewer` opens every read route without a login.
+      # anonymous: viewer
 
 ui:
   enabled: true

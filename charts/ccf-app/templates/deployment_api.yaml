@@ -218,6 +218,11 @@ spec:
               readOnly: true
             {{- end }}
             {{- include "ccf-app.apiAuthzVolumeMount" . | nindent 12 }}
+            {{- if include "ccf-app.cedarPoliciesConfigMap" . }}
+            - mountPath: {{ include "ccf-app.cedarPolicyDir" . }}
+              name: api-authz-policies
+              readOnly: true
+            {{- end }}
             {{- include "ccf-app.apiTmpVolumeMount" . | nindent 12 }}
           livenessProbe:
             {{- with .Values.api.livenessProbe }}
@@ -397,6 +402,11 @@ spec:
         - name: api-authz-config
           configMap:
             name: {{ include "ccf-app.fullname" . }}-api-authz
+        {{- with (include "ccf-app.cedarPoliciesConfigMap" .) }}
+        - name: api-authz-policies
+          configMap:
+            name: {{ . }}
+        {{- end }}
         - name: tmp
           emptyDir: {}
       {{- with .Values.nodeSelector }}

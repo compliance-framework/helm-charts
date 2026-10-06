@@ -1,0 +1,17 @@
+{{- if and .Values.api.enabled .Values.api.authz.cedar.policies }}
+{{- $_ := include "ccf-app.cedarPoliciesConfigMap" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-api-authz-policies
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "api" "component" .Values.api) | nindent 4 }}
+data:
+  {{- range $name, $policy := .Values.api.authz.cedar.policies }}
+  {{- if not (regexMatch "^[A-Za-z0-9][A-Za-z0-9._-]*[.]cedar$" $name) }}
+  {{- fail (printf "api.authz.cedar.policies: %q must be a file name ending in .cedar (the API loads only *.cedar files)" $name) }}
+  {{- end }}
+  {{ $name }}: |
+    {{- $policy | nindent 4 }}
+  {{- end }}
+{{- end }}

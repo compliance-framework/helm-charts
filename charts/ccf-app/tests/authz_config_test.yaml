@@ -2,6 +2,7 @@ suite: Authorization configuration
 templates:
   - templates/configmap_api.yaml
   - templates/configmap_api_authz.yaml
+  - templates/configmap_api_authz_policies.yaml
   - templates/deployment_api.yaml
   - templates/configmap_api_sso.yaml
   - templates/configmap_api_email.yaml
@@ -193,3 +194,166 @@ tests:
           path: data["CCF_AUTHZ_ROLE_ASSIGNMENTS"]
           value: "/etc/ccf/authz-roles.yaml"
         template: templates/configmap_api.yaml
+
+  - it: authzen driver passes the endpoint and cache TTL
+    set:
+      api.enabled: true
+      api.authz.driver: authzen
+      api.authz.authzen.endpoint: https://pdp.internal/access/v1/evaluation
+      api.authz.authzen.cacheTtl: 5s
+    asserts:
+      - equal:
+          path: data["CCF_AUTHZ_DRIVER"]
+          value: "authzen"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AUTHZ_ENDPOINT"]
+          value: "https://pdp.internal/access/v1/evaluation"
+        template: templates/configmap_api.yaml
+      - equal:
+          path: data["CCF_AUTHZ_CACHE_TTL"]
+          value: "5s"
+        template: templates/configmap_api.yaml
+
+  - it: does not render authzen settings by default
+    set:
+      api.enabled: true
+    asserts:
+      - notExists:
+          path: data["CCF_AUTHZ_ENDPOINT"]
+        template: templates/configmap_api.yaml
+      - notExists:
+          path: data["CCF_AUTHZ_CACHE_TTL"]
+        template: templates/configmap_api.yaml
+
+  - it: fails when the authzen driver has no endpoint
+    set:
+      api.enabled: true
+      api.authz.driver: authzen
+    asserts:
+      - failedTemplate:
+          errorPattern: "api.authz.authzen.endpoint is required when api.authz.driver is authzen"
+        template: templates/deployment_api.yaml
+
+  - it: rejects a cache TTL that is not a duration
+    set:
+      api.enabled: true
+      api.authz.authzen.cacheTtl: "5"
+    asserts:
+      - failedTemplate: {}
+
+  - it: renders cedar policies into a ConfigMap and mounts them at the default policy dir
+    set:
+      api.enabled: true
+      api.authz.driver: cedar
+      api.authz.cedar.policies:
+        extra.cedar: |
+          permit (principal, action, resource);
+    asserts:
+      - containsDocument:
+          kind: ConfigMap
+          apiVersion: v1
+          name: ccf-app-api-authz-policies
+        template: templates/configmap_api_authz_policies.yaml
+      - equal:
+          path: data["extra.cedar"]
+          value: |
+            permit (principal, action, resource);
+        template: templates/configmap_api_authz_policies.yaml
+      - equal:
+          path: data["CCF_AUTHZ_CEDAR_POLICY_DIR"]
+          value: "/etc/ccf/cedar-policies"
+        template: templates/configmap_api.yaml
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /etc/ccf/cedar-policies
+            name: api-authz-policies
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: api-authz-policies
+            configMap:
+              name: ccf-app-api-authz-policies
+        template: templates/deployment_api.yaml
+      - exists:
+          path: spec.template.metadata.annotations["checksum/authz-policies"]
+        template: templates/deployment_api.yaml
+
+  - it: mounts an existing cedar policy ConfigMap at policyDir
+    set:
+      api.enabled: true
+      api.authz.driver: cedar
+      api.authz.cedar.existingConfigMap: my-cedar-policies
+      api.authz.cedar.policyDir: /authz-policies
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/configmap_api_authz_policies.yaml
+      - equal:
+          path: data["CCF_AUTHZ_CEDAR_POLICY_DIR"]
+          value: "/authz-policies"
+        template: templates/configmap_api.yaml
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /authz-policies
+            name: api-authz-policies
+            readOnly: true
+        template: templates/deployment_api.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: api-authz-policies
+            configMap:
+              name: my-cedar-policies
+        template: templates/deployment_api.yaml
+
+  - it: only sets the policy dir env when policyDir is given without policies
+    set:
+      api.enabled: true
+      api.authz.cedar.policyDir: /authz-policies
+    asserts:
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name == "api-authz-policies")]
+        template: templates/deployment_api.yaml
+
+  - it: rejects a policy file name without the .cedar suffix
+    set:
+      api.enabled: true
+      api.authz.cedar.policies:
+        extra.txt: "permit (principal, action, resource);"
+    asserts:
+      - failedTemplate:
+          errorPattern: "must be a file name ending in .cedar"
+        template: templates/deployment_api.yaml
+
+  - it: rejects policies together with existingConfigMap
+    set:
+      api.enabled: true
+      api.authz.cedar.existingConfigMap: my-cedar-policies
+      api.authz.cedar.policies:
+        extra.cedar: "permit (principal, action, resource);"
+    asserts:
+      - failedTemplate:
+          errorPattern: "set either policies or existingConfigMap, not both"
+        template: templates/deployment_api.yaml
+
+  - it: renders anonymous and ssp-subscriber grants verbatim
+    set:
+      api.enabled: true
+      api.authz.roleAssignments:
+        users:
+          subscriber@example.com: ssp-subscriber
+        anonymous: viewer
+    asserts:
+      - matchRegex:
+          path: data["authz-roles.yaml"]
+          pattern: "anonymous: viewer"
+        template: templates/configmap_api_authz.yaml
+      - matchRegex:
+          path: data["authz-roles.yaml"]
+          pattern: "subscriber@example.com: ssp-subscriber"
+        template: templates/configmap_api_authz.yaml

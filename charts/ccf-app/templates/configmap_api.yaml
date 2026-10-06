@@ -52,7 +52,17 @@ data:
   CCF_AUTHZ_DRIVER: {{ .Values.api.authz.driver | default "builtin" | quote }}
   CCF_AUTHZ_FAIL_MODE: {{ .Values.api.authz.failMode | default "closed" | quote }}
   CCF_AUTHZ_ROLE_ASSIGNMENTS: "/etc/ccf/authz-roles.yaml"
-  {{- if .Values.api.authz.cedar.policyDir }}
-  CCF_AUTHZ_CEDAR_POLICY_DIR: {{ .Values.api.authz.cedar.policyDir | quote }}
+  {{- $authzen := default (dict) .Values.api.authz.authzen }}
+  {{- if and (eq (toString .Values.api.authz.driver) "authzen") (not $authzen.endpoint) }}
+  {{- fail "api.authz.authzen.endpoint is required when api.authz.driver is authzen" }}
+  {{- end }}
+  {{- with $authzen.endpoint }}
+  CCF_AUTHZ_ENDPOINT: {{ . | quote }}
+  {{- end }}
+  {{- with $authzen.cacheTtl }}
+  CCF_AUTHZ_CACHE_TTL: {{ . | quote }}
+  {{- end }}
+  {{- with (include "ccf-app.cedarPolicyDir" .) }}
+  CCF_AUTHZ_CEDAR_POLICY_DIR: {{ . | quote }}
   {{- end }}
 {{- end }}

@@ -6,6 +6,7 @@ templates:
   - templates/deployment_api.yaml
   - templates/secrets_api_config.yaml
   - templates/configmap_api_authz.yaml
+  - templates/configmap_api_authz_policies.yaml
   - templates/configmap_api_slack.yaml
   - templates/configmap_api_workflow.yaml
 values:
