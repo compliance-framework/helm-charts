@@ -48,3 +48,23 @@ tests:
     asserts:
       - matchRegexRaw:
           pattern: "needs the admin role"
+
+  - it: points at the initial user's existing Secret and key
+    set:
+      api.user.existingSecret: ccf-admin
+      api.user.passwordKey: admin-password
+    asserts:
+      - matchRegexRaw:
+          pattern: "get secret ccf-admin -o jsonpath='\\{.data.admin-password\\}'"
+
+  - it: warns about the development fallbacks
+    set:
+      devSecrets.seed: dev
+      api.jwt.source: inMemory
+    asserts:
+      - matchRegexRaw:
+          pattern: "WARNING: devSecrets.seed is set"
+      - matchRegexRaw:
+          pattern: "api.jwt.source=inMemory \\(development only\\)"
+      - matchRegexRaw:
+          pattern: "derived from devSecrets.seed"

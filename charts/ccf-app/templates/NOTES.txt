@@ -47,7 +47,10 @@
 
 3. Log in as the initial admin user:
   Email:    {{ .Values.api.user.email }}
-  Password: kubectl -n {{ .Release.Namespace }} get secret {{ $fullname }}-initial-user-password -o jsonpath='{.data.password}' | base64 -d
+  Password: kubectl -n {{ .Release.Namespace }} get secret {{ include "ccf-app.initialUserPasswordSecret" . }} -o jsonpath='{.data.{{ include "ccf-app.initialUserPasswordKey" . }}}' | base64 -d
+{{- if eq (include "ccf-app.initialUserPasswordSource" .) "seed" }}
+  (derived from devSecrets.seed: development only, anyone with the seed can derive it)
+{{- end }}
 {{- if eq (toString .Values.api.authz.driver) "cedar" }}
   (authz driver cedar: the user needs the admin role in api.authz.roleAssignments.users)
 {{- end }}
@@ -73,6 +76,16 @@
 NOTE: public agent endpoints are allowed (api.agents.strictDisablePublicEndpoints=false), so
 anonymous callers can send evidence, upload artifacts and run Rego playback. Set it to true
 once every agent has a key.
+{{- end }}
+{{- if .Values.devSecrets.seed }}
+
+WARNING: devSecrets.seed is set. Credentials derived from it are for development only: anyone
+who knows the seed can derive them. Use existingSecret or External Secrets Operator in production.
+{{- end }}
+{{- if eq (toString .Values.api.jwt.source) "inMemory" }}
+
+NOTE: api.jwt.source=inMemory (development only): the API generates a new JWT key at every
+start, so logins and agent tokens end on every restart. Run a single API replica.
 {{- end }}
 {{- with (include "ccf-app.deprecatedGeneratedCredentials" .) }}
 
