@@ -44,12 +44,13 @@ helm install ccf-agent ./ccf-agent \
 | `image.repository` | Agent image repository | `ghcr.io/compliance-framework/agent` |
 | `image.tag` | Agent image tag | `""` (uses appVersion) |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `agent.hostname` | Agent hostname for identification | `""` (uses pod name) |
+| `agent.hostname` | Deprecated, no effect (the agent uses the pod name) | `""` |
 | `agent.daemon` | Run agent in daemon mode | `true` |
 | `agent.instanceId` | Fixed agent instance ID (`CCF_INSTANCE_ID`, a UUID); the chart never generates one | `""` |
 | `agent.verbosity` | Logging verbosity (0-3) | `0` |
 | `agent.agentEvidence.enabled` | Enable agent evidence reporting | `false` |
 | `agent.agentEvidence.interval` | Evidence reporting interval | `1h` |
+| `agent.agentEvidence.emitOnRunCompletion` | `agent_evidence.emit_on_run_completion`: also emit agent evidence when a run completes | `null` (agent default `true`) |
 | `agent.remoteConfig.mode` | `remote_config.mode`: `off`, `report`, `apply_safe` or `apply_all` | `""` (agent default) |
 | `agent.remoteConfig.pollInterval` | `remote_config.poll_interval`, a Go duration of at least `15s` | `""` (agent default `60s`) |
 | `agent.remoteConfig.trustedSources` | `remote_config.trusted_sources`, globs of sources an overlay may add | `[]` |
@@ -74,6 +75,51 @@ period. Set `agent.instanceId` to pin the ID instead; never share one ID between
 
 The Deployment uses the `Recreate` strategy, so the old pod stops before the new one starts.
 
+### Image Flavours
+
+The agent is published as three images:
+
+| Image | Base | Use with this chart |
+|-------|------|---------------------|
+| `ghcr.io/compliance-framework/agent` | distroless, runs as root by default | The default. The chart forces uid/gid `1000` and a read-only root filesystem. |
+| `ghcr.io/compliance-framework/agent-custodian` | `cloudcustodian/c7n`, non-root `custodian` user | For the Cloud Custodian plugins. Run it as uid `1001` (see below). |
+| `ghcr.io/compliance-framework/agent-ci` | `debian:bookworm-slim` | For CI jobs (`submit-evidence`). Not for this chart. |
+
+The chart's `command` (`./concom agent -c /config/config.yml`) works for both `agent` and `agent-custodian`. For
+`agent-custodian`, run as the `custodian` user and give it a writable `HOME`:
+
+```yaml
+image:
+  repository: ghcr.io/compliance-framework/agent-custodian
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop: [ALL]
+extraEnv:
+  - name: HOME
+    value: /home/custodian
+volumes:
+  - name: custodian-home
+    emptyDir: {}
+volumeMounts:
+  - name: custodian-home
+    mountPath: /home/custodian
+```
+
+### Replicas and Autoscaling
+
+Every replica of a release gets the same configuration and the same API key, so the replicas write the **same
+evidence streams** (the `_agent` label is the key's `client_id`, or a hash of the configuration without credentials)
+and each replica runs every plugin. To split work, install one release per set of plugins, each with its own key.
+`replicaCount` and `autoscaling` remain available.
+
 ### Plugin Configuration
 
 Plugins are configured under `agent.plugins`. Each plugin can have:
@@ -82,6 +128,40 @@ Plugins are configured under `agent.plugins`. Each plugin can have:
 - `policies`: List of policy bundles to evaluate
 - `config`: Plugin-specific configuration
 - `labels`: Labels for organizing compliance data
+- `enabled`: set to `false` to disable a plugin without removing it. A disabled plugin gets no schedule, no download
+  and no run state, but it stays in the configuration the agent reports.
+
+The block is passed to the agent as-is, so other agent plugin keys (`protocol_version`, `policy_data`,
+`policy_behavior`) work too.
+
+#### `${env:NAME}` placeholders
+
+A value in `plugins.<name>.config` may reference an environment variable, whole or embedded:
+`token: "${env:GITHUB_TOKEN}"` or `dsn: "postgres://app:${env:PG_PASSWORD}@db:5432/app"`. The chart passes the
+placeholder through unchanged and the agent resolves it. Placeholders:
+
+- are resolved **only** in `plugins.*.config`; anywhere else they stay literal strings;
+- can never reference `CCF_API_AUTH_*`;
+- appear unresolved in the configuration the agent reports, so the secret value never leaves the pod.
+
+Provide the variables with `secretRefs` (or `extraEnv` / `extraEnvFrom`):
+
+```yaml
+agent:
+  plugins:
+    github:
+      source: ghcr.io/compliance-framework/plugin-github:v1.0.0
+      config:
+        token: "${env:GITHUB_TOKEN}"
+secretRefs:
+  - name: github-token
+    keys:
+      - envName: GITHUB_TOKEN
+        secretKey: token
+```
+
+Plugin processes receive the agent's environment except `CCF_API_AUTH_*`, so plugins never see the agent's API
+credentials.
 
 Example:
 

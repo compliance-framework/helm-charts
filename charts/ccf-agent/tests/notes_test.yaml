@@ -1,0 +1,61 @@
+suite: NOTES
+templates:
+  - templates/NOTES.txt
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: warns when the agent has no API credentials
+    asserts:
+      - matchRegexRaw:
+          pattern: "API authentication: off \\(the agent runs anonymously\\)"
+      - matchRegexRaw:
+          pattern: "Remote configuration: off \\(it needs API credentials\\)"
+      - matchRegexRaw:
+          pattern: "WARNING: no API credentials are configured"
+
+  - it: reports the existing secret and the agent default mode
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.existingSecret: ccf-agent-credentials
+    asserts:
+      - matchRegexRaw:
+          pattern: "API authentication: on \\(existing secret ccf-agent-credentials\\)"
+      - matchRegexRaw:
+          pattern: "Remote configuration: report \\(agent default"
+      - notMatchRegexRaw:
+          pattern: "WARNING"
+
+  - it: reports the configured remote configuration mode
+    set:
+      agent.api.auth.enabled: true
+      agent.api.auth.createSecret: true
+      agent.api.auth.clientId.value: "123e4567-e89b-12d3-a456-426614174000"
+      agent.api.auth.clientSecret.value: "s3cret"
+      agent.remoteConfig.mode: apply_safe
+    asserts:
+      - matchRegexRaw:
+          pattern: "API authentication: on \\(chart secret ccf-agent-auth\\)"
+      - matchRegexRaw:
+          pattern: "Remote configuration: apply_safe"
+
+  - it: says a mode has no effect without credentials
+    set:
+      agent.remoteConfig.mode: apply_all
+    asserts:
+      - matchRegexRaw:
+          pattern: "agent.remoteConfig.mode \"apply_all\" has no effect"
+
+  - it: flags disabled plugins and the deprecated hostname
+    set:
+      agent.hostname: worker-1
+      agent.plugins:
+        ssh:
+          enabled: false
+          source: ghcr.io/compliance-framework/plugin-local-ssh:v1.0.0
+    asserts:
+      - matchRegexRaw:
+          pattern: "Enabled: false"
+      - matchRegexRaw:
+          pattern: "agent.hostname is deprecated"
