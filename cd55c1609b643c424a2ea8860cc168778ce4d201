@@ -3,3 +3,6 @@ lisa-design:
 - CCF_INSTANCE_ID is rendered only from agent.instanceId; the chart must never generate or lookup() one (rejected: concurrent pods sharing an ID during rollouts).
 - strategy defaults to Recreate; when type is Recreate and no rollingUpdate is given we render rollingUpdate: null so a helm upgrade from a RollingUpdate Deployment clears the API-server-defaulted block (otherwise the API server rejects the patch).
 - HPA and replicaCount stay as they are (chart owner decision).
+
+lisa-selfreview:
+pass 1 (strict): approve. HELM-DEFAULT-001 (daemon default true, strategy Recreate) are spec decisions, marked BREAKING (daemon) in the commit and PR; Recreate means a short gap between pods on rollout, called out in the PR. Tests cover state dir, instance ID set/unset/invalid, strategy default/override/invalid enum, grace default/override, no PVC volume. HELM-VER-001 deferred by design.
