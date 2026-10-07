@@ -147,9 +147,6 @@ Resolve and validate JWT runtime configuration once for reuse across templates.
 {{- $jwtPublicGenerationEnabledValue := ternary $jwtPublicKeyGenerationValues.enabled true (hasKey $jwtPublicKeyGenerationValues "enabled") -}}
 {{- $jwtPublicGenerationEnabled := and (eq $jwtSource "generated") $jwtPublicGenerationEnabledValue -}}
 {{- $jwtFileMountsEnabled := ne $jwtSource "inMemory" -}}
-{{- $apiHasConfigMounts := or .Values.api.sso.enabled .Values.api.email.enabled .Values.api.workflow.enabled .Values.api.slack.enabled -}}
-{{- $apiHasConfigMounts = or $apiHasConfigMounts .Values.dex.enabled -}}
-{{- $apiHasVolumeMounts := or $jwtFileMountsEnabled $apiHasConfigMounts -}}
 source: {{ $jwtSource | quote }}
 inMemory: {{ eq $jwtSource "inMemory" }}
 useExistingSecret: {{ $jwtUseExistingSecret }}
@@ -166,9 +163,19 @@ generationCommand:
 {{- toYaml (default (list "sh" "-c") $jwtGenerationInitContainerValues.command) | nindent 2 }}
 generationArgs:
 {{- toYaml (default (list "apk add --no-cache openssl && echo \"Generating public key from private key...\" && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem") $jwtGenerationInitContainerValues.args) | nindent 2 }}
-apiHasVolumeMounts: {{ $apiHasVolumeMounts }}
-apiHasVolumes: {{ $apiHasVolumeMounts }}
 {{- end -}}
+
+{{/*
+Mount of the authz role-assignment file. Every container that runs the API binary needs it:
+`migrate up` reconciles the file into the database, and a missing file removes every
+config-owned grant (api internal/authz/reconcile.go).
+*/}}
+{{- define "ccf-app.apiAuthzVolumeMount" -}}
+- mountPath: /etc/ccf/authz-roles.yaml
+  name: api-authz-config
+  subPath: authz-roles.yaml
+  readOnly: true
+{{- end }}
 
 {{/*
 Return the base selector labels for a component.
