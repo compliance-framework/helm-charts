@@ -2,6 +2,8 @@ suite: render smoke
 templates:
   - templates/*.yaml
   - templates/**/*.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default

@@ -2,6 +2,8 @@ suite: postgresql persistent volume test
 templates:
   - templates/pv-psql.yaml
   - templates/pvc_psql.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default

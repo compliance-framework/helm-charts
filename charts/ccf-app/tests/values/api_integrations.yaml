@@ -1,0 +1,19 @@
+webBaseUrl: https://ccf.example.com
+api:
+  sso:
+    enabled: true
+    createSecret: true
+    providers:
+      google:
+        enabled: true
+        clientId: id
+        clientSecret: secret
+  email:
+    enabled: true
+    createSecret: true
+  slack:
+    enabled: true
+    createSecret: true
+    token: xoxb-test
+  workflow:
+    enabled: true

@@ -4,6 +4,12 @@ templates:
   - templates/configmap_api_slack.yaml
   - templates/deployment_api.yaml
   - templates/secrets_api_config.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
+  - templates/configmap_api_workflow.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
@@ -16,8 +22,10 @@ tests:
       api.slack.createSecret: true
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.token is required when api.slack.enabled is true"
-        template: templates/configmap_api_slack.yaml
+          errorPattern: "api\\.slack\\.token is required when api\\.slack\\.enabled is true"
+        # The API Deployment includes this template for its checksum, so the
+        # render error surfaces there first.
+        template: templates/deployment_api.yaml
 
   - it: Fails when only clientId is provided without clientSecret
     set:
@@ -27,8 +35,10 @@ tests:
       api.slack.clientId: "slack-client-id"
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.clientSecret is required when api.slack.clientId is provided"
-        template: templates/configmap_api_slack.yaml
+          errorPattern: "api\\.slack\\.clientSecret is required when api\\.slack\\.clientId is provided"
+        # The API Deployment includes this template for its checksum, so the
+        # render error surfaces there first.
+        template: templates/deployment_api.yaml
 
   - it: Fails when redirectUrl is missing with OAuth pair
     set:
@@ -41,8 +51,10 @@ tests:
       api.slack.redirectUrl: ""
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.redirectUrl, api.webBaseUrl, or webBaseUrl is required when api.slack.clientId and api.slack.clientSecret are provided"
-        template: templates/configmap_api_slack.yaml
+          errorPattern: "api\\.slack\\.redirectUrl, api\\.webBaseUrl, or webBaseUrl is required when api\\.slack\\.clientId and api\\.slack\\.clientSecret are provided"
+        # The API Deployment includes this template for its checksum, so the
+        # render error surfaces there first.
+        template: templates/deployment_api.yaml
 
   - it: Slack OAuth redirectUrl defaults from api.webBaseUrl
     set:
@@ -68,8 +80,10 @@ tests:
       api.slack.clientSecret: "slack-client-secret"
     asserts:
       - failedTemplate:
-          errorMessage: "api.slack.clientId is required when api.slack.clientSecret is provided"
-        template: templates/configmap_api_slack.yaml
+          errorPattern: "api\\.slack\\.clientId is required when api\\.slack\\.clientSecret is provided"
+        # The API Deployment includes this template for its checksum, so the
+        # render error surfaces there first.
+        template: templates/deployment_api.yaml
 
   - it: Slack disabled produces no resources
     set:

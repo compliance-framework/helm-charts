@@ -1,6 +1,15 @@
 suite: database password test
 templates:
   - templates/deployment_api.yaml
+  - templates/configmap_api.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
+  - templates/configmap_api_slack.yaml
+  - templates/configmap_api_workflow.yaml
+  - templates/secrets_api_config.yaml
+values:
+  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
@@ -55,7 +64,7 @@ tests:
           existingSecret: ""
     asserts:
       - failedTemplate:
-          errorMessage: "database.local.enabled is true but neither createSecret nor existingSecret is set"
+          errorPattern: "no source for: PostgreSQL password\\."
         template: templates/deployment_api.yaml
 
   - it: should fail when external database enabled but no existingSecret

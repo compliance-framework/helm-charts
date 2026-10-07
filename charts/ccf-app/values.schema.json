@@ -309,7 +309,14 @@
                             }
                         },
                         "source": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "",
+                                "existingSecret",
+                                "externalSecret",
+                                "inMemory",
+                                "generated"
+                            ]
                         }
                     }
                 },
@@ -533,7 +540,21 @@
                         "email": {
                             "type": "string"
                         },
+                        "existingSecret": {
+                            "type": "string"
+                        },
+                        "externalSecret": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                }
+                            }
+                        },
                         "password": {
+                            "type": "string"
+                        },
+                        "passwordKey": {
                             "type": "string"
                         },
                         "username": {
@@ -706,6 +727,14 @@
                         "existingSecret": {
                             "type": "string"
                         },
+                        "externalSecret": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                }
+                            }
+                        },
                         "extraEnv": {
                             "type": "array"
                         },
@@ -846,6 +875,14 @@
                 }
             }
         },
+        "devSecrets": {
+            "type": "object",
+            "properties": {
+                "seed": {
+                    "type": "string"
+                }
+            }
+        },
         "dex": {
             "type": "object",
             "properties": {
@@ -860,6 +897,14 @@
                         },
                         "existingSecret": {
                             "type": "string"
+                        },
+                        "externalSecret": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                }
+                            }
                         },
                         "secretKey": {
                             "type": "string"
@@ -1087,6 +1132,45 @@
                             "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "externalSecrets": {
+            "type": "object",
+            "properties": {
+                "apiVersion": {
+                    "type": "string"
+                },
+                "generatorApiVersion": {
+                    "type": "string"
+                },
+                "passwordGenerator": {
+                    "type": "object",
+                    "properties": {
+                        "allowRepeat": {
+                            "type": "boolean"
+                        },
+                        "digits": {
+                            "type": "integer"
+                        },
+                        "length": {
+                            "type": "integer"
+                        },
+                        "noUpper": {
+                            "type": "boolean"
+                        },
+                        "symbols": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "refreshPolicy": {
+                    "type": "string",
+                    "enum": [
+                        "CreatedOnce",
+                        "Periodic",
+                        "OnChange"
+                    ]
                 }
             }
         },

@@ -1,0 +1,96 @@
+suite: API rollout on config changes and JWT key reuse
+templates:
+  - templates/deployment_api.yaml
+  - templates/configmap_api.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
+  - templates/configmap_api_slack.yaml
+  - templates/configmap_api_workflow.yaml
+  - templates/secrets_api_config.yaml
+  - templates/secrets_api.yaml
+values:
+  - values/credentials.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: annotates the API pods with checksums of the API config and authz ConfigMaps
+    template: templates/deployment_api.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/config"]
+          pattern: "^[0-9a-f]{64}$"
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/authz"]
+          pattern: "^[0-9a-f]{64}$"
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/sso"]
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/email"]
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/slack"]
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/workflow"]
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/secret-config"]
+
+  - it: adds checksums for every enabled integration and the chart-managed config secret
+    template: templates/deployment_api.yaml
+    values:
+      - values/api_integrations.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/sso"]
+          pattern: "^[0-9a-f]{64}$"
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/email"]
+          pattern: "^[0-9a-f]{64}$"
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/slack"]
+          pattern: "^[0-9a-f]{64}$"
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/workflow"]
+          pattern: "^[0-9a-f]{64}$"
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/secret-config"]
+          pattern: "^[0-9a-f]{64}$"
+
+  - it: keeps user pod annotations next to the checksums
+    template: templates/deployment_api.yaml
+    set:
+      podAnnotations:
+        global: "yes"
+      api.podAnnotations:
+        team: compliance
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.global
+          value: "yes"
+      - equal:
+          path: spec.template.metadata.annotations.team
+          value: compliance
+      - exists:
+          path: spec.template.metadata.annotations["checksum/authz"]
+
+  - it: passes the container port as CCF_APP_PORT
+    template: templates/configmap_api.yaml
+    set:
+      api.containerPort: 9000
+      api.service.port: 80
+    asserts:
+      - equal:
+          path: data.CCF_APP_PORT
+          value: "9000"
+      - notExists:
+          path: data.APP_PORT
+
+  - it: never renders a JWT private key itself (no lookup, no render-time generation)
+    template: templates/secrets_api.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: ccf-app-initial-user-password

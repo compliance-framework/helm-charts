@@ -18,6 +18,41 @@ fullnameOverride: ""
 # Web Base URL - Use it to configure default networking configuration for ccf
 webBaseUrl: ""
 
+# Credentials. Each one comes from, highest first: an existingSecret, an External Secrets
+# Operator ExternalSecret, an explicit value, the development seed below, or (the DEPRECATED
+# default, as before 0.9.0) a value the chart generates with lookup + random (a new JWT key on
+# every render). The generated default is not GitOps-safe: under helm template / Argo CD lookup
+# returns nothing, so the values change on every sync. NOTES print a DEPRECATED notice for each
+# generated credential. See the README, section Credentials.
+devSecrets:
+  # DEVELOPMENT ONLY. When set, the Postgres password, the initial user's password and the Dex
+  # client secret default to values derived from this seed (sha256 of purpose + seed). They stay
+  # the same across renders and upgrades, but anyone who knows the seed knows them. Never use it
+  # in production or commit a real seed. Empty (the default) disables it.
+  seed: ""
+
+# External Secrets Operator (https://external-secrets.io) settings, used by every
+# `externalSecret.enabled: true` below. Needs ESO with the external-secrets.io/v1 API and the
+# Password generator (ESO 0.17 or later).
+# ESO generation is for FRESH installs: the generated Secrets take the names the chart used to
+# create itself, so switching an existing install to ESO replaces its values (the Postgres password
+# no longer matches the initialised database, the admin password no longer matches its Secret, and
+# the JWT key rotates). Existing installs keep their values with existingSecret (README upgrade
+# notes), or rotate the Postgres password themselves before switching.
+externalSecrets:
+  apiVersion: external-secrets.io/v1
+  generatorApiVersion: generators.external-secrets.io/v1alpha1
+  # CreatedOnce: the value is generated once and never rotated (a rotated database password
+  # would lock the API out of an initialised database).
+  refreshPolicy: CreatedOnce # @schema enum:[CreatedOnce, Periodic, OnChange]
+  # Spec of the Password generators (no symbols: the password goes into a connection string).
+  passwordGenerator:
+    length: 32
+    digits: 6
+    symbols: 0
+    noUpper: false
+    allowRepeat: true
+
 serviceAccount:
   # Specifies whether a service account should be created.
   create: true
@@ -84,13 +119,25 @@ api:
     tag: "0.17.1"
   # JWT signing key management for the API.
   jwt:
-    # generated: chart generates a private key and (optionally) derives public key via init container
-    # existingSecret: mount both keys from an existing Kubernetes Secret
-    # inMemory: API generates and stores JWT keys in memory (no key env vars, volumes, or key mounts)
-    source: generated
+    # Where the API's JWT signing key comes from:
+    # generated:      DEPRECATED, the default (as before 0.9.0). The chart creates
+    #                 <fullname>-jwt-private-key with a new key on every render (no lookup): every
+    #                 helm upgrade and every GitOps sync rotates it, logging everyone out and
+    #                 invalidating agent tokens. Will be removed; migrate to existingSecret (the
+    #                 README copy recipe keeps the current key) or externalSecret.
+    # existingSecret: an existing Secret (api.jwt.existingSecret). With publicKey empty, the
+    #                 public key is derived from the private key by the init container below.
+    # externalSecret: External Secrets Operator creates <fullname>-jwt-private-key once (an RSA
+    #                 key made by the ESO template function genPrivateKey); the public key is
+    #                 derived by the init container below. Fresh installs only.
+    # inMemory:       DEVELOPMENT ONLY. The API generates a key at every start (sessions and agent
+    #                 tokens end on every restart; one replica only).
+    # An empty value fails rendering.
+    source: generated # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
     existingSecret:
       name: ""
       privateKey: private_key.pem
+      # Key holding the PEM public key. Empty: derive it from the private key.
       publicKey: public_key.pem
     publicKeyGeneration:
       enabled: true
@@ -122,10 +169,20 @@ api:
       path: /api/auth/publickey
       port: http
   corsOrigins: [] # @schema item:string
+  # Initial admin user, created by the create-user init container. Its password comes from
+  # existingSecret, externalSecret, password, devSecrets.seed, or (DEPRECATED default) lookup +
+  # random into <fullname>-initial-user-password.
   user:
     username: admin@localhost
     email: admin@localhost
+    # Explicit password, rendered into the <fullname>-initial-user-password Secret.
     password: ""
+    # Existing Secret holding the password, and its key.
+    existingSecret: ""
+    passwordKey: password
+    # External Secrets Operator generates <fullname>-initial-user-password once.
+    externalSecret:
+      enabled: false
   labels: {}
   podLabels: {}
   podAnnotations: {}
@@ -366,11 +423,16 @@ dex:
     id: ccf-ui
     name: CCF UI
     redirectUris: [] # @schema item:string
+  # Dex static client secret: existingSecret (with createSecret: false), externalSecret, value,
+  # devSecrets.seed, or (DEPRECATED default with createSecret: true) lookup + random.
   clientSecret:
     value: ""
     createSecret: true
     existingSecret: ""
     secretKey: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
+    # External Secrets Operator generates <fullname>-dex once.
+    externalSecret:
+      enabled: false
     envName: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
   sso:
     name: dex # @schema pattern: ^[A-Za-z_][A-Za-z0-9_]*$
@@ -406,11 +468,18 @@ dex:
 database:
   local:
     enabled: true
+    # The Postgres password: existingSecret (with createSecret: false; key POSTGRES_PASSWORD),
+    # externalSecret, password (with createSecret: true), devSecrets.seed, or (DEPRECATED default
+    # with createSecret: true and nothing else) lookup + random into <fullname>-psql.
+    # createSecret: false without existingSecret/externalSecret fails rendering.
     createSecret: true
     existingSecret: ""
     username: ccf
     database: ccf
     password: ""
+    # External Secrets Operator generates <fullname>-psql (key POSTGRES_PASSWORD) once.
+    externalSecret:
+      enabled: false
     vpa:
       enabled: false
       updatePolicy:

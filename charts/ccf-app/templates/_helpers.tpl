@@ -65,47 +65,16 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Return a base64 encoded database password. If the release already has a secret,
-reuse its password to keep credentials stable across upgrades; otherwise generate
-and return a new random password.
-*/}}
-{{- define "ccf-app.psqlPasswordB64" -}}
-{{- $secretName := printf "%s-psql" (include "ccf-app.fullname" .) -}}
-{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
-{{- if and $existing (index $existing.data "POSTGRES_PASSWORD") -}}
-{{- index $existing.data "POSTGRES_PASSWORD" -}}
-{{- else if .Values.database.local.password -}}
-{{- trim .Values.database.local.password | b64enc -}}
-{{- else -}}
-{{- randAlphaNum 32 | b64enc -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "ccf-app.initialUserPasword" -}}
-{{- $secretName := printf "%s-initial-user-password" (include "ccf-app.fullname" .) -}}
-{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
-{{- if and $existing (index $existing.data "password") -}}
-{{- index $existing.data "password" -}}
-{{- else if .Values.api.user.password -}}
-{{- trim .Values.api.user.password | b64enc -}}
-{{- else -}}
-{{- randAlphaNum 12 | b64enc -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Return the database password secret name and key based on configuration.
 This function centralizes the logic for determining which secret and key to use
 for database password authentication across all containers and init containers.
 */}}
 {{- define "ccf-app.databasePasswordSecret" -}}
 {{- if .Values.database.local.enabled -}}
-  {{- if .Values.database.local.createSecret -}}
-    {{- printf "%s-psql" (include "ccf-app.fullname" .) -}}
-  {{- else if .Values.database.local.existingSecret -}}
+  {{- if eq (include "ccf-app.psqlPasswordSource" .) "existingSecret" -}}
     {{- .Values.database.local.existingSecret -}}
   {{- else -}}
-    {{- fail "database.local.enabled is true but neither createSecret nor existingSecret is set" -}}
+    {{- printf "%s-psql" (include "ccf-app.fullname" .) -}}
   {{- end -}}
 {{- else -}}
   {{- if .Values.database.external.existingSecret -}}
@@ -136,20 +105,27 @@ Resolve and validate JWT runtime configuration once for reuse across templates.
 {{- $jwtPublicKeyGenerationValues := default (dict) $jwtValues.publicKeyGeneration -}}
 {{- $jwtGenerationInitContainerValues := default (dict) $jwtPublicKeyGenerationValues.initContainer -}}
 {{- $jwtGenerationImageValues := default (dict) $jwtGenerationInitContainerValues.image -}}
-{{- $jwtSource := default "generated" $jwtValues.source -}}
-{{- if and (ne $jwtSource "generated") (ne $jwtSource "existingSecret") (ne $jwtSource "inMemory") -}}
-{{- fail "api.jwt.source must be one of 'generated', 'existingSecret', or 'inMemory'" -}}
+{{- $jwtSource := default "" $jwtValues.source -}}
+{{- if not $jwtSource -}}
+{{- fail "api.jwt.source is not set. Set it to 'existingSecret' (with api.jwt.existingSecret.name), 'externalSecret' (External Secrets Operator generates the key), 'inMemory' (development only: a new key on every API start, single replica), or the deprecated 'generated' (a new key on every helm upgrade and GitOps sync)" -}}
+{{- end -}}
+{{- if not (has $jwtSource (list "existingSecret" "externalSecret" "inMemory" "generated")) -}}
+{{- fail "api.jwt.source must be one of 'existingSecret', 'externalSecret', 'inMemory', or the deprecated 'generated'" -}}
 {{- end -}}
 {{- $jwtUseExistingSecret := eq $jwtSource "existingSecret" -}}
 {{- if and $jwtUseExistingSecret (empty $jwtExistingSecretValues.name) -}}
 {{- fail "api.jwt.existingSecret.name is required when api.jwt.source is 'existingSecret'" -}}
 {{- end -}}
 {{- $jwtPublicGenerationEnabledValue := ternary $jwtPublicKeyGenerationValues.enabled true (hasKey $jwtPublicKeyGenerationValues "enabled") -}}
-{{- $jwtPublicGenerationEnabled := and (eq $jwtSource "generated") $jwtPublicGenerationEnabledValue -}}
+{{- /* The public key is derived by the init container from the private key when the chart
+does not get it from a Secret: generated, externalSecret, or existingSecret without a publicKey. */ -}}
+{{- $jwtPublicFromSecret := and $jwtUseExistingSecret (not (empty $jwtExistingSecretValues.publicKey)) -}}
+{{- $jwtPublicGenerationEnabled := and (ne $jwtSource "inMemory") (not $jwtPublicFromSecret) $jwtPublicGenerationEnabledValue -}}
 {{- $jwtFileMountsEnabled := ne $jwtSource "inMemory" -}}
 source: {{ $jwtSource | quote }}
 inMemory: {{ eq $jwtSource "inMemory" }}
 useExistingSecret: {{ $jwtUseExistingSecret }}
+publicKeyFromSecret: {{ $jwtPublicFromSecret }}
 existingSecretName: {{ default "" $jwtExistingSecretValues.name | quote }}
 existingPrivateKey: {{ default "private_key.pem" $jwtExistingSecretValues.privateKey | quote }}
 existingPublicKey: {{ default "public_key.pem" $jwtExistingSecretValues.publicKey | quote }}
@@ -175,6 +151,32 @@ config-owned grant (api internal/authz/reconcile.go).
   name: api-authz-config
   subPath: authz-roles.yaml
   readOnly: true
+{{- end }}
+
+{{/*
+checksum/* pod annotations for the API: a change to any API ConfigMap or the chart-managed
+API config Secret rolls the API pods, so new settings (including authz-roles.yaml, which the
+API reconciles only at boot) take effect. Only templates that render something are listed.
+The JWT and initial-user secrets are left out: they are generated, and a fresh value on every
+`helm template` would roll the pods on every GitOps sync.
+*/}}
+{{- define "ccf-app.apiChecksumAnnotations" -}}
+{{- $files := dict
+  "checksum/config" "/configmap_api.yaml"
+  "checksum/authz" "/configmap_api_authz.yaml"
+  "checksum/sso" "/configmap_api_sso.yaml"
+  "checksum/email" "/configmap_api_email.yaml"
+  "checksum/slack" "/configmap_api_slack.yaml"
+  "checksum/workflow" "/configmap_api_workflow.yaml"
+  "checksum/secret-config" "/secrets_api_config.yaml" -}}
+{{- $out := dict -}}
+{{- range $key, $file := $files -}}
+{{- $rendered := include (print $.Template.BasePath $file) $ -}}
+{{- if trim $rendered -}}
+{{- $_ := set $out $key ($rendered | sha256sum) -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $out -}}
 {{- end }}
 
 {{/*
@@ -348,12 +350,10 @@ webBaseUrl and URL/ingress helper functions
 {{- end -}}
 
 {{- define "ccf-app.dexClientSecretName" -}}
-{{- if .Values.dex.clientSecret.createSecret -}}
-{{- printf "%s-dex" (include "ccf-app.fullname" .) -}}
-{{- else if .Values.dex.clientSecret.existingSecret -}}
+{{- if eq (include "ccf-app.dexClientSecretSource" .) "existingSecret" -}}
 {{- .Values.dex.clientSecret.existingSecret -}}
 {{- else -}}
-{{- fail "dex.clientSecret.existingSecret is required when dex.clientSecret.createSecret is false" -}}
+{{- printf "%s-dex" (include "ccf-app.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
@@ -363,17 +363,4 @@ webBaseUrl and URL/ingress helper functions
 
 {{- define "ccf-app.dexClientSecretEnvName" -}}
 {{- default "CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET" .Values.dex.clientSecret.envName -}}
-{{- end -}}
-
-{{- define "ccf-app.dexClientSecretB64" -}}
-{{- $secretName := printf "%s-dex" (include "ccf-app.fullname" .) -}}
-{{- $key := include "ccf-app.dexClientSecretKey" . -}}
-{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
-{{- if and $existing (index $existing.data $key) -}}
-{{- index $existing.data $key -}}
-{{- else if .Values.dex.clientSecret.value -}}
-{{- trim .Values.dex.clientSecret.value | b64enc -}}
-{{- else -}}
-{{- randAlphaNum 32 | b64enc -}}
-{{- end -}}
 {{- end -}}

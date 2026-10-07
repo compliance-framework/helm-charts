@@ -29,3 +29,15 @@
   echo "Visit http://127.0.0.1:{{ .Values.api.service.port }} to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.api.service.port }}:$CONTAINER_PORT
 {{- end }}
+{{- with (include "ccf-app.deprecatedGeneratedCredentials" .) }}
+
+DEPRECATED: generated credentials ({{ . }}).
+  These use the chart's pre-0.9.0 default: passwords come from lookup of the existing Secret,
+  else a random value; the JWT signing key is a new random key on every render. This is not
+  GitOps-safe: under Argo CD / helm template, lookup returns nothing, so the passwords are
+  regenerated on every sync (the API can then no longer connect to an initialised PostgreSQL),
+  and the JWT key rotates on every upgrade or sync (everyone is logged out, agent tokens stop
+  working). This path will be removed in a future release. Migrate to existingSecret (the README
+  copy recipe keeps the current values) or, for fresh installs only, externalSecret (External
+  Secrets Operator). See the README, section Credentials.
+{{- end }}
