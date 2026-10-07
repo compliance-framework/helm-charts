@@ -39,3 +39,17 @@ tests:
     asserts:
       - matchRegexRaw:
           pattern: "DEPRECATED: generated credentials \\(PostgreSQL password\\)"
+
+  - it: tells fresh installs on the hostPath PV about the 999:999 directory
+    asserts:
+      - matchRegexRaw:
+          pattern: "hostPath PV at /var/lib/ccf-postgresql"
+      - matchRegexRaw:
+          pattern: "owned by 999:999"
+
+  - it: does not mention the hostPath PV on a dynamically provisioned PVC
+    set:
+      database.local.persistence.createPersistentVolume: false
+    asserts:
+      - notMatchRegexRaw:
+          pattern: "hostPath PV"

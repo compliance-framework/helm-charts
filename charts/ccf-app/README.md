@@ -111,7 +111,7 @@ The full list is in [`values.yaml`](./values.yaml), with a comment per value.
 | `api.agentBootstrap.*` | Optional Job that creates agent keys and Secrets | disabled |
 | `api.ai.*` | AI suggestions (`provider: anthropic`, `baseUrl`, model, limits) | disabled |
 | `<component>.podSecurityContext` / `<component>.securityContext` | Per-workload security contexts (`api`, `ui`, `dex`, `database.local`, `pgadmin4`); empty uses the global ones, then the hardened defaults | `{}` |
-| `database.local.persistence.*` | Bundled PostgreSQL storage: a dynamically provisioned PVC (`storageClass`), or the opt-in hostPath PV | dynamic PVC |
+| `database.local.persistence.*` | Bundled PostgreSQL storage: the chart-created hostPath PV (as in 0.8.x), or a dynamically provisioned PVC with `createPersistentVolume: false` (recommended for fresh installs) | hostPath PV, `storageClass: standard` |
 | `ui.apiUrl`, `ui.config.*`, `ui.extraConfig` | UI runtime `config.json` | see `values.yaml` |
 | `api.extraConfig` | Extra `CCF_*` env vars for the API | `{}` |
 
@@ -226,13 +226,16 @@ Operator Cedar policies can be added with `api.authz.cedar.policies` (a map of `
   | Agent bootstrap Job | 100 | `/tmp` | `curlimages/curl` |
   | `helm test` pod | 65534 | none | `busybox` `wget` |
 
-- **PostgreSQL storage.** The bundled database uses a dynamically provisioned PVC from
-  `database.local.persistence.storageClass` (empty: the cluster's default StorageClass). Postgres refuses a data
-  directory it does not own, so the data lives in a subdirectory (`persistence.pgdataSubdir`, default `pgdata`) that
-  postgres creates itself; that works whether the provisioner applies `fsGroup` or leaves the volume root root-owned and
-  world-writable. The chart-created hostPath PV is an explicit opt-in (`persistence.createPersistentVolume: true`, at
-  `persistence.path`): hostPath ignores `fsGroup` and the chart never chowns anything, so pre-create the directory on
-  the node and make it owned by `999:999`.
+- **PostgreSQL storage.** The defaults are the 0.8.x ones, so an upgrade with unchanged values keeps its volume: a
+  chart-created hostPath PV (`persistence.createPersistentVolume: true`, at `persistence.path`, `storageClass:
+  standard`). hostPath ignores `fsGroup` and the chart runs no root container and never chowns anything, so a **fresh**
+  install on this PV needs the directory pre-created on the node and owned by `999:999` (the kubelet would create it
+  root-owned). **Recommended for fresh installs:** `persistence.createPersistentVolume: false` with
+  `persistence.storageClass` (`""` = the cluster's default StorageClass), for a dynamically provisioned PVC that
+  `fsGroup: 999` makes writable without any root step. Postgres refuses a data directory it does not own, so the data
+  lives in a subdirectory (`persistence.pgdataSubdir`, default `pgdata`) that postgres creates itself; that works
+  whether the provisioner applies `fsGroup` or leaves the volume root root-owned and world-writable. Data a 0.8.x
+  release initialised at the volume root is used where it is.
 - **Credentials.** Use existing Secrets or External Secrets Operator (or `inMemory` / the seed for development): they
   are stable under `helm template` (Argo CD, Flux). The deprecated generated default is not: see Credentials.
 
@@ -318,22 +321,13 @@ defaults `model` to `claude-haiku-4-5`, while the API's own default is `claude-o
    `createSecret: false`.
 5. **No container runs as root, and every pod meets Pod Security `restricted`** (see Security notes). Installs that
    set a component's or the global `podSecurityContext` / `securityContext` keep what they set.
-   - **PostgreSQL storage (breaking).** The default is now a dynamically provisioned PVC; the chart no longer creates a
-     hostPath PV unless asked. An install on the old default PV must keep it, or Helm deletes the PV object and the
-     PVC is lost. Set the old defaults explicitly:
-
-     ```yaml
-     database:
-       local:
-         persistence:
-           createPersistentVolume: true
-           storageClass: standard              # the old default
-           path: /var/lib/ccf-postgresql       # the old default
-     ```
-
-     The data a 0.8.x release initialised at the volume root is used where it is (it is already owned by 999, because
-     the old postgres container chowned it). To move to a dynamically provisioned PVC instead, dump and restore the
-     database (`pg_dump` / `pg_restore`) into a fresh release.
+   - **PostgreSQL storage.** The persistence defaults are unchanged from 0.8.x (the chart-created hostPath PV,
+     `storageClass: standard`), so an upgrade with unchanged values keeps its PV, PVC and data. The data a 0.8.x
+     release initialised at the volume root is used where it is (it is already owned by 999, because the old postgres
+     container chowned it), and postgres now runs as 999. To move to a dynamically provisioned PVC
+     (`createPersistentVolume: false`), dump and restore the database (`pg_dump` / `pg_restore`) into a fresh release:
+     the PVC spec cannot change in place. Fresh installs on the hostPath PV must pre-create the directory owned by
+     `999:999` (see Security notes).
    - **UI:** `ui.containerPort` defaults to `8080` (the Service targets it by name and keeps its port). A custom
      `ui.nginxConfig` must listen on it.
    - **pgAdmin:** `pgadmin4.containerPort` defaults to `8080`.
