@@ -47,6 +47,36 @@ render_check() {
     exit 1
   fi
   log "ok: no lookup in the charts"
+  # Render-time random or generated values change on every Argo CD render. The only allowed uses:
+  # - the DEPRECATED api.jwt.source=generated branch in secrets_api.yaml (explicit opt-in, never in
+  #   these values sets: it is non-deterministic by design);
+  # - the genPrivateKey string in externalsecrets.yaml, an ESO template literal that Helm does not
+  #   evaluate.
+  local hits f
+  hits="$(for f in "$root"/charts/*/templates/*.yaml "$root"/charts/*/templates/*.tpl "$root"/charts/*/templates/*/*.yaml; do
+      [ -f "$f" ] || continue
+      # template comments ({{/* ... */}}) are not rendered
+      perl -0pe 's/\{\{-?\s*\/\*.*?\*\/\s*-?\}\}//gs' "$f" \
+        | grep -E '\b(genPrivateKey|genCA|genSelfSignedCert|genSignedCert|randAlphaNum|randAlpha|randNumeric|randAscii|randBytes|randInt|uuidv4|now)\b' \
+        | sed "s|^|${f#"$root"/}: |"
+    done \
+    | grep -vE '^charts/ccf-app/templates/externalsecrets\.yaml: .*"\{\{ genPrivateKey' \
+    | grep -vE '^charts/ccf-app/templates/secrets_api\.yaml:   private_key\.pem: \{\{ genPrivateKey "rsa" \| b64enc \}\}$' || true)"
+  if [ -n "$hits" ]; then
+    log "FAIL: render-time random or generated values outside the allowed deprecated path:"
+    echo "$hits" >&2
+    exit 1
+  fi
+  if ! awk '/if and .Values.api.enabled \(eq \(toString .Values.api.jwt.source\) "generated"\)/{g=1} g && /genPrivateKey/{found=1} /\{\{- end \}\}/{g=0} END{exit !found}' \
+      "$root/charts/ccf-app/templates/secrets_api.yaml"; then
+    log "FAIL: genPrivateKey in secrets_api.yaml must stay inside the api.jwt.source=generated branch"
+    exit 1
+  fi
+  log "ok: no render-time random values except the deprecated, explicitly selected api.jwt.source=generated"
+  if grep -rnE 'source:[[:space:]]*"?generated' "$root/ci/argocd"/*.yaml "$root/ci/argocd/render"/*.yaml; then
+    log "FAIL: a values set of this check selects api.jwt.source=generated, which is non-deterministic by design"
+    exit 1
+  fi
   rm -f "$out1" "$out2"
 }
 

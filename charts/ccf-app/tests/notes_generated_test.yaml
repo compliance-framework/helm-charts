@@ -1,0 +1,25 @@
+suite: NOTES for the deprecated generated JWT mode
+templates:
+  - templates/NOTES.txt
+values:
+  - values/credentials.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: prints a deprecation notice when api.jwt.source is generated
+    set:
+      api.jwt.source: generated
+    asserts:
+      - matchRegexRaw:
+          pattern: "DEPRECATED: api.jwt.source=generated"
+      - matchRegexRaw:
+          pattern: "rotates on every helm upgrade and every GitOps"
+      - matchRegexRaw:
+          pattern: "will be removed in a future release"
+
+  - it: prints no deprecation notice for the other sources
+    asserts:
+      - notMatchRegexRaw:
+          pattern: "DEPRECATED"

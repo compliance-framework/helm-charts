@@ -1,5 +1,6 @@
 {{/*
-Credential sources. The chart never generates or looks up a secret at render time: `lookup`
+Credential sources. The chart never looks up a secret, and generates none at render time except
+the deprecated api.jwt.source=generated JWT key (see secrets_api.yaml): `lookup`
 returns nothing under `helm template` (Argo CD, Flux), so a generated value changes on every
 render. Each credential comes from, in this order:
   existingSecret  a Secret the operator provides (the primary path);
@@ -107,7 +108,7 @@ Fail rendering, naming every missing credential and the values that provide it.
 {{- $missing := list -}}
 {{- if not (has (default "" .Values.api.jwt.source) (list "existingSecret" "externalSecret" "inMemory" "generated")) -}}
 {{- $names = append $names "JWT signing key" -}}
-{{- $missing = append $missing "- JWT signing key: api.jwt.source=existingSecret (+ api.jwt.existingSecret.name), api.jwt.source=externalSecret (External Secrets Operator), or api.jwt.source=inMemory (development only)" -}}
+{{- $missing = append $missing "- JWT signing key: api.jwt.source=existingSecret (+ api.jwt.existingSecret.name), api.jwt.source=externalSecret (External Secrets Operator), api.jwt.source=inMemory (development only), or api.jwt.source=generated (DEPRECATED: a new key on every helm upgrade and GitOps sync)" -}}
 {{- end -}}
 {{- if and .Values.database.local.enabled (not (include "ccf-app.psqlPasswordSource" .)) -}}
 {{- $names = append $names "PostgreSQL password" -}}

@@ -125,7 +125,11 @@ api:
     #                 derived by the init container below.
     # inMemory:       DEVELOPMENT ONLY. The API generates a key at every start (sessions and agent
     #                 tokens end on every restart; one replica only).
-    # The former default, generated, was removed: it changed the key on every helm template.
+    # generated:      DEPRECATED, will be removed. The chart creates <fullname>-jwt-private-key
+    #                 with a new key on every render (no lookup): every helm upgrade and every
+    #                 GitOps sync rotates it, logging everyone out and invalidating agent tokens.
+    #                 Migrate to existingSecret (README upgrade notes keep the current key) or
+    #                 externalSecret. It was the default before chart 0.9.0; it no longer is.
     source: "" # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
     existingSecret:
       name: ""

@@ -106,14 +106,11 @@ Resolve and validate JWT runtime configuration once for reuse across templates.
 {{- $jwtGenerationInitContainerValues := default (dict) $jwtPublicKeyGenerationValues.initContainer -}}
 {{- $jwtGenerationImageValues := default (dict) $jwtGenerationInitContainerValues.image -}}
 {{- $jwtSource := default "" $jwtValues.source -}}
-{{- if eq $jwtSource "generated" -}}
-{{- fail "api.jwt.source 'generated' was removed: the chart no longer generates secrets at render time (it changed the key on every `helm template`, e.g. with Argo CD). Set api.jwt.source to 'existingSecret' (api.jwt.existingSecret.name; to keep the current key, copy the <release>-jwt-private-key Secret, see the README upgrade notes), 'externalSecret' (External Secrets Operator), or 'inMemory' (development only)" -}}
-{{- end -}}
 {{- if not $jwtSource -}}
-{{- fail "api.jwt.source is not set. Set it to 'existingSecret' (with api.jwt.existingSecret.name), 'externalSecret' (External Secrets Operator generates the key), or 'inMemory' (development only: a new key on every API start, single replica)" -}}
+{{- fail "api.jwt.source is not set. Set it to 'existingSecret' (with api.jwt.existingSecret.name), 'externalSecret' (External Secrets Operator generates the key), 'inMemory' (development only: a new key on every API start, single replica), or the deprecated 'generated' (a new key on every helm upgrade and GitOps sync)" -}}
 {{- end -}}
-{{- if and (ne $jwtSource "existingSecret") (ne $jwtSource "externalSecret") (ne $jwtSource "inMemory") -}}
-{{- fail "api.jwt.source must be one of 'existingSecret', 'externalSecret', or 'inMemory'" -}}
+{{- if not (has $jwtSource (list "existingSecret" "externalSecret" "inMemory" "generated")) -}}
+{{- fail "api.jwt.source must be one of 'existingSecret', 'externalSecret', 'inMemory', or the deprecated 'generated'" -}}
 {{- end -}}
 {{- $jwtUseExistingSecret := eq $jwtSource "existingSecret" -}}
 {{- if and $jwtUseExistingSecret (empty $jwtExistingSecretValues.name) -}}
@@ -121,7 +118,7 @@ Resolve and validate JWT runtime configuration once for reuse across templates.
 {{- end -}}
 {{- $jwtPublicGenerationEnabledValue := ternary $jwtPublicKeyGenerationValues.enabled true (hasKey $jwtPublicKeyGenerationValues "enabled") -}}
 {{- /* The public key is derived by the init container from the private key when the chart
-does not get it from a Secret: externalSecret, or existingSecret without a publicKey. */ -}}
+does not get it from a Secret: generated, externalSecret, or existingSecret without a publicKey. */ -}}
 {{- $jwtPublicFromSecret := and $jwtUseExistingSecret (not (empty $jwtExistingSecretValues.publicKey)) -}}
 {{- $jwtPublicGenerationEnabled := and (ne $jwtSource "inMemory") (not $jwtPublicFromSecret) $jwtPublicGenerationEnabledValue -}}
 {{- $jwtFileMountsEnabled := ne $jwtSource "inMemory" -}}

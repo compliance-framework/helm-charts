@@ -29,3 +29,12 @@
   echo "Visit http://127.0.0.1:{{ .Values.api.service.port }} to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.api.service.port }}:$CONTAINER_PORT
 {{- end }}
+{{- if eq (toString .Values.api.jwt.source) "generated" }}
+
+DEPRECATED: api.jwt.source=generated. The chart generates the JWT signing key at render time
+without looking up the existing one, so the key rotates on every helm upgrade and every GitOps
+(Argo CD, Flux) sync: every user is logged out and every agent token stops working. This mode
+will be removed in a future release. Replace it with api.jwt.source=existingSecret (the README
+upgrade notes copy the current <release>-jwt-private-key Secret, keeping the key) or
+api.jwt.source=externalSecret (External Secrets Operator).
+{{- end }}
