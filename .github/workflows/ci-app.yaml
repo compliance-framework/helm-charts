@@ -7,6 +7,7 @@ on:
       - 'charts/ccf-app/**'
       - 'Makefile'
       - '.github/workflows/ci-app.yaml'
+      - 'ci/agent-bootstrap/**'
 
 jobs:
   helm-check-app:
@@ -28,3 +29,18 @@ jobs:
         run: |
           make helm.schema
           make check-diff
+
+  agent-bootstrap-script:
+    # Runs charts/ccf-app/files/agent-bootstrap.sh in the curl image against a mock CCF API and
+    # Kubernetes Secrets API (ci/agent-bootstrap).
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Test the agent bootstrap script
+        run: ci/agent-bootstrap/run.sh

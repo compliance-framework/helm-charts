@@ -373,6 +373,63 @@ api:
     # API default false).
     manualRequireSubject: null # @schema type:[boolean, null]
 
+  # Optional agent bootstrap: a post-install/post-upgrade Job that, for each entry in agents,
+  # creates the agent in the CCF API (Admin -> Agents) if it does not exist, creates a
+  # never-expiring key, and stores it in a Secret with the keys CCF_API_AUTH_CLIENT_ID and
+  # CCF_API_AUTH_CLIENT_SECRET, ready for the ccf-agent chart's
+  # agent.api.auth.existingSecret. A Secret that already exists is left alone (a key's secret
+  # can only be read when the key is created), so re-runs are no-ops; delete the Secret to
+  # issue a new key. The Secrets are not part of the release and survive helm uninstall.
+  agentBootstrap:
+    enabled: false
+    # Agents to bootstrap, one key and Secret each. Names may contain letters, digits, spaces,
+    # '.', '_' and '-'.
+    agents: [] # @schema item:object;itemProperties:{"name":{"type":"string"},"description":{"type":"string"},"secretName":{"type":"string"},"namespace":{"type":"string"}}
+      # - name: ccf-agent                    # agent name in the API (found by name, else created)
+      #   description: "Cluster agent"       # used only when the agent is created
+      #   secretName: ccf-agent-credentials  # Secret to create
+      #   namespace: ccf-agents              # Secret namespace; default: the release namespace
+    # Admin login used to call the API. By default the chart's initial user: api.user.email
+    # and the password in the <fullname>-initial-user-password Secret. Under cedar the user
+    # needs the admin role in authz.roleAssignments.
+    adminCredentials:
+      existingSecret: "" # Secret with the admin password (default: <fullname>-initial-user-password)
+      passwordKey: password
+      emailKey: "" # key in existingSecret holding the login email; empty uses email below
+      email: "" # login email; default api.user.email
+    # Override the API base URL (including /api). Default: the in-cluster API Service.
+    apiUrl: ""
+    # Seconds to wait for GET /api/health/ready before giving up. Helm waits for the hook only
+    # up to --timeout (default 5m), so raise both together.
+    waitSeconds: 300 # @schema type:integer;minimum:0
+    backoffLimit: 2 # @schema type:integer;minimum:0
+    # An image with a POSIX shell, curl >= 8.3 (for --variable/--expand-data) and busybox
+    # tools (grep, sed, tr, head, mktemp, printenv). Nothing is installed at runtime. The
+    # default is the official curl image, which runs as curl_user (uid 100, gid 101).
+    image:
+      repository: curlimages/curl
+      tag: "8.22.0"
+      pullPolicy: IfNotPresent
+    # runAsUser/runAsGroup are numeric because the image's USER is a name, which kubelet cannot
+    # check against runAsNonRoot. Change them together with the image.
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 100
+      runAsGroup: 101
+      fsGroup: 101
+      seccompProfile:
+        type: RuntimeDefault
+    # The script writes only to /tmp, an emptyDir.
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources: {}
+    labels: {}
+    podLabels: {}
+
   # AI suggestions configuration.
   # Only the API key is sensitive; everything else is plain runtime config injected
   # as CCF_AI_* environment variables. The key follows the same secret management

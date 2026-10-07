@@ -1,0 +1,163 @@
+{{- if .Values.api.agentBootstrap.enabled }}
+{{- $bootstrap := .Values.api.agentBootstrap }}
+{{- $name := include "ccf-app.agentBootstrap.name" . }}
+{{- $agents := include "ccf-app.agentBootstrap.agents" . | fromJsonArray }}
+{{- $admin := default (dict) $bootstrap.adminCredentials }}
+{{- $hookAnnotations := dict "helm.sh/hook" "post-install,post-upgrade" "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+{{- $namespaces := dict }}
+{{- range $agents }}
+{{- $secrets := get $namespaces .namespace | default (list) }}
+{{- $_ := set $namespaces .namespace (append $secrets .secretName) }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "agent-bootstrap" "component" $bootstrap) | nindent 4 }}
+  annotations:
+    {{- toYaml (merge (dict "helm.sh/hook-weight" "-10") $hookAnnotations) | nindent 4 }}
+automountServiceAccountToken: true
+{{- range $namespace, $secrets := $namespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" $ "name" "agent-bootstrap" "component" $bootstrap) | nindent 4 }}
+  annotations:
+    {{- toYaml (merge (dict "helm.sh/hook-weight" "-10") $hookAnnotations) | nindent 4 }}
+rules:
+  # Check whether an agent's Secret already exists (only the configured names).
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      {{- toYaml (uniq $secrets) | nindent 6 }}
+    verbs: ["get"]
+  # Create the Secret (create cannot be limited by name).
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" $ "name" "agent-bootstrap" "component" $bootstrap) | nindent 4 }}
+  annotations:
+    {{- toYaml (merge (dict "helm.sh/hook-weight" "-5") $hookAnnotations) | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "agent-bootstrap" "component" $bootstrap) | nindent 4 }}
+  annotations:
+    {{- toYaml (merge (dict "helm.sh/hook-weight" "0") $hookAnnotations) | nindent 4 }}
+spec:
+  backoffLimit: {{ $bootstrap.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "ccf-app.componentPodLabels" (dict "root" . "name" "agent-bootstrap" "component" $bootstrap) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $bootstrap.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent-bootstrap
+          image: "{{ $bootstrap.image.repository }}:{{ $bootstrap.image.tag }}"
+          imagePullPolicy: {{ $bootstrap.image.pullPolicy }}
+          {{- with $bootstrap.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {{- include "ccf-app.agentBootstrap.script" . | nindent 14 }}
+          env:
+            - name: BOOTSTRAP_API_URL
+              value: {{ include "ccf-app.agentBootstrap.apiUrl" . | quote }}
+            - name: BOOTSTRAP_WAIT_SECONDS
+              value: {{ $bootstrap.waitSeconds | int64 | toString | quote }}
+            - name: BOOTSTRAP_RELEASE
+              value: {{ printf "%s/%s" .Release.Namespace .Release.Name | quote }}
+            - name: BOOTSTRAP_AGENTS
+              value: {{ include "ccf-app.agentBootstrap.agentLines" . | trim | quote }}
+            {{- range $i, $agent := $agents }}
+            {{- if $agent.description }}
+            - name: BOOTSTRAP_AGENT_{{ $i }}_DESCRIPTION
+              value: {{ $agent.description | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if and $admin.existingSecret $admin.emailKey }}
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $admin.existingSecret }}
+                  key: {{ $admin.emailKey }}
+                  optional: true
+            {{- else }}
+            - name: ADMIN_EMAIL
+              value: {{ default .Values.api.user.email $admin.email | quote }}
+            {{- end }}
+            # optional: a no-op run (every Secret exists) never reads it, so a missing or rotated
+            # admin Secret does not block upgrades.
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if $admin.existingSecret }}
+                  name: {{ $admin.existingSecret }}
+                  key: {{ default "password" $admin.passwordKey }}
+                  {{- else }}
+                  name: {{ include "ccf-app.initialUserPasswordSecret" . }}
+                  key: {{ include "ccf-app.initialUserPasswordKey" . }}
+                  {{- end }}
+                  optional: true
+          {{- with $bootstrap.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

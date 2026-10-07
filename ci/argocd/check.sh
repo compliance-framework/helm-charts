@@ -188,6 +188,9 @@ eso_check() {
     exit 1
   fi
   log "ok: Secret data unchanged after a forced ESO sync (CreatedOnce)"
+  kubectl -n "$ns" get secret argocd-eso-agent-credentials >/dev/null \
+    || { log "FAIL: the bootstrap Job did not create its Secret with the ESO-generated admin password"; exit 1; }
+  log "ok: the bootstrap Job logged in with the ESO-generated initial user password"
 }
 
 argocd_check() {

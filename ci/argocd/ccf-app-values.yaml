@@ -11,6 +11,14 @@ api:
       publicKey: ""
   user:
     existingSecret: ccf-admin
+  # The bootstrap Job runs as an Argo CD PostSync hook; its Secret is not part of the app, so it
+  # does not show as drift.
+  agentBootstrap:
+    enabled: true
+    agents:
+      - name: argocd-check-agent
+        secretName: ccf-agent-credentials
+        namespace: ccf-agent
 database:
   local:
     createSecret: false

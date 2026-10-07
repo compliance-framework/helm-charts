@@ -6,6 +6,7 @@ templates:
   - templates/deployment_psql.yaml
   - templates/deployment_pgadmin4.yaml
   - templates/test-connection.yaml
+  - templates/job_agent_bootstrap.yaml
   - templates/configmap_api.yaml
   - templates/configmap_api_authz.yaml
   - templates/configmap_api_authz_policies.yaml
@@ -276,3 +277,30 @@ tests:
       - notEqual:
           path: spec.containers[0].securityContext.runAsUser
           value: 0
+  - it: agent bootstrap Job pod meets restricted
+    template: templates/job_agent_bootstrap.yaml
+    documentIndex: 3
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 100
+      - equal:
+          path: spec.template.spec.securityContext.seccompProfile.type
+          value: RuntimeDefault
+      - notExists:
+          path: spec.template.spec.securityContext.sysctls
+      - notExists:
+          path: spec.template.spec.volumes[?(@.hostPath)]
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: [ALL]
+      - notExists:
+          path: spec.template.spec.containers[0].securityContext.capabilities.add

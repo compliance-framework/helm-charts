@@ -1,0 +1,341 @@
+suite: agent bootstrap Job
+templates:
+  - templates/job_agent_bootstrap.yaml
+release:
+  name: ccf-app
+  namespace: ccf
+
+tests:
+  - it: renders nothing when disabled (the default)
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders the service account, RBAC and the hook Job when enabled
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+    asserts:
+      - hasDocuments:
+          count: 4
+      - isKind:
+          of: ServiceAccount
+        documentIndex: 0
+      - isKind:
+          of: Role
+        documentIndex: 1
+      - isKind:
+          of: RoleBinding
+        documentIndex: 2
+      - isKind:
+          of: Job
+        documentIndex: 3
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+        documentIndex: 3
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: before-hook-creation,hook-succeeded
+        documentIndex: 3
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-10"
+        documentIndex: 1
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: ccf-app-agent-bootstrap
+        documentIndex: 3
+      - equal:
+          path: metadata.namespace
+          value: ccf
+        documentIndex: 1
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: ["secrets"]
+              resourceNames: ["ccf-agent-credentials"]
+              verbs: ["get"]
+            - apiGroups: [""]
+              resources: ["secrets"]
+              verbs: ["create"]
+        documentIndex: 1
+      - equal:
+          path: subjects
+          value:
+            - kind: ServiceAccount
+              name: ccf-app-agent-bootstrap
+              namespace: ccf
+        documentIndex: 2
+
+  - it: passes the agents, the in-cluster API URL and the default admin credentials
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          description: Cluster agent
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_API_URL
+            value: http://ccf-app-api.ccf.svc:8080/api
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_AGENTS
+            value: "0 ccf ccf-agent-credentials ccf-agent"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_AGENT_0_DESCRIPTION
+            value: Cluster agent
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_EMAIL
+            value: admin@localhost
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ccf-app-initial-user-password
+                key: password
+                optional: true
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: curlimages/curl:8.22.0
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "CCF_API_AUTH_CLIENT_ID[^{]*\\{\\{CLIENT_ID:b64\\}\\}"
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "set -x|jq |apk "
+
+  - it: runs as the curl image's non-root user with a read-only root filesystem
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+            fsGroup: 101
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+
+  - it: does not render a description variable for agents without one
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf agent 1.0
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "BOOTSTRAP_AGENT_0_DESCRIPTION")]
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_AGENTS
+            value: "0 ccf ccf-agent-credentials ccf agent 1.0"
+
+  - it: rejects agent names the script cannot match literally
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: 'agent "prod"'
+          secretName: ccf-agent-credentials
+    asserts:
+      - failedTemplate:
+          errorPattern: "may only contain letters, digits, spaces"
+
+  - it: rejects an invalid namespace
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+          namespace: Agents
+    asserts:
+      - failedTemplate:
+          errorPattern: "is not a valid namespace name"
+
+  - it: creates a Role and RoleBinding in every target namespace
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+        - name: aws
+          secretName: aws-credentials
+          namespace: ccf-agents
+        - name: github
+          secretName: github-credentials
+          namespace: ccf-agents
+    asserts:
+      - hasDocuments:
+          count: 6
+      - equal:
+          path: metadata.namespace
+          value: ccf
+        documentIndex: 1
+      - equal:
+          path: metadata.namespace
+          value: ccf-agents
+        documentIndex: 3
+      - isKind:
+          of: Role
+        documentIndex: 3
+      - equal:
+          path: rules[0].resourceNames
+          value: ["aws-credentials", "github-credentials"]
+        documentIndex: 3
+      - equal:
+          path: subjects[0].namespace
+          value: ccf
+        documentIndex: 4
+
+  - it: reads the admin login from an existing secret
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+      api.agentBootstrap.adminCredentials:
+        existingSecret: ccf-admin
+        emailKey: email
+        passwordKey: pass
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_EMAIL
+            valueFrom:
+              secretKeyRef:
+                name: ccf-admin
+                key: email
+                optional: true
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ccf-admin
+                key: pass
+                optional: true
+
+  - it: uses an explicit API URL
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.apiUrl: https://ccf.example.com/api/
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOTSTRAP_API_URL
+            value: https://ccf.example.com/api
+
+  - it: fails without agents
+    set:
+      api.agentBootstrap.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: api.agentBootstrap.agents must list at least one agent when api.agentBootstrap.enabled is true
+
+  - it: fails when an agent has no secretName
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+    asserts:
+      - failedTemplate:
+          errorMessage: api.agentBootstrap.agents[0].secretName is required
+
+  - it: fails when a Secret is listed twice
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: a
+          secretName: creds
+        - name: b
+          secretName: creds
+          namespace: ccf
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.agentBootstrap.agents: Secret ccf/creds is listed twice"
+
+  - it: reads the admin password from the initial user's existing Secret by default
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+      api.user.existingSecret: ccf-initial-admin
+      api.user.passwordKey: admin-password
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ccf-initial-admin
+                key: admin-password
+                optional: true
+
+  - it: ships a script that checks every Secret before logging in and fails on duplicate names
+    set:
+      api.agentBootstrap.enabled: true
+      api.agentBootstrap.agents:
+        - name: ccf-agent
+          secretName: ccf-agent-credentials
+    documentIndex: 3
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "all \\$total Secrets exist; nothing to do"
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "rename or remove the duplicates"
