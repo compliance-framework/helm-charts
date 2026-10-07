@@ -61,6 +61,8 @@ wait_for() { # wait_for <description> <command...>
   done
 }
 
+default_project_exists() { kubectl -n argocd get appproject default >/dev/null 2>&1; }
+
 app_state() {
   kubectl -n argocd get application "$1" \
     -o jsonpath='{.status.sync.status}/{.status.health.status}/{.status.operationState.phase}' 2>/dev/null
@@ -154,6 +156,9 @@ argocd_check() {
   kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=600s
   kubectl -n argocd rollout status deploy/argocd-redis --timeout=600s
   kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=600s
+  kubectl -n argocd rollout status deploy/argocd-server --timeout=600s
+  # argocd-server creates the default AppProject on start; Applications fail without it.
+  wait_for "the default AppProject" default_project_exists || exit 1
 
   log "creating the namespaces and the credentials the existingSecret values set references"
   local name path values ns
