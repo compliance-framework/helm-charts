@@ -40,11 +40,40 @@ tests:
           of: PersistentVolume
         template: templates/pv-psql.yaml
 
-  - it: does not create a hostPath PV by default (dynamically provisioned PVC)
+  - it: keeps the 0.8.x defaults (hostPath PV, storageClass standard) so unchanged upgrades keep their volume
     set:
       database:
         local:
           enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: templates/pv-psql.yaml
+      - equal:
+          path: spec.storageClassName
+          value: standard
+        template: templates/pv-psql.yaml
+      - equal:
+          path: spec.hostPath.path
+          value: /var/lib/ccf-postgresql
+        template: templates/pv-psql.yaml
+      - equal:
+          path: spec.volumeName
+          value: ccf-app-postgresql
+        template: templates/pvc_psql.yaml
+      - equal:
+          path: spec.storageClassName
+          value: standard
+        template: templates/pvc_psql.yaml
+
+  - it: provisions the PVC dynamically with createPersistentVolume false and the default StorageClass
+    set:
+      database:
+        local:
+          enabled: true
+          persistence:
+            createPersistentVolume: false
+            storageClass: ""
     asserts:
       - hasDocuments:
           count: 0

@@ -87,6 +87,12 @@ who knows the seed can derive them. Use existingSecret or External Secrets Opera
 NOTE: api.jwt.source=inMemory (development only): the API generates a new JWT key at every
 start, so logins and agent tokens end on every restart. Run a single API replica.
 {{- end }}
+{{- if and .Values.database.local.enabled (ne (toString .Values.database.local.persistence.createPersistentVolume) "false") (not .Values.database.local.persistence.existingVolume) (not .Values.database.local.persistence.existingClaim) }}
+
+NOTE: PostgreSQL uses the chart's hostPath PV at {{ .Values.database.local.persistence.path | default "/var/lib/ccf-postgresql" }}. On a fresh install the
+directory must exist on the node owned by 999:999 (no container runs as root to chown it); or
+set database.local.persistence.createPersistentVolume=false for a dynamically provisioned PVC.
+{{- end }}
 {{- with (include "ccf-app.deprecatedGeneratedCredentials" .) }}
 
 DEPRECATED: generated credentials ({{ . }}).

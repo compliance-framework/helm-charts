@@ -703,13 +703,14 @@ database:
       tag: 17.5
       pullPolicy: IfNotPresent
     persistence:
-      # Default: a PVC provisioned dynamically from storageClass (empty = the cluster's default
-      # StorageClass). fsGroup 999 makes it writable by postgres without any root container.
-      # createPersistentVolume: true opts into a chart-created hostPath PV at `path` (with
-      # storageClass and nodeAffinity). The chart does not chown it: pre-create the directory on
-      # the node, owned by 999:999. Installs from chart 0.8.x used this PV by default; see the
-      # README upgrade notes.
-      createPersistentVolume: false
+      # Default (as in 0.8.x, so an upgrade with unchanged values keeps its volume): a
+      # chart-created hostPath PV at `path`, with storageClass and nodeAffinity. The chart runs no
+      # root container and never chowns it, so for a FRESH install pre-create the directory on the
+      # node, owned by 999:999 (the kubelet would create it root-owned). Recommended for fresh
+      # installs: createPersistentVolume: false, for a PVC provisioned dynamically from
+      # storageClass ("" = the cluster's default StorageClass), which fsGroup 999 makes writable by
+      # postgres without any root container.
+      createPersistentVolume: true
       existingVolume: ""
       size: 10Gi
       mountPath: "/var/lib/postgresql/data"
@@ -717,7 +718,7 @@ database:
       # owns even when the volume root is root-owned. Data initialised at the volume root by a
       # chart before 0.9.0 is used where it is.
       pgdataSubdir: pgdata
-      storageClass: ""
+      storageClass: "standard"
       volumeMode: Filesystem
       accessModes:
         - ReadWriteOnce
