@@ -1,6 +1,7 @@
 suite: UI runtime config
 templates:
   - templates/configmap_ui.yaml
+  - templates/configmap_ui_nginx.yaml
   - templates/deployment_ui.yaml
 release:
   name: ccf-app
