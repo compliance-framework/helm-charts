@@ -4,6 +4,7 @@ templates:
   - templates/secrets_api.yaml
   - templates/configmap_api.yaml
   - templates/configmap_api_authz.yaml
+  - templates/configmap_api_authz_policies.yaml
   - templates/configmap_api_sso.yaml
   - templates/configmap_api_email.yaml
   - templates/configmap_api_slack.yaml

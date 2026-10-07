@@ -164,6 +164,7 @@ The JWT and initial-user secrets are left out: they are generated, and a fresh v
 {{- $files := dict
   "checksum/config" "/configmap_api.yaml"
   "checksum/authz" "/configmap_api_authz.yaml"
+  "checksum/authz-policies" "/configmap_api_authz_policies.yaml"
   "checksum/sso" "/configmap_api_sso.yaml"
   "checksum/email" "/configmap_api_email.yaml"
   "checksum/slack" "/configmap_api_slack.yaml"
@@ -186,6 +187,35 @@ lock file, multipart uploads over 32 MiB).
 {{- define "ccf-app.apiTmpVolumeMount" -}}
 - mountPath: /tmp
   name: tmp
+{{- end }}
+
+{{/*
+Operator cedar policy directory. When the chart mounts the policies (authz.cedar.policies or
+existingConfigMap) it defaults to /etc/ccf/cedar-policies; otherwise it is policyDir as given
+(possibly empty: no operator policies).
+*/}}
+{{- define "ccf-app.cedarPolicyDir" -}}
+{{- $cedar := default (dict) .Values.api.authz.cedar -}}
+{{- if or $cedar.policies $cedar.existingConfigMap -}}
+{{- default "/etc/ccf/cedar-policies" $cedar.policyDir -}}
+{{- else -}}
+{{- default "" $cedar.policyDir -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Name of the ConfigMap holding the operator cedar policies the chart mounts, or empty.
+*/}}
+{{- define "ccf-app.cedarPoliciesConfigMap" -}}
+{{- $cedar := default (dict) .Values.api.authz.cedar -}}
+{{- if and $cedar.policies $cedar.existingConfigMap -}}
+{{- fail "api.authz.cedar: set either policies or existingConfigMap, not both" -}}
+{{- end -}}
+{{- if $cedar.existingConfigMap -}}
+{{- $cedar.existingConfigMap -}}
+{{- else if $cedar.policies -}}
+{{- printf "%s-api-authz-policies" (include "ccf-app.fullname" .) -}}
+{{- end -}}
 {{- end }}
 
 {{/*
