@@ -6,6 +6,12 @@ api:
   user:
     externalSecret:
       enabled: true
+  # The bootstrap Job logs in with the ESO-generated initial user password.
+  agentBootstrap:
+    enabled: true
+    agents:
+      - name: argocd-eso-agent
+        secretName: argocd-eso-agent-credentials
 database:
   local:
     externalSecret:
