@@ -51,10 +51,10 @@ helm install ccf-agent ./ccf-agent \
 | `agent.api.auth.enabled` | Enable API authentication | `false` |
 | `agent.api.auth.createSecret` | Create a secret with credentials | `false` |
 | `agent.api.auth.existingSecret` | Reference an existing secret | `""` |
-| `agent.api.auth.clientId.value` | Client ID value | `""` |
-| `agent.api.auth.clientId.secretKeyRef` | Client ID secret key reference | `""` |
+| `agent.api.auth.clientId.value` | Client ID value (a UUID) | `""` |
+| `agent.api.auth.clientId.secretKeyRef` | Key in `existingSecret` holding the client ID | `""` (`CCF_API_AUTH_CLIENT_ID`) |
 | `agent.api.auth.clientSecret.value` | Client secret value | `""` |
-| `agent.api.auth.clientSecret.secretKeyRef` | Client secret key reference | `""` |
+| `agent.api.auth.clientSecret.secretKeyRef` | Key in `existingSecret` holding the client secret | `""` (`CCF_API_AUTH_CLIENT_SECRET`) |
 
 ### Plugin Configuration
 
@@ -86,25 +86,25 @@ agent:
 
 ### API Authentication
 
-The agent can authenticate with the CCF API using OAuth2 client credentials. Authentication can be configured in three ways:
+The agent authenticates to the CCF API with an agent service-account key: a `client-id` (a UUID) and a
+`client-secret`. Create one in the CCF UI under **Admin -> Agents**, or let the ccf-app chart's agent bootstrap Job
+create it. The chart passes the key to the agent as `CCF_API_AUTH_CLIENT_ID` and `CCF_API_AUTH_CLIENT_SECRET`. Set
+both or neither: without credentials the agent runs anonymously. Plugins never receive these variables.
 
-#### Option 1: Create a new secret with credentials
+Credentials can be configured in three ways:
+
+#### Option 1: Reference an existing secret (recommended)
 
 ```yaml
 agent:
   api:
     auth:
       enabled: true
-      createSecret: true
-      clientId:
-        value: "your-client-id"
-      clientSecret:
-        value: "your-client-secret"
+      existingSecret: "my-agent-credentials"
 ```
 
-This creates a Kubernetes Secret named `<fullname>-auth` (e.g., `ccf-agent-auth` when installed with release name `ccf-agent`, or `myrelease-ccf-agent-auth` when installed with release name `myrelease`) containing the credentials.
-
-#### Option 2: Reference an existing secret
+The secret must hold the keys `CCF_API_AUTH_CLIENT_ID` and `CCF_API_AUTH_CLIENT_SECRET`, which are the keys the ccf-app
+agent bootstrap Job writes. To read other keys, set `clientId.secretKeyRef` and `clientSecret.secretKeyRef`:
 
 ```yaml
 agent:
@@ -118,7 +118,23 @@ agent:
         secretKeyRef: "client-secret"
 ```
 
-This references keys from an existing Kubernetes Secret.
+#### Option 2: Create a new secret with credentials
+
+```yaml
+agent:
+  api:
+    auth:
+      enabled: true
+      createSecret: true
+      clientId:
+        value: "123e4567-e89b-12d3-a456-426614174000"
+      clientSecret:
+        value: "your-client-secret"
+```
+
+This creates a Kubernetes Secret named `<fullname>-auth` (e.g., `ccf-agent-auth` when installed with release name
+`ccf-agent`, or `myrelease-ccf-agent-auth` when installed with release name `myrelease`) with the keys
+`CCF_API_AUTH_CLIENT_ID` and `CCF_API_AUTH_CLIENT_SECRET`.
 
 #### Option 3: Use plain values (for development only)
 
@@ -128,12 +144,14 @@ agent:
     auth:
       enabled: true
       clientId:
-        value: "your-client-id"
+        value: "123e4567-e89b-12d3-a456-426614174000"
       clientSecret:
         value: "your-client-secret"
 ```
 
 This sets the credentials as environment variables directly (not recommended for production).
+
+Rendering fails when only one of the two values is set, or when `clientId.value` is not a UUID.
 
 ### Secret References
 

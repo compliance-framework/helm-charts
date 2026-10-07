@@ -122,21 +122,27 @@ agent:
   api:
     # URL of the CCF API server
     url: "http://ccf-api:8080"
-    # Agent authentication credentials
+    # Agent service-account credentials (an agent key created in the CCF API under
+    # Admin -> Agents, or by the ccf-app agent bootstrap Job). They reach the agent as
+    # CCF_API_AUTH_CLIENT_ID / CCF_API_AUTH_CLIENT_SECRET. Set both or neither: without
+    # credentials the agent runs anonymously.
     auth:
       enabled: false
-      # createSecret: If true, a secret will be created with sensitive values
+      # createSecret: If true, a secret <fullname>-auth is created from clientId.value and
+      # clientSecret.value, with the keys CCF_API_AUTH_CLIENT_ID and CCF_API_AUTH_CLIENT_SECRET.
       createSecret: false
-      # existingSecret: If provided, sensitive values will be pulled from this secret
+      # existingSecret: If provided, the credentials are read from this secret. Its keys default
+      # to CCF_API_AUTH_CLIENT_ID and CCF_API_AUTH_CLIENT_SECRET (the keys the ccf-app agent
+      # bootstrap Job writes); clientId.secretKeyRef / clientSecret.secretKeyRef override them.
       existingSecret: ""
-      # Client ID for authentication
+      # Client ID for authentication (a UUID)
       clientId:
-        value: "" # if set, we use this value
-        secretKeyRef: "" # if set, we reference this secret key instead
+        value: "" # @schema pattern:^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        secretKeyRef: "" # key in existingSecret; defaults to CCF_API_AUTH_CLIENT_ID
       # Client secret for authentication (should be in secret for production)
       clientSecret:
         value: "" # if set, we use this value
-        secretKeyRef: "" # if set, we reference this secret key instead
+        secretKeyRef: "" # key in existingSecret; defaults to CCF_API_AUTH_CLIENT_SECRET
   # Plugin configurations
   # Each plugin can have: schedule, source, policies, config, labels
   # Example:
