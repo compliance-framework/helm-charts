@@ -32,6 +32,11 @@ devSecrets:
 # External Secrets Operator (https://external-secrets.io) settings, used by every
 # `externalSecret.enabled: true` below. Needs ESO with the external-secrets.io/v1 API and the
 # Password generator (ESO 0.17 or later).
+# ESO generation is for FRESH installs: the generated Secrets take the names the chart used to
+# create itself, so switching an existing install to ESO replaces its values (the Postgres password
+# no longer matches the initialised database, the admin password no longer matches its Secret, and
+# the JWT key rotates). Existing installs keep their values with existingSecret (README upgrade
+# notes), or rotate the Postgres password themselves before switching.
 externalSecrets:
   apiVersion: external-secrets.io/v1
   generatorApiVersion: generators.external-secrets.io/v1alpha1

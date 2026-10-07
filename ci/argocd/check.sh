@@ -5,13 +5,17 @@
 #    without cluster access) and requires byte-identical output and no `lookup` call: a lookup
 #    returns nothing there, and a random or generated value changes on every render.
 # 2. Installs Argo CD on the current cluster (a kind cluster in CI), creates an Application per
-#    chart from REPO_URL at REVISION, syncs it, waits for Synced + Healthy, then forces two hard
+#    chart and values set from REPO_URL at REVISION (existingSecret credentials, External Secrets
+#    Operator credentials, and the agent chart), syncs them, waits for Synced + Healthy, checks
+#    the ESO path end to end (ExternalSecrets Ready, API ready with the generated JWT key and
+#    Postgres password, Secret data unchanged after a forced sync), then forces two hard
 #    refreshes and requires the Applications to stay Synced (no diff between renders).
 #
 # Usage: REPO_URL=https://github.com/<owner>/<repo> REVISION=<sha> ci/argocd/check.sh [render|argocd|all]
 set -euo pipefail
 
 ARGOCD_VERSION="${ARGOCD_VERSION:-v3.5.4}"
+ESO_VERSION="${ESO_VERSION:-2.11.0}"
 TIMEOUT="${TIMEOUT:-900}"
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 mode="${1:-all}"
@@ -23,6 +27,7 @@ render_check() {
   out1="$(mktemp)"; out2="$(mktemp)"
   for spec in \
       "charts/ccf-app:ci/argocd/ccf-app-values.yaml" \
+      "charts/ccf-app:ci/argocd/ccf-app-eso-values.yaml" \
       "charts/ccf-app:ci/argocd/render/ccf-app-eso.yaml" \
       "charts/ccf-app:ci/argocd/render/ccf-app-dev.yaml" \
       "charts/ccf-agent:ci/argocd/ccf-agent-values.yaml"; do
@@ -79,8 +84,69 @@ dump() {
   kubectl get pods -A >&2 || true
 }
 
+# Applications: name:chart path:values file:namespace
+APPS="ccf:charts/ccf-app:ccf-app-values.yaml:ccf
+ccf-eso:charts/ccf-app:ccf-app-eso-values.yaml:ccf-eso
+ccf-agent:charts/ccf-agent:ccf-agent-values.yaml:ccf-agent"
+
+app_names() { echo "$APPS" | cut -d: -f1; }
+
+# make_namespace NAME: creates it with the Pod Security labels in $PSS_LEVEL (if any), so the
+# API server rejects any pod that does not meet that profile.
+make_namespace() {
+  kubectl create namespace "$1" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  if [ -n "${PSS_LEVEL:-}" ]; then
+    kubectl label namespace "$1" --overwrite \
+      "pod-security.kubernetes.io/enforce=$PSS_LEVEL" \
+      "pod-security.kubernetes.io/warn=$PSS_LEVEL" \
+      "pod-security.kubernetes.io/audit=$PSS_LEVEL" >/dev/null
+  fi
+}
+
+# Fails as soon as the API server refuses a pod (e.g. Pod Security admission).
+no_rejected_pods() {
+  local rejected
+  rejected="$(kubectl get events -A --field-selector reason=FailedCreate -o jsonpath='{range .items[*]}{.metadata.namespace}/{.involvedObject.name}: {.message}{"\n"}{end}' 2>/dev/null \
+    | grep -i 'forbidden' || true)"
+  if [ -n "$rejected" ]; then
+    log "FAIL: pods were rejected:"
+    echo "$rejected" >&2
+    exit 1
+  fi
+}
+
+secret_digest() { # secret_digest NAMESPACE NAME: a digest of the Secret's data, never the data
+  kubectl -n "$1" get secret "$2" -o jsonpath='{.data}' | sha256sum | cut -c1-16
+}
+
+eso_check() {
+  local ns=ccf-eso secrets="ccf-psql ccf-initial-user-password ccf-jwt-private-key" before after s
+  log "checking the External Secrets Operator path"
+  kubectl -n "$ns" wait externalsecret --all --for=condition=Ready --timeout=300s
+  log "ok: every ExternalSecret is Ready"
+  kubectl -n "$ns" rollout status deploy/ccf-api --timeout=300s
+  # The API exits at start on a key it cannot parse and is not ready without the database, so a
+  # ready API proves the genPrivateKey PEM works and Postgres took the generated password.
+  log "ok: the API is ready with the ESO-generated JWT key and Postgres password"
+  [ "$(kubectl -n "$ns" get secret ccf-jwt-private-key -o jsonpath='{.data.private_key\.pem}' | base64 -d | head -n 1)" \
+    = "-----BEGIN RSA PRIVATE KEY-----" ] || { log "FAIL: the ESO JWT key is not a PKCS#1 PEM"; exit 1; }
+  before=""; for s in $secrets; do before="$before $s=$(secret_digest "$ns" "$s")"; done
+  kubectl -n "$ns" annotate externalsecret --all "force-sync=$(date +%s)" --overwrite >/dev/null
+  sleep 30
+  after=""; for s in $secrets; do after="$after $s=$(secret_digest "$ns" "$s")"; done
+  if [ "$before" != "$after" ]; then
+    log "FAIL: ESO changed Secret data after a forced sync (refreshPolicy CreatedOnce):$before ->$after"
+    exit 1
+  fi
+  log "ok: Secret data unchanged after a forced ESO sync (CreatedOnce)"
+}
+
 argocd_check() {
   : "${REPO_URL:?set REPO_URL}" "${REVISION:?set REVISION}"
+  log "installing External Secrets Operator $ESO_VERSION"
+  helm upgrade --install external-secrets oci://ghcr.io/external-secrets/charts/external-secrets \
+    --version "$ESO_VERSION" --namespace external-secrets --create-namespace --wait --timeout 10m >/dev/null
+
   log "installing Argo CD $ARGOCD_VERSION"
   kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
   kubectl apply -n argocd --server-side --force-conflicts \
@@ -89,8 +155,9 @@ argocd_check() {
   kubectl -n argocd rollout status deploy/argocd-redis --timeout=600s
   kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=600s
 
-  log "creating the credentials the charts reference"
-  for ns in ccf ccf-agent; do kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -; done
+  log "creating the namespaces and the credentials the existingSecret values set references"
+  local name path values ns
+  while IFS=: read -r name path values ns; do make_namespace "$ns"; done <<<"$APPS"
   local key; key="$(mktemp)"
   openssl genrsa -out "$key" 2048 2>/dev/null
   kubectl -n ccf create secret generic ccf-jwt --from-file=private_key.pem="$key"
@@ -98,9 +165,7 @@ argocd_check() {
   kubectl -n ccf create secret generic ccf-postgres --from-literal=POSTGRES_PASSWORD="$(openssl rand -hex 16)"
   rm -f "$key"
 
-  for app in ccf:charts/ccf-app:ccf-app-values.yaml ccf-agent:charts/ccf-agent:ccf-agent-values.yaml; do
-    IFS=: read -r name path values <<<"$app"
-    local ns="$name"
+  while IFS=: read -r name path values ns; do
     kubectl apply -f - <<APP
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -121,23 +186,26 @@ spec:
     server: https://kubernetes.default.svc
     namespace: $ns
 APP
-  done
+  done <<<"$APPS"
 
-  for name in ccf ccf-agent; do
+  for name in $(app_names); do
     log "syncing $name"
     kubectl -n argocd patch application "$name" --type merge \
       -p "{\"operation\":{\"initiatedBy\":{\"username\":\"ci\"},\"sync\":{\"revision\":\"$REVISION\",\"prune\":true}}}"
   done
-  for name in ccf ccf-agent; do
-    wait_for "$name to be Synced and Healthy" app_synced_healthy "$name" || { dump "$name"; exit 1; }
+  for name in $(app_names); do
+    wait_for "$name to be Synced and Healthy" app_synced_healthy_or_rejected "$name" || { dump "$name"; exit 1; }
     log "ok: $name is $(app_state "$name")"
   done
+  no_rejected_pods
+
+  eso_check
 
   for round in 1 2; do
-    for name in ccf ccf-agent; do
+    for name in $(app_names); do
       kubectl -n argocd annotate application "$name" argocd.argoproj.io/refresh=hard --overwrite >/dev/null
     done
-    for name in ccf ccf-agent; do
+    for name in $(app_names); do
       wait_for "$name hard refresh $round" refresh_done "$name" || { dump "$name"; exit 1; }
       sync="$(kubectl -n argocd get application "$name" -o jsonpath='{.status.sync.status}')"
       drift="$(kubectl -n argocd get application "$name" \
@@ -150,7 +218,10 @@ APP
       log "ok: $name still Synced after hard refresh $round"
     done
   done
+  no_rejected_pods
 }
+
+app_synced_healthy_or_rejected() { no_rejected_pods; app_synced_healthy "$1"; }
 
 case "$mode" in
   render) render_check ;;
