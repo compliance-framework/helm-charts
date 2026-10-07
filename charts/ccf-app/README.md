@@ -5,8 +5,9 @@ Dex and pgAdmin. Agents are deployed separately with the [`ccf-agent`](../ccf-ag
 
 ## Installation
 
-The chart never generates or looks up credentials at render time (both break `helm template`, and so Argo CD and
-Flux). Every credential needs a source, and a plain `helm install` fails, naming the values to set. See
+A plain `helm install` works as before 0.9.0: the chart generates the credentials itself (`lookup` of the existing
+Secrets, else random values; a new JWT key on every render). That path is **deprecated and not GitOps-safe**, and NOTES
+print a DEPRECATED notice for it. Production installs should give every credential an explicit source; see
 [Credentials](#credentials).
 
 Production, with Secrets you create (or manage with your secret store):
@@ -34,18 +35,32 @@ helm install ccf oci://ghcr.io/compliance-framework/helm-charts/ccf -n ccf --cre
 ```
 
 The chart creates an initial admin user, `api.user.email` (default `admin@localhost`), with the password from
-`api.user.existingSecret`, `api.user.password`, an ExternalSecret or the dev seed. `helm install` prints how to read it.
+`api.user.existingSecret`, `api.user.password`, an ExternalSecret, the dev seed or, by default, the deprecated generated
+`<fullname>-initial-user-password` Secret. `helm install` prints how to read it.
 
 ## Credentials
 
-| Credential | existingSecret | External Secrets Operator | Explicit value | Development fallback |
-|------------|----------------|---------------------------|----------------|----------------------|
-| JWT signing key | `api.jwt.source: existingSecret`, `api.jwt.existingSecret.name` (key `private_key.pem`; `publicKey: ""` derives the public key) | `api.jwt.source: externalSecret` | none | `api.jwt.source: inMemory`; **deprecated:** `api.jwt.source: generated` (see below) |
-| PostgreSQL password (bundled DB) | `database.local.existingSecret` + `createSecret: false` (key `POSTGRES_PASSWORD`) | `database.local.externalSecret.enabled` | `database.local.password` | `devSecrets.seed` |
-| Initial admin user password | `api.user.existingSecret` (+ `passwordKey`, default `password`) | `api.user.externalSecret.enabled` | `api.user.password` | `devSecrets.seed` |
-| Dex client secret (`dex.enabled`) | `dex.clientSecret.existingSecret` + `createSecret: false` | `dex.clientSecret.externalSecret.enabled` | `dex.clientSecret.value` | `devSecrets.seed` |
+Sources, highest first (the first one set wins):
 
-- **existingSecret** is the primary path. The Secret must exist before the install.
+| Credential | existingSecret | External Secrets Operator | Explicit value | Development fallback | **Default: deprecated generated** |
+|------------|----------------|---------------------------|----------------|----------------------|------------------------------------|
+| JWT signing key | `api.jwt.source: existingSecret`, `api.jwt.existingSecret.name` (key `private_key.pem`; `publicKey: ""` derives the public key) | `api.jwt.source: externalSecret` | none | `api.jwt.source: inMemory` | `api.jwt.source: generated` (the default): a new key on every render, no lookup |
+| PostgreSQL password (bundled DB) | `database.local.existingSecret` + `createSecret: false` (key `POSTGRES_PASSWORD`) | `database.local.externalSecret.enabled` | `database.local.password` | `devSecrets.seed` | `createSecret: true` (the default): `lookup` of `<fullname>-psql`, else random |
+| Initial admin user password | `api.user.existingSecret` (+ `passwordKey`, default `password`) | `api.user.externalSecret.enabled` | `api.user.password` | `devSecrets.seed` | `lookup` of `<fullname>-initial-user-password`, else random |
+| Dex client secret (`dex.enabled`) | `dex.clientSecret.existingSecret` + `createSecret: false` | `dex.clientSecret.externalSecret.enabled` | `dex.clientSecret.value` | `devSecrets.seed` | `createSecret: true` (the default): `lookup` of `<fullname>-dex`, else random |
+
+Rendering fails only when generation is turned off without another source: `createSecret: false` without
+`existingSecret` or `externalSecret`, or an empty `api.jwt.source`. The message lists the options.
+
+- **Deprecated generated (the default).** The chart's behaviour before 0.9.0, kept so existing installs and plain
+  installs keep working: passwords come from `lookup` of the existing Secret, else a random value, and the JWT key is a
+  new random key on every render. **It is not GitOps-safe.** Under Argo CD or `helm template`, `lookup` returns
+  nothing, so the passwords are regenerated on every sync, and the API can no longer connect to an already-initialised
+  PostgreSQL. The JWT key rotates on every `helm upgrade` and every sync, logging every user out and invalidating every
+  agent token. NOTES print one DEPRECATED notice listing the credentials on this path. It will be removed in a future
+  release: move to `existingSecret` (the copy recipe in the upgrade notes keeps the current values) or, for fresh
+  installs only, `externalSecret`.
+- **existingSecret** is the recommended path. The Secret must exist before the install.
 - **External Secrets Operator generation is for fresh installs.** The generated Secrets take the names the chart used to
   create itself, so switching an existing install to ESO replaces its values: Helm deletes the chart-managed Secrets
   and ESO generates new ones, so the Postgres password no longer matches the initialised database (an outage), the
@@ -68,18 +83,13 @@ The chart creates an initial admin user, `api.user.email` (default `admin@localh
     `generatorApiVersion` and `refreshPolicy` can be changed. CI installs ESO 2.11.0 and checks the whole path: every
     ExternalSecret becomes Ready, the API starts with the generated JWT key and Postgres password, the bootstrap Job
     logs in with the generated admin password, and a forced ESO sync leaves the Secret data unchanged.
-- **Deprecated: `api.jwt.source: generated`.** The 0.8.x behaviour, kept for existing installs: the chart creates
-  `<fullname>-jwt-private-key` from `genPrivateKey` and the init container derives the public key. The chart does not
-  look up the existing key, so a new key is generated on every render: **every `helm upgrade` and every Argo CD or
-  Flux sync rotates it, logging every user out and invalidating every agent token.** It is no longer the default and
-  NOTES print a deprecation notice. It will be removed in a future release: move to `existingSecret` (the upgrade notes
-  copy the current key) or `externalSecret`.
 - **Explicit values** are rendered into chart-managed Secrets. They are stable, but the value sits in your Helm values.
 - **Development fallback: `devSecrets.seed`.** When set, each password defaults to the first 32 hex characters of
   `sha256("ccf:<purpose>:<seed>")` (purposes `postgres`, `initial-user`, `dex-client`). The value depends only on the
   seed, so it is identical on every render, upgrade and `helm template` run, and the database password never changes
   under an initialised database. It is not secret: anyone who knows the seed (it is in your values) can derive the
-  passwords. It is empty by default, and an install never uses it unless you set it. For the JWT key, the development
+  passwords. It is empty by default, and an install never uses it unless you set it. It wins over the deprecated
+  generated default. For the JWT key, the development
   option is `api.jwt.source: inMemory`: the API generates a key at every start, so sessions and agent tokens end on
   every restart, and it only works with one API replica.
 
@@ -91,7 +101,7 @@ The full list is in [`values.yaml`](./values.yaml), with a comment per value.
 |-------|-------------|---------|
 | `webBaseUrl` | Public URL of the UI; derives the API URL, CORS origin, SSO callback and ingress hosts | `""` |
 | `api.image.tag` / `ui.image.tag` | API and UI image tags | see `values.yaml` |
-| `api.jwt.source` | Required: `existingSecret`, `externalSecret`, `inMemory` (development) or the deprecated `generated` | `""` |
+| `api.jwt.source` | `existingSecret`, `externalSecret`, `inMemory` (development) or the deprecated `generated` | `generated` (deprecated) |
 | `devSecrets.seed` | Development only: derive the passwords from this seed | `""` |
 | `externalSecrets.*` | External Secrets Operator API versions, refresh policy and Password generator spec | see `values.yaml` |
 | `api.authz.driver` | `builtin`, `cedar` or `authzen` | `builtin` |
@@ -223,9 +233,8 @@ Operator Cedar policies can be added with `api.authz.cedar.policies` (a map of `
   world-writable. The chart-created hostPath PV is an explicit opt-in (`persistence.createPersistentVolume: true`, at
   `persistence.path`): hostPath ignores `fsGroup` and the chart never chowns anything, so pre-create the directory on
   the node and make it owned by `999:999`.
-- **JWT key.** Use an existing Secret, External Secrets Operator, or `inMemory` for development: all three are stable
-  under `helm template` (Argo CD, Flux). The deprecated `generated` mode is the one exception: it rotates the key on
-  every render.
+- **Credentials.** Use existing Secrets or External Secrets Operator (or `inMemory` / the seed for development): they
+  are stable under `helm template` (Argo CD, Flux). The deprecated generated default is not: see Credentials.
 
 ## Request sizes
 
@@ -265,12 +274,13 @@ defaults `model` to `claude-haiku-4-5`, while the API's own default is `claude-o
      register, ingest and sync.
    - Under `cedar`, the `agent` role gains sync, artifact read/ingest and playback; a new `ssp-subscriber` role exists.
 3. **The API pods roll on config changes** (checksum annotations), and on this upgrade.
-4. **Credentials (breaking).** The chart no longer looks up or generates the Postgres password, the initial user's
-   password or the Dex client secret, and `api.jwt.source` has no default: `lookup` returns nothing under
-   `helm template`, so with Argo CD these changed on every sync. Rendering fails until each has a source (see
-   Credentials). To keep the values your
-   install already uses, copy the generated Secrets to new names and point the chart at the copies **before**
-   upgrading (Helm deletes the old chart-managed Secrets during the upgrade):
+4. **Credentials.** With unchanged values, an upgrade from 0.8.x keeps working exactly as before: the chart still
+   generates the JWT key (a new one on every render) and keeps the Postgres, initial user and Dex passwords through
+   `lookup`. That path is now **deprecated** (NOTES print a DEPRECATED notice) and will be removed in a future release.
+   It is not GitOps-safe: under Argo CD / `helm template`, `lookup` returns nothing and the passwords are regenerated
+   on every sync. Migrating to `existingSecret` is recommended. To keep the values your install already uses, copy the
+   generated Secrets to new names and point the chart at the copies **before** upgrading (Helm deletes the
+   chart-managed Secrets once they are no longer rendered):
 
    ```bash
    NS=ccf; R=ccf   # namespace and <fullname> of the release
@@ -301,17 +311,11 @@ defaults `model` to `claude-haiku-4-5`, while the API's own default is `claude-o
        existingSecret: ccf-dex
    ```
 
-   Do not switch an existing install to External Secrets Operator generation: it would replace these values (see
-   Credentials).
+   Do not switch an existing install to External Secrets Operator generation: ESO is for fresh installs only, and it
+   would replace these values (see Credentials).
 
-   **JWT key.** An install that used the old default, `api.jwt.source: generated`, keeps working if it sets
-   `api.jwt.source: generated` explicitly, but the mode is **deprecated**: it rotates the key on every upgrade and every
-   GitOps sync (everyone is logged out, agent tokens stop working), NOTES print a deprecation notice, and it will be
-   removed. Migrate with the copy recipe above (`ccf-jwt`, `publicKey: ""`), which keeps the current key, or to
-   `externalSecret` (a new key, once).
-
-   An install that set
-   `database.local.existingSecret` while keeping `createSecret: true` must now set `createSecret: false`.
+   An install that set `database.local.existingSecret` while keeping `createSecret: true` must now set
+   `createSecret: false`.
 5. **No container runs as root, and every pod meets Pod Security `restricted`** (see Security notes). Installs that
    set a component's or the global `podSecurityContext` / `securityContext` keep what they set.
    - **PostgreSQL storage (breaking).** The default is now a dynamically provisioned PVC; the chart no longer creates a
