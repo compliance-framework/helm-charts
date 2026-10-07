@@ -46,6 +46,12 @@ The chart creates an initial admin user, `api.user.email` (default `admin@localh
 | Dex client secret (`dex.enabled`) | `dex.clientSecret.existingSecret` + `createSecret: false` | `dex.clientSecret.externalSecret.enabled` | `dex.clientSecret.value` | `devSecrets.seed` |
 
 - **existingSecret** is the primary path. The Secret must exist before the install.
+- **External Secrets Operator generation is for fresh installs.** The generated Secrets take the names the chart used to
+  create itself, so switching an existing install to ESO replaces its values: Helm deletes the chart-managed Secrets
+  and ESO generates new ones, so the Postgres password no longer matches the initialised database (an outage), the
+  admin's real password no longer matches its Secret (the bootstrap Job login fails), and the JWT key rotates (everyone
+  is logged out). Existing installs keep their values with the copy-to-existingSecret recipe in the upgrade notes, or
+  must rotate the Postgres password themselves before switching.
 - **External Secrets Operator.** With `externalSecret`, the chart renders an `ExternalSecret`
   (`external-secrets.io/v1`) per credential, with `refreshPolicy: CreatedOnce`: ESO generates the value once and never
   rotates it (a rotated database password would lock the API out of an initialised database). The Secrets keep the names
@@ -59,7 +65,9 @@ The chart creates an initial admin user, `api.user.email` (default `admin@localh
     which writes a PKCS#1 `RSA PRIVATE KEY`; a `Password` generator is only its data source. The public key is derived
     by the `generate-public-key` init container.
   - Needs ESO 0.17 or later (the `external-secrets.io/v1` API and `refreshPolicy`). `externalSecrets.apiVersion`,
-    `generatorApiVersion` and `refreshPolicy` can be changed.
+    `generatorApiVersion` and `refreshPolicy` can be changed. CI installs ESO 2.11.0 and checks the whole path: every
+    ExternalSecret becomes Ready, the API starts with the generated JWT key and Postgres password, the bootstrap Job
+    logs in with the generated admin password, and a forced ESO sync leaves the Secret data unchanged.
 - **Explicit values** are rendered into chart-managed Secrets. They are stable, but the value sits in your Helm values.
 - **Development fallback: `devSecrets.seed`.** When set, each password defaults to the first 32 hex characters of
   `sha256("ccf:<purpose>:<seed>")` (purposes `postgres`, `initial-user`, `dex-client`). The value depends only on the
@@ -87,6 +95,7 @@ The full list is in [`values.yaml`](./values.yaml), with a comment per value.
 | `api.agentBootstrap.*` | Optional Job that creates agent keys and Secrets | disabled |
 | `api.ai.*` | AI suggestions (`provider: anthropic`, `baseUrl`, model, limits) | disabled |
 | `<component>.podSecurityContext` / `<component>.securityContext` | Per-workload security contexts (`api`, `ui`, `dex`, `database.local`, `pgadmin4`); empty uses the global ones, then the hardened defaults | `{}` |
+| `database.local.persistence.*` | Bundled PostgreSQL storage: a dynamically provisioned PVC (`storageClass`), or the opt-in hostPath PV | dynamic PVC |
 | `ui.apiUrl`, `ui.config.*`, `ui.extraConfig` | UI runtime `config.json` | see `values.yaml` |
 | `api.extraConfig` | Extra `CCF_*` env vars for the API | `{}` |
 
@@ -184,29 +193,30 @@ Operator Cedar policies can be added with `api.authz.cedar.policies` (a map of `
   `true` once every agent has a key.
 - **Playback.** `/api/playback` runs caller-supplied Rego in the API process. It is open to anonymous callers while
   strict mode is off. Disable it with `api.playback.enabled: false` if you do not need it.
-- **Workload hardening.** Every workload runs as a non-root user with a read-only root filesystem, no privilege
-  escalation, all capabilities dropped and the `RuntimeDefault` seccomp profile, with an `emptyDir` for every path it
-  writes. Each one takes its own `podSecurityContext` / `securityContext`, then the global ones, then these defaults:
+- **Workload hardening.** No container runs as root, init containers, hooks and the test pod included. Every pod
+  meets the Pod Security `restricted` profile by default, with every optional workload on, without opt-outs: a numeric
+  non-root user, `allowPrivilegeEscalation: false`, all capabilities dropped (none added), the `RuntimeDefault` seccomp
+  profile, a read-only root filesystem, no sysctls, no host namespaces or hostPath volumes, and an `emptyDir` for every
+  path the image writes. CI deploys the chart into namespaces that enforce `restricted`. Each workload takes its own
+  `podSecurityContext` / `securityContext`, then the global ones, then these defaults:
 
   | Workload | User | Writable paths (emptyDir unless noted) | Notes |
   |----------|------|----------------------------------------|-------|
   | API pod | 65532 (all containers) | `/tmp`, the `publickey` volume | `generate-public-key` uses `alpine/openssl:3.5.9`, nothing installed at runtime |
-  | UI (nginx) | 101 | `/var/cache/nginx`, `/run`, `/tmp` | the pod sets the safe sysctl `net.ipv4.ip_unprivileged_port_start=0` so nginx keeps port 80 |
+  | UI (nginx) | 101 | `/var/cache/nginx`, `/run`, `/tmp` | listens on `ui.containerPort` (8080) through the chart's nginx server block (`ui.nginxConfig` replaces it); the Service port is unchanged |
   | Dex | 1001 | `/tmp` | |
-  | PostgreSQL | 999 | data volume, `/var/run/postgresql`, `/tmp` | see below |
+  | PostgreSQL | 999 | data PVC (`fsGroup: 999`, `fsGroupChangePolicy: OnRootMismatch`), `/var/run/postgresql`, `/tmp` | data in the `pgdata` subdirectory of the volume, which postgres creates and owns |
   | pgAdmin 4 | 5050 | `/var/lib/pgadmin`, `/run/pgadmin`, `/tmp` | listens on 8080; its `config_distro.py` lives in `/var/lib/pgadmin` |
   | Agent bootstrap Job | 100 | `/tmp` | `curlimages/curl` |
+  | `helm test` pod | 65534 | none | `busybox` `wget` |
 
-  Not fully hardened:
-  - **PostgreSQL volume permissions.** Postgres refuses a data directory it does not own, and volumes without
-    `fsGroup` support (such as the chart's default `hostPath` PV) start root-owned. The `volume-permissions` init
-    container chowns the volume root to 999 as root, with only the `CHOWN` and `FOWNER` capabilities and a read-only
-    root filesystem. Disable it (`database.local.volumePermissions.enabled: false`) when the volume root is already
-    owned by 999 (for example a volume an earlier release initialised): the pod then meets the Pod Security
-    `restricted` profile.
-  - The UI pod's sysctl needs a cluster that allows safe sysctls (the default). Otherwise set `ui.podSecurityContext`
-    without it and serve the UI on a port above 1023 with your own nginx configuration.
-  - The `helm test` pod (`templates/tests`) is unchanged.
+- **PostgreSQL storage.** The bundled database uses a dynamically provisioned PVC from
+  `database.local.persistence.storageClass` (empty: the cluster's default StorageClass). Postgres refuses a data
+  directory it does not own, so the data lives in a subdirectory (`persistence.pgdataSubdir`, default `pgdata`) that
+  postgres creates itself; that works whether the provisioner applies `fsGroup` or leaves the volume root root-owned and
+  world-writable. The chart-created hostPath PV is an explicit opt-in (`persistence.createPersistentVolume: true`, at
+  `persistence.path`): hostPath ignores `fsGroup` and the chart never chowns anything, so pre-create the directory on
+  the node and make it owned by `999:999`.
 - **JWT key.** The chart no longer generates the key. Use an existing Secret, External Secrets Operator, or
   `inMemory` for development. All three are stable under `helm template` (Argo CD, Flux).
 
@@ -283,14 +293,32 @@ defaults `model` to `claude-haiku-4-5`, while the API's own default is `claude-o
        existingSecret: ccf-dex
    ```
 
-   `api.jwt.source: generated` was removed and now fails with this explanation. An install that set
+   Do not switch an existing install to External Secrets Operator generation: it would replace these values (see
+   Credentials). `api.jwt.source: generated` was removed and now fails with this explanation. An install that set
    `database.local.existingSecret` while keeping `createSecret: true` must now set `createSecret: false`.
-5. **Every workload is hardened** (non-root, read-only root filesystem; see Security notes). Installs that set a
-   component's or the global `podSecurityContext` / `securityContext` keep what they set. `pgadmin4.containerPort`
-   defaults to `8080` (the Service still targets it by name). The `generate-public-key` init container uses
-   `alpine/openssl:3.5.9` with `openssl` as its command: if you overrode its image or command for the old
-   `apk add` flow, update them or give it a `securityContext` that allows that flow. A PostgreSQL volume
-   initialised by an earlier release is already owned by uid 999.
+5. **No container runs as root, and every pod meets Pod Security `restricted`** (see Security notes). Installs that
+   set a component's or the global `podSecurityContext` / `securityContext` keep what they set.
+   - **PostgreSQL storage (breaking).** The default is now a dynamically provisioned PVC; the chart no longer creates a
+     hostPath PV unless asked. An install on the old default PV must keep it, or Helm deletes the PV object and the
+     PVC is lost. Set the old defaults explicitly:
+
+     ```yaml
+     database:
+       local:
+         persistence:
+           createPersistentVolume: true
+           storageClass: standard              # the old default
+           path: /var/lib/ccf-postgresql       # the old default
+     ```
+
+     The data a 0.8.x release initialised at the volume root is used where it is (it is already owned by 999, because
+     the old postgres container chowned it). To move to a dynamically provisioned PVC instead, dump and restore the
+     database (`pg_dump` / `pg_restore`) into a fresh release.
+   - **UI:** `ui.containerPort` defaults to `8080` (the Service targets it by name and keeps its port). A custom
+     `ui.nginxConfig` must listen on it.
+   - **pgAdmin:** `pgadmin4.containerPort` defaults to `8080`.
+   - **`generate-public-key`** uses `alpine/openssl:3.5.9` with `openssl` as its command. If you overrode its image or
+     command for the old `apk add` flow, update them: it now runs as non-root with a read-only root filesystem.
 6. **Probes** now use `GET /api/health` (liveness) and `GET /api/health/ready` (readiness).
 7. **`APP_PORT` is replaced by `CCF_APP_PORT`**, taken from `api.containerPort`.
 8. **The UI container no longer gets an `API_URL` env var**; it never had an effect. Use `ui.apiUrl` or `webBaseUrl`.
