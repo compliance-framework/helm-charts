@@ -95,6 +95,8 @@ podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1001
   fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
@@ -102,6 +104,8 @@ securityContext:
   runAsUser: 1001
   capabilities:
     drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
 extraEnv:
   - name: HOME
     value: /home/custodian
@@ -112,6 +116,14 @@ volumeMounts:
   - name: custodian-home
     mountPath: /home/custodian
 ```
+
+### Pod Security
+
+The default pod and container security contexts meet the Pod Security `restricted` profile: uid 1000, seccomp
+`RuntimeDefault`, no privilege escalation, all capabilities dropped and a read-only root filesystem, with emptyDirs for
+`/tmp` and `/app/.compliance-framework`. No container runs as root. If you override `podSecurityContext` or
+`securityContext` (for example for `agent-custodian`, above), keep these fields, and give any `initContainers` you add
+the same restrictions.
 
 ### Replicas and Autoscaling
 
