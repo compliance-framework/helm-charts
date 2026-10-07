@@ -7,7 +7,11 @@ metadata:
     {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "ui" "component" .Values.ui) | nindent 4 }}
 data:
   config.json: |
-    {
-      "API_URL": {{ include "ccf-app.uiApiUrl" . | quote }}
-    }
+    {{- $uiConfig := default (dict) .Values.ui.config }}
+    {{- $config := deepCopy (default (dict) .Values.ui.extraConfig) }}
+    {{- $_ := set $config "API_URL" (include "ccf-app.uiApiUrl" .) }}
+    {{- $_ := set $config "LOGIN_BANNER" (default "" $uiConfig.loginBanner) }}
+    {{- $_ := set $config "LOGIN_BANNER_SEVERITY" (default "info" $uiConfig.loginBannerSeverity) }}
+    {{- $_ := set $config "FILTER_COMPONENT_LINKING_ENABLED" (default false $uiConfig.filterComponentLinkingEnabled) }}
+    {{- toPrettyJson $config | nindent 4 }}
 {{- end }}

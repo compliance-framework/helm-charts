@@ -438,8 +438,11 @@ api:
     enabled: false
     # createSecret: true # If true, the API key is stored in a chart-managed secret
     # existingSecret: "" # If provided, the API key is read from this existing secret (key: CCF_AI_API_KEY)
-    provider: "anthropic"
+    provider: "anthropic" # @schema enum:[anthropic]
     apiKey: "" # sensitive – sourced into CCF_AI_API_KEY
+    # Override the provider API base URL (CCF_AI_BASE_URL), e.g. for a proxy. Empty uses the
+    # provider default.
+    baseUrl: ""
     model: "claude-haiku-4-5"
     requestTimeout: "120s"
     maxControlsPerChunk: 40
@@ -542,7 +545,22 @@ ui:
     targetPort: http
     annotations: {}
     labels: {}
+  # API base URL the browser calls, rendered as API_URL in the UI's runtime config.json.
+  # Defaults to webBaseUrl.
   apiUrl: ""
+  # UI runtime configuration, rendered into /app/config.json (the UI is static nginx, so
+  # container env vars such as API_URL have no effect).
+  config:
+    # Banner shown on the login page (LOGIN_BANNER). Empty shows none.
+    loginBanner: ""
+    # LOGIN_BANNER_SEVERITY
+    loginBannerSeverity: info # @schema enum:[info, warn, error, success]
+    # Allow filters (dashboards) to be linked to system components
+    # (FILTER_COMPONENT_LINKING_ENABLED, new in ui 2.12).
+    filterComponentLinkingEnabled: false
+  # Extra keys for config.json, for UI settings the chart does not know yet. The keys above
+  # win over the same keys here.
+  extraConfig: {}
   livenessProbe:
     httpGet:
       path: /

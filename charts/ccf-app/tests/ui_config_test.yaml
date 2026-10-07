@@ -1,0 +1,69 @@
+suite: UI runtime config
+templates:
+  - templates/configmap_ui.yaml
+  - templates/configmap_ui_nginx.yaml
+  - templates/deployment_ui.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: renders the full config.json with the UI defaults
+    template: templates/configmap_ui.yaml
+    asserts:
+      - equal:
+          path: data["config.json"]
+          value: |
+            {
+              "API_URL": "",
+              "FILTER_COMPONENT_LINKING_ENABLED": false,
+              "LOGIN_BANNER": "",
+              "LOGIN_BANNER_SEVERITY": "info"
+            }
+
+  - it: renders the login banner, severity, component linking and extra keys
+    template: templates/configmap_ui.yaml
+    set:
+      ui.apiUrl: https://api.example.com/
+      ui.config.loginBanner: 'Authorised use only: "ACME"'
+      ui.config.loginBannerSeverity: warn
+      ui.config.filterComponentLinkingEnabled: true
+      ui.extraConfig:
+        FUTURE_FLAG: true
+        LOGIN_BANNER: ignored
+    asserts:
+      - equal:
+          path: data["config.json"]
+          value: |
+            {
+              "API_URL": "https://api.example.com",
+              "FILTER_COMPONENT_LINKING_ENABLED": true,
+              "FUTURE_FLAG": true,
+              "LOGIN_BANNER": "Authorised use only: \"ACME\"",
+              "LOGIN_BANNER_SEVERITY": "warn"
+            }
+
+  - it: rejects an unknown banner severity
+    set:
+      ui.config.loginBannerSeverity: critical
+    asserts:
+      - failedTemplate: {}
+
+  - it: no longer sets the API_URL env var, which the static UI ignores
+    template: templates/deployment_ui.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env
+
+  - it: keeps ui.extraEnv
+    template: templates/deployment_ui.yaml
+    set:
+      ui.extraEnv:
+        - name: TZ
+          value: UTC
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env
+          value:
+            - name: TZ
+              value: UTC

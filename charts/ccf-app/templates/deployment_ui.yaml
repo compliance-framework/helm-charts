@@ -40,12 +40,10 @@ spec:
             - name: http
               containerPort: {{ .Values.ui.containerPort }}
               protocol: TCP
+          {{- with .Values.ui.extraEnv }}
           env:
-            - name: API_URL
-              value: {{ include "ccf-app.uiApiUrl" . | quote }}
-            {{- with .Values.ui.extraEnv }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           {{- with .Values.ui.extraEnvFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}
