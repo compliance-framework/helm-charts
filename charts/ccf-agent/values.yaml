@@ -119,7 +119,8 @@ affinity: {}
 
 # Agent configuration
 agent:
-  # Hostname for the agent (used for identification in the API)
+  # Deprecated, no effect: rendered as the HOSTNAME env var, which the agent never reads (it
+  # uses the pod's hostname, i.e. the pod name). Will be removed in a future release.
   hostname: ""
   
   # Agent daemon mode. true runs the plugins on their schedules continuously. false runs
@@ -142,6 +143,9 @@ agent:
     enabled: false
     # interval to send agent execution evidence
     interval: "1h"
+    # Emit agent evidence as soon as a run completes (and on startup failures), in addition
+    # to the interval. null leaves the agent default (true).
+    emitOnRunCompletion: null # @schema type:[boolean, null]
   
   # Remote configuration (the agent's remote_config block). The chart renders only the keys
   # that are set; with nothing set, no block is rendered and the agent defaults apply: mode

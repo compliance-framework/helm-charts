@@ -62,7 +62,8 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Agent hostname - defaults to pod name if not specified
+Agent hostname. Deprecated: rendered as the HOSTNAME env var, which the agent ignores (it
+calls os.Hostname(), the pod name). Kept so existing values render unchanged.
 */}}
 {{- define "ccf-agent.hostname" -}}
 {{- if .Values.agent.hostname }}
@@ -229,4 +230,20 @@ nothing is set, so the agent defaults apply.
 {{- if $rc }}
 {{- toYaml $rc }}
 {{- end }}
+{{- end }}
+
+{{/*
+How the agent gets its API credentials, for NOTES. Empty when it runs anonymously.
+*/}}
+{{- define "ccf-agent.authSource" -}}
+{{- $auth := .Values.agent.api.auth -}}
+{{- if $auth.enabled -}}
+{{- if $auth.existingSecret -}}
+existing secret {{ $auth.existingSecret }}
+{{- else if $auth.createSecret -}}
+chart secret {{ include "ccf-agent.fullname" . }}-auth
+{{- else if and $auth.clientId.value $auth.clientSecret.value -}}
+inline values
+{{- end -}}
+{{- end -}}
 {{- end }}

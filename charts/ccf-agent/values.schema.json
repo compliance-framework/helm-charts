@@ -11,6 +11,12 @@
                 "agentEvidence": {
                     "type": "object",
                     "properties": {
+                        "emitOnRunCompletion": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        },
                         "enabled": {
                             "type": "boolean"
                         },

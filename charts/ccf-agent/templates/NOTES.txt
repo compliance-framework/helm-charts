@@ -3,30 +3,64 @@ CCF Agent has been deployed!
 Chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 Release: {{ .Release.Name }}
 Namespace: {{ .Release.Namespace }}
+{{- $authSource := include "ccf-agent.authSource" . }}
+{{- $mode := default "" .Values.agent.remoteConfig.mode }}
 
 Agent Configuration:
   - API URL: {{ .Values.agent.api.url }}
-  - Hostname: {{ include "ccf-agent.hostname" . }}
   - Daemon Mode: {{ .Values.agent.daemon }}
   - Verbosity: {{ .Values.agent.verbosity }}
+  - State directory: {{ include "ccf-agent.stateDir" . }} (emptyDir: each new pod is a new agent instance)
+{{- if $authSource }}
+  - API authentication: on ({{ $authSource }})
+{{- else }}
+  - API authentication: off (the agent runs anonymously)
+{{- end }}
+{{- if not $authSource }}
+  - Remote configuration: off (it needs API credentials{{ if $mode }}; agent.remoteConfig.mode {{ $mode | quote }} has no effect{{ end }})
+{{- else if $mode }}
+  - Remote configuration: {{ $mode }}
+{{- else }}
+  - Remote configuration: report (agent default: reports its configuration, never applies an overlay)
+{{- end }}
+{{- if .Values.agent.hostname }}
+  - agent.hostname is deprecated and has no effect: the agent uses the pod name.
+{{- end }}
+{{- if not $authSource }}
+
+WARNING: no API credentials are configured, so the agent sends evidence anonymously and remote
+configuration is off. Anonymous agents only work while the API allows public agent endpoints
+(CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS=false). Create an agent key in the CCF UI under
+Admin -> Agents (or with the ccf-app agent bootstrap Job), store it in a Secret with the keys
+CCF_API_AUTH_CLIENT_ID and CCF_API_AUTH_CLIENT_SECRET, and set:
+  agent.api.auth.enabled=true
+  agent.api.auth.existingSecret=<secret name>
+{{- end }}
 
 {{- if .Values.agent.plugins }}
+
 Configured Plugins:
 {{- range $name, $config := .Values.agent.plugins }}
   - {{ $name }}:
       Schedule: {{ $config.schedule | default "not set" }}
       Source: {{ $config.source | default "not set" }}
+{{- if and (hasKey $config "enabled") (not $config.enabled) }}
+      Enabled: false (no schedule, no download, still reported)
+{{- end }}
 {{- end }}
 {{- else }}
+
 ⚠️  No plugins configured. Add plugin configurations in values.yaml under 'agent.plugins'.
 {{- end }}
 
 {{- if .Values.secretRefs }}
+
 Secret References:
 {{- range .Values.secretRefs }}
   - {{ .name }}
 {{- end }}
 {{- else }}
+
 ⚠️  No secret references configured. Plugin credentials should be provided via 'secretRefs'.
 {{- end }}
 

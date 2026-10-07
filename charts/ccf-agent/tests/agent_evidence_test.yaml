@@ -1,0 +1,30 @@
+suite: agent evidence
+templates:
+  - templates/configmap.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: leaves emit_on_run_completion to the agent default when unset
+    asserts:
+      - notMatchRegex:
+          path: data["config.yml"]
+          pattern: "emit_on_run_completion"
+
+  - it: renders emit_on_run_completion false
+    set:
+      agent.agentEvidence.emitOnRunCompletion: false
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "agent_evidence:\n  enabled: false\n  interval: 1h\n  emit_on_run_completion: false\n"
+
+  - it: renders emit_on_run_completion true
+    set:
+      agent.agentEvidence.enabled: true
+      agent.agentEvidence.emitOnRunCompletion: true
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "emit_on_run_completion: true"
