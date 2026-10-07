@@ -143,6 +143,26 @@ agent:
     # interval to send agent execution evidence
     interval: "1h"
   
+  # Remote configuration (the agent's remote_config block). The chart renders only the keys
+  # that are set; with nothing set, no block is rendered and the agent defaults apply: mode
+  # "report" with API credentials, "off" without (no credentials always forces "off").
+  # remote_config can only be set locally (here), never by a remote overlay.
+  remoteConfig:
+    # off | report | apply_safe | apply_all. Quote "off": unquoted YAML off is a boolean.
+    # report sends configuration reports but never fetches; apply_safe and apply_all fetch
+    # the overlay stored in the API and apply it.
+    mode: "" # @schema enum:["","off","report","apply_safe","apply_all"]
+    # How often to poll for a new overlay, a Go duration of at least 15s (agent default 60s).
+    pollInterval: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    # Globs (path.Match) of plugin and policy sources an overlay may introduce as safe changes,
+    # e.g. ghcr.io/compliance-framework/*.
+    trustedSources: [] # @schema item:string
+    # plugins.*.config keys an overlay may change as safe changes: "key", "plugin:key" or "*".
+    overridableConfigFlags: [] # @schema item:string
+    # Allow an overlay to introduce local plugin/policy paths (only with mode apply_all).
+    # null leaves the agent default (false).
+    allowLocalSources: null # @schema type:[boolean, null]
+
   # API configuration
   api:
     # URL of the CCF API server

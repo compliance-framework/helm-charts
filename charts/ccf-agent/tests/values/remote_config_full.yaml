@@ -1,0 +1,11 @@
+agent:
+  remoteConfig:
+    mode: apply_all
+    pollInterval: 2m
+    trustedSources:
+      - ghcr.io/compliance-framework/*
+      - ghcr.io/my-org/*
+    overridableConfigFlags:
+      - schedule_window
+      - github:token
+    allowLocalSources: true

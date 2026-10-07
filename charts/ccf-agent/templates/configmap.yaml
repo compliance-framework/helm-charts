@@ -13,6 +13,10 @@ data:
     agent_evidence:
       enabled: {{ .Values.agent.agentEvidence.enabled | default false }}
       interval: {{ .Values.agent.agentEvidence.interval | default "1h" }}
+    {{- with (include "ccf-agent.remoteConfig" .) }}
+    remote_config:
+      {{- . | nindent 6 }}
+    {{- end }}
     {{- if .Values.agent.plugins }}
     plugins:
       {{- toYaml .Values.agent.plugins | nindent 6 }}
