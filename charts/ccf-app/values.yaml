@@ -319,6 +319,60 @@ api:
         # secretAccessKey: ""
         # sessionToken: ""
 
+  # Agent endpoints and agent instances (remote agent configuration, API side). Unset values
+  # (empty string / null) are not rendered, so the API defaults apply.
+  agents:
+    # true refuses anonymous agent heartbeats, evidence, artifact uploads and playback
+    # (CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS). Turn it on once every agent has a
+    # service-account key. The remote-config agent routes always require an agent token.
+    strictDisablePublicEndpoints: false
+    # An instance is fresh when seen within this window (CCF_AGENT_INSTANCE_STALE_AFTER, API default 10m).
+    instanceStaleAfter: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    # Daemon instances not seen for this long are pruned (CCF_AGENT_INSTANCE_RETENTION, API default 720h).
+    instanceRetention: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    # One-shot (daemon: false) instances not seen for this long are pruned
+    # (CCF_AGENT_INSTANCE_ONESHOT_RETENTION, API default 24h).
+    oneShotInstanceRetention: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    # Schedule the instance prune job; it needs the worker (CCF_AGENT_INSTANCE_PRUNE_ENABLED, API default true).
+    instancePruneEnabled: null # @schema type:[boolean, null]
+    # River cron (6 fields, seconds first) of the prune job; it runs at most hourly
+    # (CCF_AGENT_INSTANCE_PRUNE_SCHEDULE, API default "0 17 * * * *").
+    instancePruneSchedule: ""
+    # Cap of non-prunable instances per agent (CCF_AGENT_MAX_INSTANCES, API default 500).
+    maxInstances: null # @schema type:[integer, null];minimum:1
+
+  # In-process background worker: agent instance pruning, digests, notifications and AI
+  # suggestions need it (CCF_WORKER_ENABLED, API default true).
+  worker:
+    enabled: null # @schema type:[boolean, null]
+
+  # Rego playback (/api/playback). While strictDisablePublicEndpoints is false it is open to
+  # anonymous callers.
+  playback:
+    enabled: null # @schema type:[boolean, null]
+    # Per-evaluation timeout (CCF_PLAYBACK_TIMEOUT, API default 5s).
+    timeout: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    # Request body limit in bytes (CCF_PLAYBACK_MAX_BYTES, API default 2097152).
+    maxBytes: null # @schema type:[integer, null];minimum:1
+    # Concurrent evaluations; more get 429 (CCF_PLAYBACK_MAX_CONCURRENT, API default 4).
+    maxConcurrent: null # @schema type:[integer, null];minimum:1
+
+  # Policy-evaluation artifacts uploaded by agents (stored in PostgreSQL).
+  artifacts:
+    # Size limit of one artifact in bytes (CCF_ARTIFACT_MAX_BYTES, API default 16777216).
+    maxBytes: null # @schema type:[integer, null];minimum:1
+    # Concurrent uploads (CCF_ARTIFACT_MAX_CONCURRENT, API default 8).
+    maxConcurrent: null # @schema type:[integer, null];minimum:1
+
+  # Evidence subjects.
+  evidence:
+    # Agent evidence without a subject: off | warn | enforce (CCF_EVIDENCE_REQUIRE_SUBJECT,
+    # API default off). Any other value stops the API and migrate-db. Quote "off".
+    requireSubject: "" # @schema enum:["","off","warn","enforce"]
+    # Require a subject on manually created evidence (CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT,
+    # API default false).
+    manualRequireSubject: null # @schema type:[boolean, null]
+
   # AI suggestions configuration.
   # Only the API key is sensitive; everything else is plain runtime config injected
   # as CCF_AI_* environment variables. The key follows the same secret management

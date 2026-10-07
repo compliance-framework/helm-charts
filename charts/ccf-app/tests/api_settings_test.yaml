@@ -1,0 +1,130 @@
+suite: API agent, worker, playback, artifact and evidence settings
+templates:
+  - templates/configmap_api.yaml
+values:
+  - values/credentials.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: renders only the strict flag by default
+    asserts:
+      - equal:
+          path: data.CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS
+          value: "false"
+      - notExists:
+          path: data.CCF_AGENT_INSTANCE_STALE_AFTER
+      - notExists:
+          path: data.CCF_AGENT_INSTANCE_RETENTION
+      - notExists:
+          path: data.CCF_AGENT_INSTANCE_ONESHOT_RETENTION
+      - notExists:
+          path: data.CCF_AGENT_INSTANCE_PRUNE_ENABLED
+      - notExists:
+          path: data.CCF_AGENT_INSTANCE_PRUNE_SCHEDULE
+      - notExists:
+          path: data.CCF_AGENT_MAX_INSTANCES
+      - notExists:
+          path: data.CCF_WORKER_ENABLED
+      - notExists:
+          path: data.CCF_PLAYBACK_ENABLED
+      - notExists:
+          path: data.CCF_PLAYBACK_TIMEOUT
+      - notExists:
+          path: data.CCF_PLAYBACK_MAX_BYTES
+      - notExists:
+          path: data.CCF_PLAYBACK_MAX_CONCURRENT
+      - notExists:
+          path: data.CCF_ARTIFACT_MAX_BYTES
+      - notExists:
+          path: data.CCF_ARTIFACT_MAX_CONCURRENT
+      - notExists:
+          path: data.CCF_EVIDENCE_REQUIRE_SUBJECT
+      - notExists:
+          path: data.CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT
+
+  - it: renders every setting when set
+    values:
+      - values/api_settings_full.yaml
+    asserts:
+      - equal:
+          path: data.CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS
+          value: "true"
+      - equal:
+          path: data.CCF_AGENT_INSTANCE_STALE_AFTER
+          value: "15m"
+      - equal:
+          path: data.CCF_AGENT_INSTANCE_RETENTION
+          value: "360h"
+      - equal:
+          path: data.CCF_AGENT_INSTANCE_ONESHOT_RETENTION
+          value: "12h"
+      - equal:
+          path: data.CCF_AGENT_INSTANCE_PRUNE_ENABLED
+          value: "false"
+      - equal:
+          path: data.CCF_AGENT_INSTANCE_PRUNE_SCHEDULE
+          value: "0 30 * * * *"
+      - equal:
+          path: data.CCF_AGENT_MAX_INSTANCES
+          value: "1000"
+      - equal:
+          path: data.CCF_WORKER_ENABLED
+          value: "true"
+      - equal:
+          path: data.CCF_PLAYBACK_ENABLED
+          value: "false"
+      - equal:
+          path: data.CCF_PLAYBACK_TIMEOUT
+          value: "10s"
+      - equal:
+          path: data.CCF_PLAYBACK_MAX_BYTES
+          value: "4194304"
+      - equal:
+          path: data.CCF_PLAYBACK_MAX_CONCURRENT
+          value: "2"
+      - equal:
+          path: data.CCF_ARTIFACT_MAX_BYTES
+          value: "33554432"
+      - equal:
+          path: data.CCF_ARTIFACT_MAX_CONCURRENT
+          value: "16"
+      - equal:
+          path: data.CCF_EVIDENCE_REQUIRE_SUBJECT
+          value: "off"
+      - equal:
+          path: data.CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT
+          value: "true"
+
+  - it: leaves a key that api.extraConfig already sets to extraConfig
+    set:
+      api.worker.enabled: true
+      api.extraConfig:
+        CCF_WORKER_ENABLED: "false"
+        CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS: "true"
+    asserts:
+      - equal:
+          path: data.CCF_WORKER_ENABLED
+          value: "false"
+      - equal:
+          path: data.CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS
+          value: "true"
+
+  - it: rejects an invalid evidence subject mode, which would stop the API
+    set:
+      api.evidence.requireSubject: strict
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects a retention that is not a duration
+    set:
+      api.agents.instanceRetention: "30d"
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects a non-positive instance cap
+    set:
+      api.agents.maxInstances: 0
+    asserts:
+      - failedTemplate: {}

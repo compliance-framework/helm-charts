@@ -219,6 +219,61 @@ Name of the ConfigMap holding the operator cedar policies the chart mounts, or e
 {{- end }}
 
 {{/*
+First-class API settings (agents, worker, playback, artifacts, evidence) as an env map for
+the API ConfigMap. Only set values are included, except
+CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS, which defaults to "false". A key that
+api.extraConfig also sets is left to extraConfig, so existing installs that configured it
+there render unchanged.
+*/}}
+{{- define "ccf-app.apiSettingsEnv" -}}
+{{- $api := .Values.api -}}
+{{- $agents := default (dict) $api.agents -}}
+{{- $worker := default (dict) $api.worker -}}
+{{- $playback := default (dict) $api.playback -}}
+{{- $artifacts := default (dict) $api.artifacts -}}
+{{- $evidence := default (dict) $api.evidence -}}
+{{- $env := dict -}}
+{{- $_ := set $env "CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS" (toString (default false $agents.strictDisablePublicEndpoints)) -}}
+{{- $strings := dict
+  "CCF_AGENT_INSTANCE_STALE_AFTER" $agents.instanceStaleAfter
+  "CCF_AGENT_INSTANCE_RETENTION" $agents.instanceRetention
+  "CCF_AGENT_INSTANCE_ONESHOT_RETENTION" $agents.oneShotInstanceRetention
+  "CCF_AGENT_INSTANCE_PRUNE_SCHEDULE" $agents.instancePruneSchedule
+  "CCF_PLAYBACK_TIMEOUT" $playback.timeout
+  "CCF_EVIDENCE_REQUIRE_SUBJECT" $evidence.requireSubject -}}
+{{- range $key, $val := $strings -}}
+{{- if $val -}}
+{{- $_ := set $env $key (toString $val) -}}
+{{- end -}}
+{{- end -}}
+{{- $bools := dict
+  "CCF_AGENT_INSTANCE_PRUNE_ENABLED" $agents.instancePruneEnabled
+  "CCF_WORKER_ENABLED" $worker.enabled
+  "CCF_PLAYBACK_ENABLED" $playback.enabled
+  "CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT" $evidence.manualRequireSubject -}}
+{{- range $key, $val := $bools -}}
+{{- if not (kindIs "invalid" $val) -}}
+{{- $_ := set $env $key (toString $val) -}}
+{{- end -}}
+{{- end -}}
+{{- $ints := dict
+  "CCF_AGENT_MAX_INSTANCES" $agents.maxInstances
+  "CCF_PLAYBACK_MAX_BYTES" $playback.maxBytes
+  "CCF_PLAYBACK_MAX_CONCURRENT" $playback.maxConcurrent
+  "CCF_ARTIFACT_MAX_BYTES" $artifacts.maxBytes
+  "CCF_ARTIFACT_MAX_CONCURRENT" $artifacts.maxConcurrent -}}
+{{- range $key, $val := $ints -}}
+{{- if not (kindIs "invalid" $val) -}}
+{{- $_ := set $env $key (toString (int64 $val)) -}}
+{{- end -}}
+{{- end -}}
+{{- range $key, $_ := (default (dict) $api.extraConfig) -}}
+{{- $_ := unset $env $key -}}
+{{- end -}}
+{{- toYaml $env -}}
+{{- end }}
+
+{{/*
 Return the base selector labels for a component.
 */}}
 {{- define "ccf-app.componentBaseLabels" -}}
