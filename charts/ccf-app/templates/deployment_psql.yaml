@@ -27,24 +27,38 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "ccf-app.psqlPodSecurityContext" . | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-db
-          {{- with .Values.securityContext }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- include "ccf-app.psqlSecurityContext" . | nindent 12 }}
           image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
           imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
+          # Postgres runs as 999 and must own its data directory. The volume root is owned by
+          # root on many provisioners (fsGroup only makes it group-writable), so the data lives in
+          # a subdirectory that postgres creates itself. Data a chart before 0.9.0 initialised at
+          # the volume root (already owned by 999) is used where it is.
+          command: ["sh", "-c"]
+          args:
+            - |
+              if [ -s "$PGDATA_MOUNT/PG_VERSION" ]; then
+                export PGDATA="$PGDATA_MOUNT"
+              else
+                export PGDATA="$PGDATA_MOUNT/$PGDATA_SUBDIR"
+              fi
+              echo "postgres data directory: $PGDATA"
+              exec docker-entrypoint.sh postgres
           envFrom:
             - configMapRef:
                 name: {{ include "ccf-app.fullname" . }}-psql
             # - secretRef:
             #     name: {{ include "ccf-app.fullname" . }}-psql
           env:
+            - name: PGDATA_MOUNT
+              value: {{ .Values.database.local.persistence.mountPath | quote }}
+            - name: PGDATA_SUBDIR
+              value: {{ .Values.database.local.persistence.pgdataSubdir | default "pgdata" | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -64,7 +78,16 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.database.local.persistence.mountPath }}
               name: postgresdata
+            # postgres writes its socket and lock files here and temp files to /tmp.
+            - mountPath: /var/run/postgresql
+              name: postgres-run
+            - mountPath: /tmp
+              name: tmp
       volumes:
+        - name: postgres-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
         - name: postgresdata
           persistentVolumeClaim:
             claimName: {{ if .Values.database.local.persistence.existingClaim }}{{ .Values.database.local.persistence.existingClaim }}{{ else }}{{ include "ccf-app.fullname" . }}-postgresql{{ end }}

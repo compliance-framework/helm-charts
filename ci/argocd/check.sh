@@ -16,6 +16,8 @@ set -euo pipefail
 
 ARGOCD_VERSION="${ARGOCD_VERSION:-v3.5.4}"
 ESO_VERSION="${ESO_VERSION:-2.11.0}"
+# Every Application namespace enforces this Pod Security level; a rejected pod fails the check.
+PSS_LEVEL="${PSS_LEVEL-restricted}"
 TIMEOUT="${TIMEOUT:-900}"
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 mode="${1:-all}"
@@ -213,6 +215,7 @@ argocd_check() {
   kubectl -n ccf create secret generic ccf-jwt --from-file=private_key.pem="$key"
   kubectl -n ccf create secret generic ccf-admin --from-literal=password="$(openssl rand -hex 16)"
   kubectl -n ccf create secret generic ccf-postgres --from-literal=POSTGRES_PASSWORD="$(openssl rand -hex 16)"
+  kubectl -n ccf create secret generic ccf-dex --from-literal=CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET="$(openssl rand -hex 16)"
   rm -f "$key"
 
   while IFS=: read -r name path values ns; do

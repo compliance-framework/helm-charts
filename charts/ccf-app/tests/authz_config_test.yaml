@@ -159,6 +159,8 @@ tests:
               name: api-authz-config
               subPath: authz-roles.yaml
               readOnly: true
+            - mountPath: /tmp
+              name: tmp
         template: templates/deployment_api.yaml
       - equal:
           path: spec.template.spec.initContainers[?(@.name == "migrate-db")].volumeMounts
@@ -167,6 +169,8 @@ tests:
               name: api-authz-config
               subPath: authz-roles.yaml
               readOnly: true
+            - mountPath: /tmp
+              name: tmp
         template: templates/deployment_api.yaml
       - contains:
           path: spec.template.spec.initContainers[?(@.name == "create-user")].volumeMounts
@@ -182,6 +186,8 @@ tests:
             - name: api-authz-config
               configMap:
                 name: ccf-app-api-authz
+            - name: tmp
+              emptyDir: {}
         template: templates/deployment_api.yaml
       - equal:
           path: data["CCF_AUTHZ_ROLE_ASSIGNMENTS"]

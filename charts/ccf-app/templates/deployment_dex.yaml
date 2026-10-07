@@ -30,18 +30,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
-      {{- $podSecurityContext := coalesce .Values.dex.podSecurityContext .Values.podSecurityContext }}
-      {{- if $podSecurityContext }}
       securityContext:
-        {{- toYaml $podSecurityContext | nindent 8 }}
-      {{- end }}
+        {{- include "ccf-app.dexPodSecurityContext" . | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-dex
-          {{- $containerSecurityContext := coalesce .Values.dex.securityContext .Values.securityContext }}
-          {{- if $containerSecurityContext }}
           securityContext:
-            {{- toYaml $containerSecurityContext | nindent 12 }}
-          {{- end }}
+            {{- include "ccf-app.dexSecurityContext" . | nindent 12 }}
           image: "{{ .Values.dex.image.repository }}:{{ .Values.dex.image.tag }}"
           imagePullPolicy: {{ .Values.dex.image.pullPolicy }}
           command:
@@ -72,7 +66,11 @@ spec:
               name: dex-config
               subPath: config.yaml
               readOnly: true
+            - mountPath: /tmp
+              name: tmp
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: dex-config
           {{- if .Values.dex.config.existingSecret }}
           secret:

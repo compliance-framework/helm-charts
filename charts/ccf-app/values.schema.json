@@ -303,6 +303,9 @@
                                         },
                                         "name": {
                                             "type": "string"
+                                        },
+                                        "securityContext": {
+                                            "type": "object"
                                         }
                                     }
                                 }
@@ -779,6 +782,9 @@
                                 "path": {
                                     "type": "string"
                                 },
+                                "pgdataSubdir": {
+                                    "type": "string"
+                                },
                                 "reclaimPolicy": {
                                     "type": "string"
                                 },
@@ -793,7 +799,13 @@
                                 }
                             }
                         },
+                        "podSecurityContext": {
+                            "type": "object"
+                        },
                         "resources": {
+                            "type": "object"
+                        },
+                        "securityContext": {
                             "type": "object"
                         },
                         "username": {
@@ -1585,6 +1597,9 @@
                             }
                         }
                     }
+                },
+                "nginxConfig": {
+                    "type": "string"
                 },
                 "podAnnotations": {
                     "type": "object"

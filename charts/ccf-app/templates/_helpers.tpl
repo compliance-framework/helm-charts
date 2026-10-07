@@ -132,13 +132,13 @@ existingPublicKey: {{ default "public_key.pem" $jwtExistingSecretValues.publicKe
 publicGenerationEnabled: {{ $jwtPublicGenerationEnabled }}
 fileMountsEnabled: {{ $jwtFileMountsEnabled }}
 generationContainerName: {{ default "generate-public-key" $jwtGenerationInitContainerValues.name | quote }}
-generationImageRepository: {{ default "alpine" $jwtGenerationImageValues.repository | quote }}
-generationImageTag: {{ default "3.21" $jwtGenerationImageValues.tag | quote }}
+generationImageRepository: {{ default "alpine/openssl" $jwtGenerationImageValues.repository | quote }}
+generationImageTag: {{ default "3.5.9" $jwtGenerationImageValues.tag | quote }}
 generationImagePullPolicy: {{ default "IfNotPresent" $jwtGenerationImageValues.pullPolicy | quote }}
 generationCommand:
-{{- toYaml (default (list "sh" "-c") $jwtGenerationInitContainerValues.command) | nindent 2 }}
+{{- toYaml (default (list "openssl") $jwtGenerationInitContainerValues.command) | nindent 2 }}
 generationArgs:
-{{- toYaml (default (list "apk add --no-cache openssl && echo \"Generating public key from private key...\" && openssl rsa -in /var/ccf/private_key/private_key.pem -pubout -out /var/ccf/public_key/public_key.pem") $jwtGenerationInitContainerValues.args) | nindent 2 }}
+{{- toYaml (default (list "rsa" "-in" "/var/ccf/private_key/private_key.pem" "-pubout" "-out" "/var/ccf/public_key/public_key.pem") $jwtGenerationInitContainerValues.args) | nindent 2 }}
 {{- end -}}
 
 {{/*
@@ -177,6 +177,15 @@ The JWT and initial-user secrets are left out: they are generated, and a fresh v
 {{- end -}}
 {{- end -}}
 {{- toYaml $out -}}
+{{- end }}
+
+{{/*
+Writable /tmp for containers that run /api with a read-only root filesystem (JWT bootstrap
+lock file, multipart uploads over 32 MiB).
+*/}}
+{{- define "ccf-app.apiTmpVolumeMount" -}}
+- mountPath: /tmp
+  name: tmp
 {{- end }}
 
 {{/*

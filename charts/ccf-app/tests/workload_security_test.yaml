@@ -1,0 +1,226 @@
+suite: UI, Dex, PostgreSQL and pgAdmin hardening
+templates:
+  - templates/deployment_ui.yaml
+  - templates/deployment_dex.yaml
+  - templates/deployment_psql.yaml
+  - templates/deployment_pgadmin4.yaml
+  - templates/configmap_ui.yaml
+  - templates/configmap_ui_nginx.yaml
+  - templates/configmap_dex.yaml
+  - templates/secrets_dex.yaml
+values:
+  - values/credentials.yaml
+set:
+  webBaseUrl: https://ccf.example.com
+  dex.enabled: true
+  pgadmin4.enabled: true
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: runs the UI as the nginx user with a read-only root filesystem
+    template: templates/deployment_ui.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            fsGroup: 101
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: nginx-cache
+            mountPath: /var/cache/nginx
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: nginx-run
+            mountPath: /run
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: nginx-cache
+            emptyDir: {}
+
+  - it: runs Dex as its image user with a read-only root filesystem
+    template: templates/deployment_dex.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1001
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /tmp
+            name: tmp
+
+  - it: runs PostgreSQL as the postgres user with writable data and run directories
+    template: templates/deployment_psql.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 999
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 999
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /var/run/postgresql
+            name: postgres-run
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /tmp
+            name: tmp
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /var/lib/postgresql/data
+            name: postgresdata
+
+  - it: runs PostgreSQL without any root container, on a fsGroup-writable volume
+    template: templates/deployment_psql.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.securityContext.fsGroupChangePolicy
+          value: OnRootMismatch
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGDATA_SUBDIR
+            value: pgdata
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'export PGDATA="\$PGDATA_MOUNT/\$PGDATA_SUBDIR"'
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'exec docker-entrypoint.sh postgres'
+
+  - it: serves the UI on an unprivileged port with the chart's nginx config
+    template: templates/deployment_ui.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: nginx-config
+            mountPath: /etc/nginx/conf.d/default.conf
+            subPath: default.conf
+            readOnly: true
+      - notExists:
+          path: spec.template.spec.securityContext.sysctls
+
+  - it: runs pgAdmin as its image user on an unprivileged port with a read-only root filesystem
+    template: templates/deployment_pgadmin4.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 5050
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGADMIN_LISTEN_PORT
+            value: "8080"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGADMIN_CUSTOM_CONFIG_DISTRO_FILE
+            value: /var/lib/pgadmin/config_distro.py
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: pgadmin-run
+            mountPath: /run/pgadmin
+
+  - it: lets each component override its security contexts
+    set:
+      ui.podSecurityContext: {runAsUser: 2001}
+      ui.securityContext: {readOnlyRootFilesystem: false}
+      dex.podSecurityContext: {runAsUser: 2002}
+      database.local.podSecurityContext: {runAsUser: 2003}
+      database.local.securityContext: {readOnlyRootFilesystem: false}
+      pgadmin4.podSecurityContext: {runAsUser: 2004}
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value: {runAsUser: 2001}
+        template: templates/deployment_ui.yaml
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value: {readOnlyRootFilesystem: false}
+        template: templates/deployment_ui.yaml
+      - equal:
+          path: spec.template.spec.securityContext
+          value: {runAsUser: 2002}
+        template: templates/deployment_dex.yaml
+      - equal:
+          path: spec.template.spec.securityContext
+          value: {runAsUser: 2003}
+        template: templates/deployment_psql.yaml
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value: {readOnlyRootFilesystem: false}
+        template: templates/deployment_psql.yaml
+      - equal:
+          path: spec.template.spec.securityContext
+          value: {runAsUser: 2004}
+        template: templates/deployment_pgadmin4.yaml
+
+  - it: keeps the global security contexts working for every component
+    set:
+      podSecurityContext: {fsGroup: 3000}
+      securityContext: {runAsUser: 3000}
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value: {fsGroup: 3000}
+        template: templates/deployment_psql.yaml
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value: {runAsUser: 3000}
+        template: templates/deployment_pgadmin4.yaml
+      - equal:
+          path: spec.template.spec.securityContext
+          value: {fsGroup: 3000}
+        template: templates/deployment_ui.yaml

@@ -1,0 +1,13 @@
+# Every optional workload on, for the Pod Security "restricted" checks.
+webBaseUrl: https://ccf.example.com
+dex:
+  enabled: true
+pgadmin4:
+  enabled: true
+  pgadmin4_default_password: test
+api:
+  agentBootstrap:
+    enabled: true
+    agents:
+      - name: ccf-agent
+        secretName: ccf-agent-credentials

@@ -5,3 +5,11 @@ agent:
   daemon: true
   api:
     url: http://ccf-ccf-api.ccf.svc:8080
+# Pod Security "restricted" also needs seccompProfile, which the ccf-agent chart sets by default
+# from 0.4.0; set here so the check also covers older agent charts.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
