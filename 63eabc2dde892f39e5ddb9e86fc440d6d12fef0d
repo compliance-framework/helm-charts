@@ -1,0 +1,2 @@
+lisa-design:
+- SUPERSEDES "no lookup, fail-closed" (chart owner, 2026-10-07): main's generated credentials are restored as the DEPRECATED default so a plain install/unchanged upgrade works as on main. Precedence: existingSecret > externalSecret > value > devSecrets.seed > generated. lookup/randAlphaNum/genPrivateKey live only in ccf-app.deprecated.* defines in _deprecated_generated.tpl (CI enforces). The JWT key has no lookup (as on main). Rendering fails only when generation is turned off without a source. NOTES print one consolidated DEPRECATED notice.
