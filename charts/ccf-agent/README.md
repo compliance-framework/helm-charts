@@ -39,11 +39,14 @@ helm install ccf-agent ./ccf-agent \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `replicaCount` | Number of agent replicas | `1` |
+| `strategy` | Deployment update strategy | `{type: Recreate}` |
+| `terminationGracePeriodSeconds` | Seconds to wait after SIGTERM (the agent takes up to 30s to stop) | `45` |
 | `image.repository` | Agent image repository | `ghcr.io/compliance-framework/agent` |
 | `image.tag` | Agent image tag | `""` (uses appVersion) |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `agent.hostname` | Agent hostname for identification | `""` (uses pod name) |
-| `agent.daemon` | Run agent in daemon mode | `false` |
+| `agent.daemon` | Run agent in daemon mode | `true` |
+| `agent.instanceId` | Fixed agent instance ID (`CCF_INSTANCE_ID`, a UUID); the chart never generates one | `""` |
 | `agent.verbosity` | Logging verbosity (0-3) | `0` |
 | `agent.agentEvidence.enabled` | Enable agent evidence reporting | `false` |
 | `agent.agentEvidence.interval` | Evidence reporting interval | `1h` |
@@ -55,6 +58,16 @@ helm install ccf-agent ./ccf-agent \
 | `agent.api.auth.clientId.secretKeyRef` | Key in `existingSecret` holding the client ID | `""` (`CCF_API_AUTH_CLIENT_ID`) |
 | `agent.api.auth.clientSecret.value` | Client secret value | `""` |
 | `agent.api.auth.clientSecret.secretKeyRef` | Key in `existingSecret` holding the client secret | `""` (`CCF_API_AUTH_CLIENT_SECRET`) |
+
+### Agent State
+
+The chart sets `CCF_STATE_DIR=/app/.compliance-framework/state/agent`, on the `emptyDir` mounted at
+`/app/.compliance-framework`. The agent keeps its instance ID and its remote-configuration cache there. The state
+survives container restarts, but not a new pod: each new pod (an upgrade, a rescheduled pod, a values change that
+rolls the Deployment) registers as a new agent instance in the API. The API prunes stale instances after its retention
+period. Set `agent.instanceId` to pin the ID instead; never share one ID between replicas.
+
+The Deployment uses the `Recreate` strategy, so the old pod stops before the new one starts.
 
 ### Plugin Configuration
 

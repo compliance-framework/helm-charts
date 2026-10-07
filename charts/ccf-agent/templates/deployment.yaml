@@ -1,4 +1,5 @@
 {{- include "ccf-agent.validateAuthConfig" . }}
+{{- include "ccf-agent.validateInstanceId" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,6 +9,15 @@ metadata:
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+    {{- if and (eq (toString .type) "Recreate") (not (hasKey . "rollingUpdate")) }}
+    {{- /* Clears the rollingUpdate block the API server defaulted while the Deployment was
+    RollingUpdate, so an upgrade from an older chart can switch to Recreate. */}}
+    rollingUpdate: null
+    {{- end }}
   {{- end }}
   selector:
     matchLabels:
@@ -50,6 +60,12 @@ spec:
         env:
           - name: HOSTNAME
             value: {{ include "ccf-agent.hostname" . | quote }}
+          - name: CCF_STATE_DIR
+            value: {{ include "ccf-agent.stateDir" . | quote }}
+          {{- with .Values.agent.instanceId }}
+          - name: CCF_INSTANCE_ID
+            value: {{ . | quote }}
+          {{- end }}
           {{- with (include "ccf-agent.authEnv" .) }}
           {{- . | nindent 10 }}
           {{- end }}
@@ -113,4 +129,5 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       restartPolicy: {{ .Values.restartPolicy }}

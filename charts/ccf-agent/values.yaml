@@ -2,8 +2,18 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Number of agent replicas
+# Number of agent replicas. Every replica runs the same config (and key), so replicas
+# write the same evidence streams and each one runs every plugin.
 replicaCount: 1
+
+# Deployment update strategy. Recreate stops the old pod before the new one starts, so two
+# pods of one release never run plugins side by side during a rollout.
+strategy:
+  type: Recreate # @schema enum:[Recreate, RollingUpdate]
+
+# Seconds Kubernetes waits after SIGTERM before killing the pod. The agent takes up to 30s
+# to stop its schedules and plugins on SIGTERM, so keep this above 30.
+terminationGracePeriodSeconds: 45 # @schema type:integer;minimum:0
 
 image:
   repository: ghcr.io/compliance-framework/agent
@@ -29,10 +39,15 @@ serviceAccount:
 podAnnotations: {}
 podLabels: {}
 
+# Defaults meet Pod Security "restricted": non-root numeric user, seccomp RuntimeDefault, no
+# privilege escalation, all capabilities dropped, read-only root filesystem (the agent writes to
+# the /tmp and /app/.compliance-framework emptyDirs). For agent-custodian, use uid/gid 1001.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -42,6 +57,8 @@ securityContext:
   capabilities:
     drop:
     - ALL
+  seccompProfile:
+    type: RuntimeDefault
 
 resources:
   limits:
@@ -105,8 +122,16 @@ agent:
   # Hostname for the agent (used for identification in the API)
   hostname: ""
   
-  # Agent daemon mode - set to true to run continuously
-  daemon: false
+  # Agent daemon mode. true runs the plugins on their schedules continuously. false runs
+  # every plugin once and exits, and the pod then restarts (restartPolicy Always), so each
+  # run registers as a new one-shot agent instance in the API.
+  daemon: true
+
+  # Optional fixed agent instance ID (CCF_INSTANCE_ID), a UUID. Unset by default: the agent
+  # generates one and keeps it in its state directory (CCF_STATE_DIR, pinned by the chart to
+  # /app/.compliance-framework/state/agent on an emptyDir), so each new pod is a new instance.
+  # The chart never generates one. Do not share one ID between replicas.
+  instanceId: "" # @schema pattern:^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
   
   # Verbosity level (0-3)
   verbosity: 0

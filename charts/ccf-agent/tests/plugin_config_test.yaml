@@ -71,13 +71,20 @@ tests:
           pattern: "github_repos:"
         template: templates/configmap.yaml
 
-  - it: sets agent daemon mode
-    set:
-      agent.daemon: true
+  - it: runs the agent in daemon mode by default
     asserts:
       - matchRegex:
           path: data["config.yml"]
           pattern: "daemon: true"
+        template: templates/configmap.yaml
+
+  - it: can turn daemon mode off
+    set:
+      agent.daemon: false
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: "daemon: false"
         template: templates/configmap.yaml
 
   - it: sets agent verbosity

@@ -1,0 +1,40 @@
+suite: Pod Security "restricted"
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: the agent pod meets restricted by default
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.securityContext.seccompProfile.type
+          value: RuntimeDefault
+      - notExists:
+          path: spec.template.spec.securityContext.sysctls
+      - notExists:
+          path: spec.template.spec.hostNetwork
+      - notExists:
+          path: spec.template.spec.volumes[?(@.hostPath)]
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: [ALL]
+      - notExists:
+          path: spec.template.spec.containers[0].securityContext.capabilities.add
+      - notExists:
+          path: spec.template.spec.containers[0].securityContext.privileged
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true

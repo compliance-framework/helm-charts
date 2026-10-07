@@ -1,0 +1,117 @@
+suite: agent state and lifecycle
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+release:
+  name: ccf-agent
+  namespace: default
+
+tests:
+  - it: pins CCF_STATE_DIR on the ccf-tmp emptyDir and sets no instance ID by default
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_STATE_DIR
+            value: /app/.compliance-framework/state/agent
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name == "CCF_INSTANCE_ID")]
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: ccf-tmp
+            mountPath: /app/.compliance-framework
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: ccf-tmp
+            emptyDir: {}
+
+  - it: never renders a PersistentVolumeClaim volume
+    template: templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.volumes[?(@.persistentVolumeClaim)]
+
+  - it: sets CCF_INSTANCE_ID when agent.instanceId is set
+    template: templates/deployment.yaml
+    set:
+      agent.instanceId: "0b8f6a52-4a8e-4a35-9f53-1f0d2b6c7e21"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CCF_INSTANCE_ID
+            value: "0b8f6a52-4a8e-4a35-9f53-1f0d2b6c7e21"
+
+  - it: rejects an instance ID that is not a UUID
+    template: templates/deployment.yaml
+    set:
+      agent.instanceId: "agent-1"
+    asserts:
+      - failedTemplate: {}
+
+  - it: uses the Recreate strategy by default and clears rollingUpdate
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - exists:
+          path: spec.strategy.rollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate
+          value: null
+
+  - it: allows overriding the strategy
+    template: templates/deployment.yaml
+    set:
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 1
+          maxSurge: 0
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: 1
+              maxSurge: 0
+
+  - it: rejects an unknown strategy type
+    template: templates/deployment.yaml
+    set:
+      strategy.type: Rolling
+    asserts:
+      - failedTemplate: {}
+
+  - it: sets a 45s termination grace period by default
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 45
+
+  - it: allows overriding the termination grace period
+    template: templates/deployment.yaml
+    set:
+      terminationGracePeriodSeconds: 90
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 90
+
+  - it: keeps HPA and replicaCount working with Recreate
+    template: templates/deployment.yaml
+    set:
+      replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
