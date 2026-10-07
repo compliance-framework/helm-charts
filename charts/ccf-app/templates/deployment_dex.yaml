@@ -17,7 +17,7 @@ spec:
       {{- if not .Values.dex.config.existingSecret }}
       {{- $_ := set $podAnnotations "checksum/config" (include (print $.Template.BasePath "/configmap_dex.yaml") . | sha256sum) }}
       {{- end }}
-      {{- if has (include "ccf-app.dexClientSecretSource" .) (list "value" "seed") }}
+      {{- if has (include "ccf-app.dexClientSecretSource" .) (list "value" "seed" "generated") }}
       {{- $_ := set $podAnnotations "checksum/secret" (include (print $.Template.BasePath "/secrets_dex.yaml") . | sha256sum) }}
       {{- end }}
       annotations:

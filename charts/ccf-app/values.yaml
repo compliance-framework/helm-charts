@@ -18,10 +18,12 @@ fullnameOverride: ""
 # Web Base URL - Use it to configure default networking configuration for ccf
 webBaseUrl: ""
 
-# Credentials. The chart never generates or looks up secrets at render time (both break
-# `helm template` / Argo CD), so every credential needs a source: an existingSecret, an
-# External Secrets Operator ExternalSecret, an explicit value, or (development only) the seed
-# below. Rendering fails, naming the missing values, when one has none.
+# Credentials. Each one comes from, highest first: an existingSecret, an External Secrets
+# Operator ExternalSecret, an explicit value, the development seed below, or (the DEPRECATED
+# default, as before 0.9.0) a value the chart generates with lookup + random (a new JWT key on
+# every render). The generated default is not GitOps-safe: under helm template / Argo CD lookup
+# returns nothing, so the values change on every sync. NOTES print a DEPRECATED notice for each
+# generated credential. See the README, section Credentials.
 devSecrets:
   # DEVELOPMENT ONLY. When set, the Postgres password, the initial user's password and the Dex
   # client secret default to values derived from this seed (sha256 of purpose + seed). They stay
@@ -117,20 +119,21 @@ api:
     tag: "0.17.1"
   # JWT signing key management for the API.
   jwt:
-    # Required. Where the API's JWT signing key comes from:
+    # Where the API's JWT signing key comes from:
+    # generated:      DEPRECATED, the default (as before 0.9.0). The chart creates
+    #                 <fullname>-jwt-private-key with a new key on every render (no lookup): every
+    #                 helm upgrade and every GitOps sync rotates it, logging everyone out and
+    #                 invalidating agent tokens. Will be removed; migrate to existingSecret (the
+    #                 README copy recipe keeps the current key) or externalSecret.
     # existingSecret: an existing Secret (api.jwt.existingSecret). With publicKey empty, the
     #                 public key is derived from the private key by the init container below.
     # externalSecret: External Secrets Operator creates <fullname>-jwt-private-key once (an RSA
     #                 key made by the ESO template function genPrivateKey); the public key is
-    #                 derived by the init container below.
+    #                 derived by the init container below. Fresh installs only.
     # inMemory:       DEVELOPMENT ONLY. The API generates a key at every start (sessions and agent
     #                 tokens end on every restart; one replica only).
-    # generated:      DEPRECATED, will be removed. The chart creates <fullname>-jwt-private-key
-    #                 with a new key on every render (no lookup): every helm upgrade and every
-    #                 GitOps sync rotates it, logging everyone out and invalidating agent tokens.
-    #                 Migrate to existingSecret (README upgrade notes keep the current key) or
-    #                 externalSecret. It was the default before chart 0.9.0; it no longer is.
-    source: "" # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
+    # An empty value fails rendering.
+    source: generated # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
     existingSecret:
       name: ""
       privateKey: private_key.pem
@@ -166,8 +169,9 @@ api:
       path: /api/auth/publickey
       port: http
   corsOrigins: [] # @schema item:string
-  # Initial admin user, created by the create-user init container. Its password needs a
-  # source: existingSecret, externalSecret, password, or devSecrets.seed (development only).
+  # Initial admin user, created by the create-user init container. Its password comes from
+  # existingSecret, externalSecret, password, devSecrets.seed, or (DEPRECATED default) lookup +
+  # random into <fullname>-initial-user-password.
   user:
     username: admin@localhost
     email: admin@localhost
@@ -419,8 +423,8 @@ dex:
     id: ccf-ui
     name: CCF UI
     redirectUris: [] # @schema item:string
-  # Dex static client secret. Needs a source when dex is enabled: existingSecret (with
-  # createSecret: false), externalSecret, value, or devSecrets.seed (development only).
+  # Dex static client secret: existingSecret (with createSecret: false), externalSecret, value,
+  # devSecrets.seed, or (DEPRECATED default with createSecret: true) lookup + random.
   clientSecret:
     value: ""
     createSecret: true
@@ -464,9 +468,10 @@ dex:
 database:
   local:
     enabled: true
-    # The Postgres password needs a source: existingSecret (with createSecret: false; key
-    # POSTGRES_PASSWORD), externalSecret, password (with createSecret: true), or
-    # devSecrets.seed (development only, with createSecret: true).
+    # The Postgres password: existingSecret (with createSecret: false; key POSTGRES_PASSWORD),
+    # externalSecret, password (with createSecret: true), devSecrets.seed, or (DEPRECATED default
+    # with createSecret: true and nothing else) lookup + random into <fullname>-psql.
+    # createSecret: false without existingSecret/externalSecret fails rendering.
     createSecret: true
     existingSecret: ""
     username: ccf

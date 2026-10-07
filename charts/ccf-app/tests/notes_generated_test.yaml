@@ -1,25 +1,41 @@
-suite: NOTES for the deprecated generated JWT mode
+suite: NOTES for the deprecated generated credentials
 templates:
   - templates/NOTES.txt
-values:
-  - values/credentials.yaml
 release:
   name: ccf-app
   namespace: default
 
 tests:
-  - it: prints a deprecation notice when api.jwt.source is generated
-    set:
-      api.jwt.source: generated
+  - it: a default install prints one consolidated DEPRECATED notice
     asserts:
       - matchRegexRaw:
-          pattern: "DEPRECATED: api.jwt.source=generated"
+          pattern: "DEPRECATED: generated credentials \\(JWT signing key, PostgreSQL password, initial admin user password\\)"
       - matchRegexRaw:
-          pattern: "rotates on every helm upgrade and every GitOps"
+          pattern: "not\\s+GitOps-safe"
       - matchRegexRaw:
           pattern: "will be removed in a future release"
+      - matchRegexRaw:
+          pattern: "existingSecret \\(the README\\s+copy recipe keeps the current values\\)"
 
-  - it: prints no deprecation notice for the other sources
+  - it: lists the Dex client secret when Dex uses the generated path
+    set:
+      webBaseUrl: https://ccf.example.com
+      dex.enabled: true
+    asserts:
+      - matchRegexRaw:
+          pattern: "initial admin user password, Dex client secret\\)"
+
+  - it: prints no notice when every credential has an explicit source
+    values:
+      - values/credentials.yaml
     asserts:
       - notMatchRegexRaw:
           pattern: "DEPRECATED"
+
+  - it: names only the credentials that still use the generated path
+    set:
+      api.jwt.source: inMemory
+      api.user.password: explicit
+    asserts:
+      - matchRegexRaw:
+          pattern: "DEPRECATED: generated credentials \\(PostgreSQL password\\)"

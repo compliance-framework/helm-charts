@@ -42,42 +42,57 @@ render_check() {
     fi
     log "ok: $chart with $values renders identically twice"
   done
-  if grep -rnE '\blookup[[:space:]]+"' "$root/charts" --include='*.yaml' --include='*.tpl'; then
-    log "FAIL: the charts call lookup, which returns nothing under Argo CD"
-    exit 1
-  fi
-  log "ok: no lookup in the charts"
-  # Render-time random or generated values change on every Argo CD render. The only allowed uses:
-  # - the DEPRECATED api.jwt.source=generated branch in secrets_api.yaml (explicit opt-in, never in
-  #   these values sets: it is non-deterministic by design);
-  # - the genPrivateKey string in externalsecrets.yaml, an ESO template literal that Helm does not
-  #   evaluate.
-  local hits f
+  # lookup returns nothing under Argo CD, and render-time random values change on every render.
+  # The only allowed uses are the DEPRECATED generated-credential helpers (the chart's pre-0.9.0
+  # default, kept for compatibility, never used by these values sets) in
+  # charts/ccf-app/templates/_deprecated_generated.tpl, each inside a ccf-app.deprecated.* define,
+  # and the genPrivateKey string in externalsecrets.yaml, an ESO template literal Helm does not
+  # evaluate.
+  local hits f allowed="charts/ccf-app/templates/_deprecated_generated.tpl"
   hits="$(for f in "$root"/charts/*/templates/*.yaml "$root"/charts/*/templates/*.tpl "$root"/charts/*/templates/*/*.yaml; do
       [ -f "$f" ] || continue
+      [ "${f#"$root"/}" = "$allowed" ] && continue
       # template comments ({{/* ... */}}) are not rendered
       perl -0pe 's/\{\{-?\s*\/\*.*?\*\/\s*-?\}\}//gs' "$f" \
-        | grep -E '\b(genPrivateKey|genCA|genSelfSignedCert|genSignedCert|randAlphaNum|randAlpha|randNumeric|randAscii|randBytes|randInt|uuidv4|now)\b' \
+        | grep -E '\blookup[[:space:]]+"|\b(genPrivateKey|genCA|genSelfSignedCert|genSignedCert|randAlphaNum|randAlpha|randNumeric|randAscii|randBytes|randInt|uuidv4|now)\b' \
         | sed "s|^|${f#"$root"/}: |"
     done \
-    | grep -vE '^charts/ccf-app/templates/externalsecrets\.yaml: .*"\{\{ genPrivateKey' \
-    | grep -vE '^charts/ccf-app/templates/secrets_api\.yaml:   private_key\.pem: \{\{ genPrivateKey "rsa" \| b64enc \}\}$' || true)"
+    | grep -vE '^charts/ccf-app/templates/externalsecrets\.yaml: .*"\{\{ genPrivateKey' || true)"
   if [ -n "$hits" ]; then
-    log "FAIL: render-time random or generated values outside the allowed deprecated path:"
+    log "FAIL: lookup or render-time random values outside the deprecated generated helpers:"
     echo "$hits" >&2
     exit 1
   fi
-  if ! awk '/if and .Values.api.enabled \(eq \(toString .Values.api.jwt.source\) "generated"\)/{g=1} g && /genPrivateKey/{found=1} /\{\{- end \}\}/{g=0} END{exit !found}' \
-      "$root/charts/ccf-app/templates/secrets_api.yaml"; then
-    log "FAIL: genPrivateKey in secrets_api.yaml must stay inside the api.jwt.source=generated branch"
+  # Inside the allowed file, every such call must sit in a ccf-app.deprecated.* define.
+  if ! perl -0ne '
+      s/\{\{-?\s*\/\*.*?\*\/\s*-?\}\}//gs;
+      my @blocks = split /(?=\{\{-?\s*define\s)/;
+      for my $b (@blocks) {
+        next unless $b =~ /\blookup\s+"|\b(genPrivateKey|rand[A-Za-z]+)\b/;
+        exit 1 unless $b =~ /^\{\{-?\s*define\s+"ccf-app\.deprecated\./;
+      }' "$root/$allowed"; then
+    log "FAIL: lookup/random in $allowed outside a ccf-app.deprecated.* define"
     exit 1
   fi
-  log "ok: no render-time random values except the deprecated, explicitly selected api.jwt.source=generated"
-  if grep -rnE 'source:[[:space:]]*"?generated' "$root/ci/argocd"/*.yaml "$root/ci/argocd/render"/*.yaml; then
-    log "FAIL: a values set of this check selects api.jwt.source=generated, which is non-deterministic by design"
+  log "ok: lookup and random values only in the deprecated generated helpers"
+
+  # The default values use those helpers: two default renders must differ only in their values.
+  helm template ccf "$root/charts/ccf-app" --namespace ccf > "$out1"
+  helm template ccf "$root/charts/ccf-app" --namespace ccf > "$out2"
+  local unexpected
+  unexpected="$(diff "$out1" "$out2" | grep -E '^[<>]' \
+    | grep -vE '^[<>]   (private_key\.pem|POSTGRES_PASSWORD|password): ' || true)"
+  if [ -n "$unexpected" ]; then
+    log "FAIL: default renders differ outside the deprecated generated credentials:"
+    echo "$unexpected" | head -20 >&2
     exit 1
   fi
+  log "ok: default renders differ only in the deprecated generated credentials"
   rm -f "$out1" "$out2"
+  if grep -rnE 'source:[[:space:]]*"?generated' "$root/ci/argocd"/*.yaml "$root/ci/argocd/render"/*.yaml; then
+    log "FAIL: a values set of this check selects the deprecated api.jwt.source=generated, which is non-deterministic"
+    exit 1
+  fi
 }
 
 wait_for() { # wait_for <description> <command...>
