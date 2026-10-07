@@ -5,6 +5,7 @@ templates:
   - templates/deployment_psql.yaml
   - templates/deployment_pgadmin4.yaml
   - templates/configmap_ui.yaml
+  - templates/configmap_ui_nginx.yaml
   - templates/configmap_dex.yaml
   - templates/secrets_dex.yaml
 values:
@@ -30,9 +31,6 @@ tests:
             fsGroup: 101
             seccompProfile:
               type: RuntimeDefault
-            sysctls:
-              - name: net.ipv4.ip_unprivileged_port_start
-                value: "0"
       - equal:
           path: spec.template.spec.containers[0].securityContext
           value:
@@ -111,39 +109,41 @@ tests:
             mountPath: /var/lib/postgresql/data
             name: postgresdata
 
-  - it: chowns the PostgreSQL volume with a minimal root init container
+  - it: runs PostgreSQL without any root container, on a fsGroup-writable volume
     template: templates/deployment_psql.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.initContainers[0].name
-          value: volume-permissions
-      - equal:
-          path: spec.template.spec.initContainers[0].securityContext
-          value:
-            runAsNonRoot: false
-            runAsUser: 0
-            runAsGroup: 0
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-              add:
-                - CHOWN
-                - FOWNER
-            seccompProfile:
-              type: RuntimeDefault
-      - equal:
-          path: spec.template.spec.initContainers[0].args[0]
-          value: chown 999:999 "$PGDATA_MOUNT" && chmod 0700 "$PGDATA_MOUNT"
-
-  - it: drops the root init container when volumePermissions is disabled
-    template: templates/deployment_psql.yaml
-    set:
-      database.local.volumePermissions.enabled: false
     asserts:
       - notExists:
           path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.securityContext.fsGroupChangePolicy
+          value: OnRootMismatch
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGDATA_SUBDIR
+            value: pgdata
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'export PGDATA="\$PGDATA_MOUNT/\$PGDATA_SUBDIR"'
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'exec docker-entrypoint.sh postgres'
+
+  - it: serves the UI on an unprivileged port with the chart's nginx config
+    template: templates/deployment_ui.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: nginx-config
+            mountPath: /etc/nginx/conf.d/default.conf
+            subPath: default.conf
+            readOnly: true
+      - notExists:
+          path: spec.template.spec.securityContext.sysctls
 
   - it: runs pgAdmin as its image user on an unprivileged port with a read-only root filesystem
     template: templates/deployment_pgadmin4.yaml

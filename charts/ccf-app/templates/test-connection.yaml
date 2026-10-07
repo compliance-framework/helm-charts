@@ -8,10 +8,15 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
+  automountServiceAccountToken: false
+  securityContext:
+    {{- include "ccf-app.testPodSecurityContext" . | nindent 4 }}
   containers:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "ccf-app.fullname" . }}-ui:{{ .Values.ui.service.port }}']
+      args: ['-O', '/dev/null', '{{ include "ccf-app.fullname" . }}-ui:{{ .Values.ui.service.port }}/config.json']
+      securityContext:
+        {{- include "ccf-app.hardenedContainerDefaults" . | nindent 8 }}
   restartPolicy: Never
 {{- end }}

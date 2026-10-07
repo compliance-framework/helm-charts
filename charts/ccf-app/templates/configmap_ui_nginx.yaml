@@ -1,0 +1,51 @@
+{{- if .Values.ui.enabled }}
+{{- /*
+The UI image's own server block (ui deployment/nginx.conf) listens on port 80, which needs root
+or a sysctl. This one is the same configuration on ui.containerPort (8080 by default), mounted
+over /etc/nginx/conf.d/default.conf. ui.nginxConfig replaces it entirely.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ccf-app.fullname" . }}-ui-nginx
+  labels:
+    {{- include "ccf-app.componentMetadataLabels" (dict "root" . "name" "ui" "component" .Values.ui) | nindent 4 }}
+data:
+  default.conf: |
+    {{- if .Values.ui.nginxConfig }}
+    {{- .Values.ui.nginxConfig | nindent 4 }}
+    {{- else }}
+    server {
+        listen       {{ .Values.ui.containerPort }};
+        server_name  localhost;
+        root         /app;
+        index        index.html index.htm;
+
+        location = / {
+            try_files $uri $uri/ /index.html;
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location = /index.html {
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        }
+
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable" always;
+        }
+
+        location = /config.json {
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+    {{- end }}
+{{- end }}

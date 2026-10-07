@@ -395,7 +395,12 @@ ui:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
     tag: "2.10.1"
-  containerPort: 80
+  # nginx listens on this unprivileged port through the chart's server configuration
+  # (configmap_ui_nginx.yaml); the Service targets it by name.
+  containerPort: 8080
+  # Replaces the chart's nginx server block (mounted as /etc/nginx/conf.d/default.conf). It must
+  # listen on containerPort and serve /app.
+  nginxConfig: ""
   service:
     enabled: true
     type: ClusterIP
@@ -419,7 +424,6 @@ ui:
   # Pod securityContext for the UI. Empty falls back to the global podSecurityContext, then to:
   #   runAsNonRoot: true, runAsUser: 101, runAsGroup: 101, fsGroup: 101 (the image's nginx user)
   #   seccompProfile: {type: RuntimeDefault}
-  #   sysctls: [{name: net.ipv4.ip_unprivileged_port_start, value: "0"}]  (nginx listens on 80)
   podSecurityContext: {}
   # Container securityContext for the UI. Empty falls back to the global securityContext, then
   # to the hardened default (read-only root filesystem; /var/cache/nginx, /run and /tmp are
@@ -547,11 +551,21 @@ database:
       tag: 17.5
       pullPolicy: IfNotPresent
     persistence:
-      createPersistentVolume: true # Set false when using a dynamic storageClass (e.g., ebs-gp3)
+      # Default: a PVC provisioned dynamically from storageClass (empty = the cluster's default
+      # StorageClass). fsGroup 999 makes it writable by postgres without any root container.
+      # createPersistentVolume: true opts into a chart-created hostPath PV at `path` (with
+      # storageClass and nodeAffinity). The chart does not chown it: pre-create the directory on
+      # the node, owned by 999:999. Installs from chart 0.8.x used this PV by default; see the
+      # README upgrade notes.
+      createPersistentVolume: false
       existingVolume: ""
       size: 10Gi
       mountPath: "/var/lib/postgresql/data"
-      storageClass: "standard"
+      # Postgres data lives in this subdirectory of mountPath, which postgres (999) creates and
+      # owns even when the volume root is root-owned. Data initialised at the volume root by a
+      # chart before 0.9.0 is used where it is.
+      pgdataSubdir: pgdata
+      storageClass: ""
       volumeMode: Filesystem
       accessModes:
         - ReadWriteOnce
@@ -561,22 +575,13 @@ database:
     resources: {}
     extraEnv: []
     # Pod securityContext for PostgreSQL. Empty falls back to the global podSecurityContext,
-    # then to runAsNonRoot as the image's postgres user (runAsUser/runAsGroup/fsGroup 999),
-    # seccomp RuntimeDefault.
+    # then to runAsNonRoot as the image's postgres user (runAsUser/runAsGroup/fsGroup 999,
+    # fsGroupChangePolicy OnRootMismatch), seccomp RuntimeDefault.
     podSecurityContext: {}
     # Container securityContext for PostgreSQL. Empty falls back to the global securityContext,
     # then to the hardened default (read-only root filesystem; /var/run/postgresql and /tmp are
     # emptyDirs; data on the persistent volume).
     securityContext: {}
-    # Init container that chowns the data volume's root to the postgres user before it starts.
-    # It is the only root container of the chart (CHOWN and FOWNER only, read-only root
-    # filesystem). Needed for volumes without fsGroup support, such as the chart's hostPath PV.
-    # Disable it when the volume root is already owned by uid 999 (for example a volume created
-    # by an earlier release of this chart) for a pod that meets the Pod Security "restricted"
-    # profile.
-    volumePermissions:
-      enabled: true
-      user: 999
   external:
     secretRef: ""
     hostname: ""

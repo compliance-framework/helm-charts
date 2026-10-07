@@ -29,41 +29,36 @@ spec:
       serviceAccountName: {{ include "ccf-app.serviceAccountName" . }}
       securityContext:
         {{- include "ccf-app.psqlPodSecurityContext" . | nindent 8 }}
-      {{- if .Values.database.local.volumePermissions.enabled }}
-      initContainers:
-        # The data volume must belong to the postgres user (999). Volumes without fsGroup
-        # support (such as the chart's hostPath PV) start root-owned, so chown its root once.
-        - name: volume-permissions
-          image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
-          imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
-          securityContext:
-            {{- include "ccf-app.psqlVolumePermissionsSecurityContext" . | nindent 12 }}
-          command: ["sh", "-c"]
-          args:
-            - chown {{ .Values.database.local.volumePermissions.user }}:{{ .Values.database.local.volumePermissions.user }} "$PGDATA_MOUNT" && chmod 0700 "$PGDATA_MOUNT"
-          env:
-            - name: PGDATA_MOUNT
-              value: {{ .Values.database.local.persistence.mountPath | quote }}
-          {{- with .Values.database.local.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          volumeMounts:
-            - mountPath: {{ .Values.database.local.persistence.mountPath }}
-              name: postgresdata
-      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-db
           securityContext:
             {{- include "ccf-app.psqlSecurityContext" . | nindent 12 }}
           image: "{{ .Values.database.local.image.repository }}:{{ .Values.database.local.image.tag | default 17.5 }}"
           imagePullPolicy: {{ .Values.database.local.image.pullPolicy }}
+          # Postgres runs as 999 and must own its data directory. The volume root is owned by
+          # root on many provisioners (fsGroup only makes it group-writable), so the data lives in
+          # a subdirectory that postgres creates itself. Data a chart before 0.9.0 initialised at
+          # the volume root (already owned by 999) is used where it is.
+          command: ["sh", "-c"]
+          args:
+            - |
+              if [ -s "$PGDATA_MOUNT/PG_VERSION" ]; then
+                export PGDATA="$PGDATA_MOUNT"
+              else
+                export PGDATA="$PGDATA_MOUNT/$PGDATA_SUBDIR"
+              fi
+              echo "postgres data directory: $PGDATA"
+              exec docker-entrypoint.sh postgres
           envFrom:
             - configMapRef:
                 name: {{ include "ccf-app.fullname" . }}-psql
             # - secretRef:
             #     name: {{ include "ccf-app.fullname" . }}-psql
           env:
+            - name: PGDATA_MOUNT
+              value: {{ .Values.database.local.persistence.mountPath | quote }}
+            - name: PGDATA_SUBDIR
+              value: {{ .Values.database.local.persistence.pgdataSubdir | default "pgdata" | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:

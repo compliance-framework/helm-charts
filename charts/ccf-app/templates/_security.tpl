@@ -27,7 +27,8 @@ seccompProfile:
   type: RuntimeDefault
 {{- end }}
 
-{{/* Pod defaults for a uid/gid. Usage: include "ccf-app.hardenedPodDefaults" (dict "uid" 101 "gid" 101) */}}
+{{/* Pod defaults for a uid/gid: Pod Security "restricted", no sysctls.
+Usage: include "ccf-app.hardenedPodDefaults" (dict "uid" 101 "gid" 101) */}}
 {{- define "ccf-app.hardenedPodDefaults" -}}
 runAsNonRoot: true
 runAsUser: {{ .uid }}
@@ -35,10 +36,6 @@ runAsGroup: {{ .gid }}
 fsGroup: {{ .gid }}
 seccompProfile:
   type: RuntimeDefault
-{{- with .sysctls }}
-sysctls:
-  {{- toYaml . | nindent 2 }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -56,13 +53,13 @@ generate-public-key (alpine/openssl, writes only to the shared publickey emptyDi
 {{- end }}
 
 {{/*
-UI: nginx from the ui image, as its nginx user (101). The image listens on port 80, so the pod
-sets the namespaced sysctl net.ipv4.ip_unprivileged_port_start=0 (in the Kubernetes safe set)
-instead of changing the UI's nginx configuration. nginx writes /var/cache/nginx, its pid file
-in /run, and /tmp: all emptyDirs.
+UI: nginx from the ui image, as its nginx user (101), listening on the unprivileged
+ui.containerPort (8080) through the chart's server configuration (configmap_ui_nginx.yaml)
+instead of the image's port-80 one. No sysctl. nginx writes /var/cache/nginx, its pid file in
+/run, and /tmp: all emptyDirs.
 */}}
 {{- define "ccf-app.uiPodSecurityContext" -}}
-{{- include "ccf-app.securityContext" (dict "own" .Values.ui.podSecurityContext "global" .Values.podSecurityContext "default" (include "ccf-app.hardenedPodDefaults" (dict "uid" 101 "gid" 101 "sysctls" (list (dict "name" "net.ipv4.ip_unprivileged_port_start" "value" "0"))) | fromYaml)) -}}
+{{- include "ccf-app.securityContext" (dict "own" .Values.ui.podSecurityContext "global" .Values.podSecurityContext "default" (include "ccf-app.hardenedPodDefaults" (dict "uid" 101 "gid" 101) | fromYaml)) -}}
 {{- end }}
 
 {{- define "ccf-app.uiSecurityContext" -}}
@@ -79,38 +76,17 @@ in /run, and /tmp: all emptyDirs.
 {{- end }}
 
 {{/*
-Bundled PostgreSQL: the image's postgres user (999), writing to the data volume, the socket
-directory /var/run/postgresql and /tmp (emptyDirs). The volume-permissions init container is
-the one exception: see ccf-app.psqlVolumePermissionsSecurityContext.
+Bundled PostgreSQL: the image's postgres user (999), writing to its data volume (a dynamically
+provisioned PVC by default; fsGroup 999 makes it group-writable without any root step), the
+socket directory /var/run/postgresql and /tmp (emptyDirs).
 */}}
 {{- define "ccf-app.psqlPodSecurityContext" -}}
-{{- include "ccf-app.securityContext" (dict "own" .Values.database.local.podSecurityContext "global" .Values.podSecurityContext "default" (include "ccf-app.hardenedPodDefaults" (dict "uid" 999 "gid" 999) | fromYaml)) -}}
+{{- $default := merge (dict "fsGroupChangePolicy" "OnRootMismatch") (include "ccf-app.hardenedPodDefaults" (dict "uid" 999 "gid" 999) | fromYaml) -}}
+{{- include "ccf-app.securityContext" (dict "own" .Values.database.local.podSecurityContext "global" .Values.podSecurityContext "default" $default) -}}
 {{- end }}
 
 {{- define "ccf-app.psqlSecurityContext" -}}
 {{- include "ccf-app.securityContext" (dict "own" .Values.database.local.securityContext "global" .Values.securityContext "default" (include "ccf-app.hardenedContainerDefaults" . | fromYaml)) -}}
-{{- end }}
-
-{{/*
-The data volume must be owned by uid 999 for postgres (initdb and the server refuse a data
-directory they do not own). Volumes without fsGroup support (the chart's default hostPath PV)
-are created root-owned, so this init container chowns the volume root once. It runs as root
-with only CHOWN and FOWNER, a read-only root filesystem and no privilege escalation.
-*/}}
-{{- define "ccf-app.psqlVolumePermissionsSecurityContext" -}}
-runAsNonRoot: false
-runAsUser: 0
-runAsGroup: 0
-readOnlyRootFilesystem: true
-allowPrivilegeEscalation: false
-capabilities:
-  drop:
-    - ALL
-  add:
-    - CHOWN
-    - FOWNER
-seccompProfile:
-  type: RuntimeDefault
 {{- end }}
 
 {{/*
@@ -125,4 +101,9 @@ filesystem stays read-only. /var/lib/pgadmin, /run/pgadmin and /tmp are emptyDir
 
 {{- define "ccf-app.pgadmin4SecurityContext" -}}
 {{- include "ccf-app.securityContext" (dict "own" .Values.pgadmin4.securityContext "global" .Values.securityContext "default" (include "ccf-app.hardenedContainerDefaults" . | fromYaml)) -}}
+{{- end }}
+
+{{/* helm test pod: busybox wget as nobody (65534). */}}
+{{- define "ccf-app.testPodSecurityContext" -}}
+{{- include "ccf-app.hardenedPodDefaults" (dict "uid" 65534 "gid" 65534) -}}
 {{- end }}

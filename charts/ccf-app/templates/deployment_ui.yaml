@@ -17,6 +17,7 @@ spec:
       {{- $podAnnotations := merge (dict) (default (dict) .Values.podAnnotations) }}
       {{- $podAnnotations = merge $podAnnotations (default (dict) .Values.ui.podAnnotations) }}
       {{- $_ := set $podAnnotations "checksum/config" (include (print $.Template.BasePath "/configmap_ui.yaml") . | sha256sum) }}
+      {{- $_ := set $podAnnotations "checksum/nginx" (include (print $.Template.BasePath "/configmap_ui_nginx.yaml") . | sha256sum) }}
       annotations:
         {{- toYaml $podAnnotations | nindent 8 }}
       labels:
@@ -57,6 +58,10 @@ spec:
             - name: config-volume
               mountPath: /app/config.json
               subPath: config.json
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
             # nginx writes its caches, its pid file and temp files; the root filesystem is read-only.
             - name: nginx-cache
               mountPath: /var/cache/nginx
@@ -71,6 +76,9 @@ spec:
             items:
             - key: config.json
               path: config.json
+        - name: nginx-config
+          configMap:
+            name: {{ include "ccf-app.fullname" . }}-ui-nginx
         - name: nginx-cache
           emptyDir: {}
         - name: nginx-run

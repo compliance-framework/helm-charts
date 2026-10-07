@@ -1,5 +1,7 @@
 # Values for the Argo CD check (ci/argocd/check.sh). Credentials come from Secrets the check
-# creates before the sync: the chart must not generate anything at render time.
+# creates before the sync: the chart must not generate anything at render time. Every optional
+# workload is on, and the namespace enforces Pod Security "restricted".
+webBaseUrl: http://ccf.example.com
 api:
   jwt:
     source: existingSecret
@@ -18,3 +20,11 @@ database:
       storageClass: standard
 ingress:
   enabled: false
+dex:
+  enabled: true
+  clientSecret:
+    createSecret: false
+    existingSecret: ccf-dex
+pgadmin4:
+  enabled: true
+  pgadmin4_default_password: argocd-check-only

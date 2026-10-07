@@ -40,18 +40,21 @@ tests:
           of: PersistentVolume
         template: templates/pv-psql.yaml
 
-  - it: should create PV by default when createPersistentVolume is not set
+  - it: does not create a hostPath PV by default (dynamically provisioned PVC)
     set:
       database:
         local:
           enabled: true
     asserts:
       - hasDocuments:
-          count: 1
+          count: 0
         template: templates/pv-psql.yaml
-      - isKind:
-          of: PersistentVolume
-        template: templates/pv-psql.yaml
+      - notExists:
+          path: spec.volumeName
+        template: templates/pvc_psql.yaml
+      - notExists:
+          path: spec.storageClassName
+        template: templates/pvc_psql.yaml
 
   - it: should not create PV when database local is disabled
     set:
