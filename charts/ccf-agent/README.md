@@ -380,6 +380,33 @@ helm upgrade ccf-agent ./ccf-agent \
   --values my-values.yaml
 ```
 
+### 0.3.x to 0.4.0 (agent 0.6.1 to 0.9.0)
+
+Upgrade the ccf-app chart (API 0.21.0) first. Agent 0.9.0 also works with older APIs, without remote configuration
+(and without artifact digests before API 0.20.0).
+
+1. **Get credentials.** Create an agent and a key in the CCF UI under **Admin -> Agents**, or let the ccf-app agent
+   bootstrap Job (`api.agentBootstrap`) create them and write a Secret. Use one key per release. Reference the Secret
+   with `agent.api.auth.existingSecret`; its keys default to `CCF_API_AUTH_CLIENT_ID` and `CCF_API_AUTH_CLIENT_SECRET`.
+2. **Authentication starts working.** Earlier charts passed the credentials as `CCF_AGENT_API_AUTH_*`, which the agent
+   never read, so agents with `agent.api.auth.enabled: true` ran anonymously. After the upgrade they authenticate:
+   - the `_agent` evidence label changes from a configuration hash to the key's `client_id`. Evidence UUIDs derive from
+     labels, so **new evidence streams start** and the old ones stop updating;
+   - the agent reports its configuration to the API and appears as an instance under its agent;
+   - plugins no longer see the credentials.
+   A chart-created `<fullname>-auth` Secret is re-created with the new key names. An `existingSecret` that used other
+   key names keeps working through `clientId.secretKeyRef` / `clientSecret.secretKeyRef`. A non-UUID `clientId.value`,
+   or only one of the two values, now fails to render.
+3. **`agent.daemon` now defaults to `true`.** Set `agent.daemon: false` explicitly to keep the run-once behaviour.
+4. **The Deployment strategy is `Recreate`**, and `terminationGracePeriodSeconds` is `45`. The old pod stops before the
+   new one starts. Set `strategy.type: RollingUpdate` to keep rolling updates.
+5. **Applying remote changes is opt-in.** With credentials the agent defaults to `remote_config.mode: report`, which
+   reports its configuration but never fetches or applies an overlay. Set `agent.remoteConfig.mode: apply_safe` or
+   `apply_all` (with `trustedSources` and `overridableConfigFlags`) to apply remote changes.
+6. **State.** `CCF_STATE_DIR` is pinned on the existing emptyDir, so every new pod (including this upgrade) registers a
+   new agent instance in the API.
+7. `agent.hostname` is deprecated and has no effect.
+
 ## Uninstalling
 
 ```bash
