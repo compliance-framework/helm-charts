@@ -9,3 +9,6 @@ lisa-design:
 lisa-selfreview:
 - pass 1: [must-fix CORE-ERR-001 3434483fa45d] Makefile helm.schema.check: a failing `helm schema` run is reported as a stale schema (rc of generator and diff folded together). -> fix
 - pass 1 considered, not a finding: HELM-VER-001 for values.yaml whitespace + orphaned Chart.lock removal: no functional chart change; versions are owned by release-please from T02 (design note).
+
+lisa-design:
+- No chart version bump in T01: the values.yaml edits are whitespace-only (rendered manifests identical) and the deleted Chart.lock listed a dependency Chart.yaml no longer has; release-please owns chart versions from T02 and the squash title `ci:` triggers no release.
