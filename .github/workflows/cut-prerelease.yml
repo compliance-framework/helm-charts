@@ -1,0 +1,40 @@
+name: cut-prerelease
+
+# Cuts a release candidate of one chart from the open release-please PR: tags
+# <component>-vX.Y.Z-rcN on main and creates a GitHub prerelease, which runs release.yml and
+# publishes <chart>:X.Y.Z-rcN. Pick the chart: the release PR's manifest also lists charts that
+# have nothing to release, at their released version.
+on:
+  workflow_dispatch:
+    inputs:
+      chart:
+        description: "Chart to cut a release candidate of"
+        type: choice
+        required: true
+        options:
+          - ccf-app
+          - ccf-agent
+
+permissions:
+  contents: read
+
+jobs:
+  ccf-app:
+    if: inputs.chart == 'ccf-app'
+    uses: compliance-framework/workflows/.github/workflows/cut-prerelease.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    with:
+      path: charts/ccf-app
+      tag-prefix: ccf-app-v
+    permissions:
+      contents: read
+    secrets: inherit
+
+  ccf-agent:
+    if: inputs.chart == 'ccf-agent'
+    uses: compliance-framework/workflows/.github/workflows/cut-prerelease.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    with:
+      path: charts/ccf-agent
+      tag-prefix: ccf-agent-v
+    permissions:
+      contents: read
+    secrets: inherit

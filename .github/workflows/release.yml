@@ -1,0 +1,20 @@
+name: release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Multi-chart repo: release-please tags <component>-vX.Y.Z (ccf-app-v*, ccf-agent-v*) and
+    # release-helm.yml picks the chart by the tag's component, matching the chart directory first
+    # (so ccf-app-v* publishes the chart named `ccf`). It pushes <chart>:X.Y.Z to the default
+    # registry oci://ghcr.io/compliance-framework/helm-charts, where the charts already live.
+    uses: compliance-framework/workflows/.github/workflows/release-helm.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
