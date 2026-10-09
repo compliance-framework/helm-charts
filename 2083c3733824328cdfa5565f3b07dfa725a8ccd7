@@ -1,0 +1,5 @@
+lisa-design:
+- Seeds are each chart's current Chart.yaml version (ccf-app/ccf 0.9.0, ccf-agent 0.4.0), per W1-S2-PRE; the T02 table's 0.8.0/0.3.0 is stale (both charts were released since).
+- Components are the directory names (ccf-app, ccf-agent), so tags are ccf-app-vX.Y.Z / ccf-agent-vX.Y.Z; release-helm resolves the directory first, so ccf-app-v* still publishes chart `ccf`.
+- bootstrap-sha = cac19772 (main before the stack): there are no tags, so release-please starts counting commits there.
+- release-please-config.json carries every key of workflows release-please/defaults.json (incl. initial-version, which mock-helm-charts lacks) so the shared drift check reports no warnings.
