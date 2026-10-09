@@ -3,3 +3,6 @@ lisa-design:
 - Components are the directory names (ccf-app, ccf-agent), so tags are ccf-app-vX.Y.Z / ccf-agent-vX.Y.Z; release-helm resolves the directory first, so ccf-app-v* still publishes chart `ccf`.
 - bootstrap-sha = cac19772 (main before the stack): there are no tags, so release-please starts counting commits there.
 - release-please-config.json carries every key of workflows release-please/defaults.json (incl. initial-version, which mock-helm-charts lacks) so the shared drift check reports no warnings.
+
+lisa-selfreview:
+- pass 1: no findings (rules: core, helm-chart; config == shared defaults, seeds == Chart.yaml, actionlint clean); approve.
