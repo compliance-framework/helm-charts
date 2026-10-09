@@ -1,0 +1,5 @@
+lisa-design:
+- No `fix(charts): ...` appVersion commit: main already has ccf-app appVersion 0.21.0, api.image.tag 0.21.0, ui.image.tag 2.12.1 and ccf-agent appVersion 0.9.0 (released in #37 / #28), so the plan's T03 fix would be an empty commit.
+- cut-prerelease has one job per chart, gated by a required `chart` choice input, not both on every dispatch: with separate-pull-requests false the release PR's manifest also lists the unchanged chart at its released version, so cutting both would tag e.g. ccf-agent-v0.4.0-rc1 after 0.4.0 shipped.
+- No preview.yml caller: the shared preview.yml accepts only image, go-plugin and policies kinds.
+- Artifact shape kept: same registry path, chart names from Chart.yaml (ccf, ccf-agent), plain X.Y.Z tags, no `latest`. New only: X.Y.Z-rcN tags when cut-prerelease is used (helm ignores pre-releases without --devel).
