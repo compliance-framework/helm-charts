@@ -1,2 +1,5 @@
 lisa-addressed:
 - 3434483fa45d (CORE-ERR-001) Makefile helm.schema.check: helm schema failure now fails with its own message; diff runs separately; temp dir removed by trap. Tested pass / drift / generator-failure paths.
+
+lisa-selfreview:
+- pass 2: no findings; approve.
