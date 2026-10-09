@@ -24,8 +24,13 @@ jobs:
       security-events: write
     secrets: inherit
 
+  release-checks:
+    uses: compliance-framework/workflows/.github/workflows/release-checks.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    permissions:
+      contents: read
+
   notify:
-    needs: [ci]
+    needs: [ci, release-checks]
     if: always()
     uses: compliance-framework/workflows/.github/workflows/notify-failure.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
     with:
