@@ -33,11 +33,12 @@ helm.schema: helm.install-plugins
 .PHONY: helm.schema.check
 helm.schema.check: helm.install-plugins
 	@echo "Checking $(CHART_DIR)/values.schema.json is up to date..."
-	@tmp="$$(mktemp -d)"; \
-	helm schema --values $(CHART_DIR)/values.yaml --output "$$tmp/values.schema.json" \
-		&& diff -u $(CHART_DIR)/values.schema.json "$$tmp/values.schema.json"; \
-	rc=$$?; rm -rf "$$tmp"; \
-	if [ $$rc -ne 0 ]; then \
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	if ! helm schema --values $(CHART_DIR)/values.yaml --output "$$tmp/values.schema.json"; then \
+		echo "Error: helm schema failed for $(CHART_DIR)/values.yaml."; \
+		exit 1; \
+	fi; \
+	if ! diff -u $(CHART_DIR)/values.schema.json "$$tmp/values.schema.json"; then \
 		echo "Error: $(CHART_DIR)/values.schema.json is out of date. Run 'make helm.schema CHART_DIR=$(CHART_DIR)' and commit it."; \
 		exit 1; \
 	fi
