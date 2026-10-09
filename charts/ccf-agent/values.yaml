@@ -9,11 +9,11 @@ replicaCount: 1
 # Deployment update strategy. Recreate stops the old pod before the new one starts, so two
 # pods of one release never run plugins side by side during a rollout.
 strategy:
-  type: Recreate # @schema enum:[Recreate, RollingUpdate]
+  type: Recreate  # @schema enum:[Recreate, RollingUpdate]
 
 # Seconds Kubernetes waits after SIGTERM before killing the pod. The agent takes up to 30s
 # to stop its schedules and plugins on SIGTERM, so keep this above 30.
-terminationGracePeriodSeconds: 45 # @schema type:integer;minimum:0
+terminationGracePeriodSeconds: 45  # @schema type:integer;minimum:0
 
 image:
   repository: ghcr.io/compliance-framework/agent
@@ -122,7 +122,7 @@ agent:
   # Deprecated, no effect: rendered as the HOSTNAME env var, which the agent never reads (it
   # uses the pod's hostname, i.e. the pod name). Will be removed in a future release.
   hostname: ""
-  
+
   # Agent daemon mode. true runs the plugins on their schedules continuously. false runs
   # every plugin once and exits, and the pod then restarts (restartPolicy Always), so each
   # run registers as a new one-shot agent instance in the API.
@@ -132,11 +132,11 @@ agent:
   # generates one and keeps it in its state directory (CCF_STATE_DIR, pinned by the chart to
   # /app/.compliance-framework/state/agent on an emptyDir), so each new pod is a new instance.
   # The chart never generates one. Do not share one ID between replicas.
-  instanceId: "" # @schema pattern:^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
-  
+  instanceId: ""  # @schema pattern:^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+
   # Verbosity level (0-3)
   verbosity: 0
-  
+
   # Agent evidence configuration
   agentEvidence:
     # enables sending agent execution evidence to the API
@@ -145,8 +145,8 @@ agent:
     interval: "1h"
     # Emit agent evidence as soon as a run completes (and on startup failures), in addition
     # to the interval. null leaves the agent default (true).
-    emitOnRunCompletion: null # @schema type:[boolean, null]
-  
+    emitOnRunCompletion: null  # @schema type:[boolean, null]
+
   # Remote configuration (the agent's remote_config block). The chart renders only the keys
   # that are set; with nothing set, no block is rendered and the agent defaults apply: mode
   # "report" with API credentials, "off" without (no credentials always forces "off").
@@ -155,17 +155,17 @@ agent:
     # off | report | apply_safe | apply_all. Quote "off": unquoted YAML off is a boolean.
     # report sends configuration reports but never fetches; apply_safe and apply_all fetch
     # the overlay stored in the API and apply it.
-    mode: "" # @schema enum:["","off","report","apply_safe","apply_all"]
+    mode: ""  # @schema enum:["","off","report","apply_safe","apply_all"]
     # How often to poll for a new overlay, a Go duration of at least 15s (agent default 60s).
-    pollInterval: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    pollInterval: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # Globs (path.Match) of plugin and policy sources an overlay may introduce as safe changes,
     # e.g. ghcr.io/compliance-framework/*.
-    trustedSources: [] # @schema item:string
+    trustedSources: []  # @schema item:string
     # plugins.*.config keys an overlay may change as safe changes: "key", "plugin:key" or "*".
-    overridableConfigFlags: [] # @schema item:string
+    overridableConfigFlags: []  # @schema item:string
     # Allow an overlay to introduce local plugin/policy paths (only with mode apply_all).
     # null leaves the agent default (false).
-    allowLocalSources: null # @schema type:[boolean, null]
+    allowLocalSources: null  # @schema type:[boolean, null]
 
   # API configuration
   api:
@@ -186,12 +186,12 @@ agent:
       existingSecret: ""
       # Client ID for authentication (a UUID)
       clientId:
-        value: "" # @schema pattern:^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
-        secretKeyRef: "" # key in existingSecret; defaults to CCF_API_AUTH_CLIENT_ID
+        value: ""  # @schema pattern:^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        secretKeyRef: ""  # key in existingSecret; defaults to CCF_API_AUTH_CLIENT_ID
       # Client secret for authentication (should be in secret for production)
       clientSecret:
-        value: "" # if set, we use this value
-        secretKeyRef: "" # key in existingSecret; defaults to CCF_API_AUTH_CLIENT_SECRET
+        value: ""  # if set, we use this value
+        secretKeyRef: ""  # key in existingSecret; defaults to CCF_API_AUTH_CLIENT_SECRET
   # Plugin configurations
   # Each plugin can have: schedule, source, policies, config, labels
   # Example:

@@ -1,0 +1,9 @@
+# chart-testing (ct) config: `ct lint --config ct.yaml`
+target-branch: main
+chart-dirs:
+  - charts
+# ccf-agent lists an organisation (Container Solutions) as its maintainer, not a GitHub user.
+validate-maintainers: false
+# release-please bumps each chart's version in its release PR; ccf-bump PRs
+# change only appVersion and image tags, so ct must not require a version bump.
+check-version-increment: false
