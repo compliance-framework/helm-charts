@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  pull_request:
+    # labeled/unlabeled: release-checks re-reads the release:major-approved label.
+    # closed: notify marks the PR's needs-human card handled and closes its CI incident.
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled, closed]
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  ci:
+    uses: compliance-framework/workflows/.github/workflows/ci-helm.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    with:
+      # Each target runs the chart's unit tests and its values.schema.json drift check;
+      # helm.test.app also runs the agent bootstrap script test (ci/agent-bootstrap).
+      make-targets: helm.test.app helm.test.agent
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+    secrets: inherit
+
+  notify:
+    needs: [ci]
+    if: always()
+    uses: compliance-framework/workflows/.github/workflows/notify-failure.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    with:
+      needs: ${{ toJSON(needs) }}
+    permissions:
+      contents: read
+    secrets: inherit

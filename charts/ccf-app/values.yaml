@@ -44,7 +44,7 @@ externalSecrets:
   generatorApiVersion: generators.external-secrets.io/v1alpha1
   # CreatedOnce: the value is generated once and never rotated (a rotated database password
   # would lock the API out of an initialised database).
-  refreshPolicy: CreatedOnce # @schema enum:[CreatedOnce, Periodic, OnChange]
+  refreshPolicy: CreatedOnce  # @schema enum:[CreatedOnce, Periodic, OnChange]
   # Spec of the Password generators (no symbols: the password goes into a connection string).
   passwordGenerator:
     length: 32
@@ -92,8 +92,8 @@ api:
   enabled: true
   replicaCount: 1
   webBaseUrl: ""
-  environment: "production" ## Set this to local if you are not running with https
-  extraConfig: {} ## optional key-value pair to inject as part of the loaded configmap
+  environment: "production"  ## Set this to local if you are not running with https
+  extraConfig: {}  ## optional key-value pair to inject as part of the loaded configmap
   # CCF_EMAIL_DIGEST_SCHEDULE: "@weekly"
   # CCF_EMAIL_DIGEST_ENABLED: "true"
   autoscaling:
@@ -104,11 +104,11 @@ api:
   vpa:
     enabled: false
     updatePolicy:
-      updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
+      updateMode: "Recreate"  # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
     resourcePolicy:
       containerPolicy:
-        mode: Auto # @schema enum:[Off, Auto]
-        controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
+        mode: Auto  # @schema enum:[Off, Auto]
+        controlledValues: RequestsAndLimits  # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
           cpu: 50m
           memory: 10Mi
@@ -137,7 +137,7 @@ api:
     # inMemory:       DEVELOPMENT ONLY. The API generates a key at every start (sessions and agent
     #                 tokens end on every restart; one replica only).
     # An empty value fails rendering.
-    source: generated # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
+    source: generated  # @schema enum:["", existingSecret, externalSecret, inMemory, generated]
     existingSecret:
       name: ""
       privateKey: private_key.pem
@@ -184,7 +184,7 @@ api:
     httpGet:
       path: /api/health/ready
       port: http
-  corsOrigins: [] # @schema item:string
+  corsOrigins: []  # @schema item:string
   # Initial admin user, created by the create-user init container. Its password comes from
   # existingSecret, externalSecret, password, devSecrets.seed, or (DEPRECATED default) lookup +
   # random into <fullname>-initial-user-password.
@@ -230,7 +230,7 @@ api:
     enabled: true
     labels: {}
     annotations: {}
-    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
+    hosts: []  # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
 
   # SSO configuration
   sso:
@@ -327,51 +327,51 @@ api:
     # service-account key. The remote-config agent routes always require an agent token.
     strictDisablePublicEndpoints: false
     # An instance is fresh when seen within this window (CCF_AGENT_INSTANCE_STALE_AFTER, API default 10m).
-    instanceStaleAfter: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    instanceStaleAfter: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # Daemon instances not seen for this long are pruned (CCF_AGENT_INSTANCE_RETENTION, API default 720h).
-    instanceRetention: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    instanceRetention: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # One-shot (daemon: false) instances not seen for this long are pruned
     # (CCF_AGENT_INSTANCE_ONESHOT_RETENTION, API default 24h).
-    oneShotInstanceRetention: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    oneShotInstanceRetention: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # Schedule the instance prune job; it needs the worker (CCF_AGENT_INSTANCE_PRUNE_ENABLED, API default true).
-    instancePruneEnabled: null # @schema type:[boolean, null]
+    instancePruneEnabled: null  # @schema type:[boolean, null]
     # River cron (6 fields, seconds first) of the prune job; it runs at most hourly
     # (CCF_AGENT_INSTANCE_PRUNE_SCHEDULE, API default "0 17 * * * *").
     instancePruneSchedule: ""
     # Cap of non-prunable instances per agent (CCF_AGENT_MAX_INSTANCES, API default 500).
-    maxInstances: null # @schema type:[integer, null];minimum:1
+    maxInstances: null  # @schema type:[integer, null];minimum:1
 
   # In-process background worker: agent instance pruning, digests, notifications and AI
   # suggestions need it (CCF_WORKER_ENABLED, API default true).
   worker:
-    enabled: null # @schema type:[boolean, null]
+    enabled: null  # @schema type:[boolean, null]
 
   # Rego playback (/api/playback). While strictDisablePublicEndpoints is false it is open to
   # anonymous callers.
   playback:
-    enabled: null # @schema type:[boolean, null]
+    enabled: null  # @schema type:[boolean, null]
     # Per-evaluation timeout (CCF_PLAYBACK_TIMEOUT, API default 5s).
-    timeout: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    timeout: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # Request body limit in bytes (CCF_PLAYBACK_MAX_BYTES, API default 2097152).
-    maxBytes: null # @schema type:[integer, null];minimum:1
+    maxBytes: null  # @schema type:[integer, null];minimum:1
     # Concurrent evaluations; more get 429 (CCF_PLAYBACK_MAX_CONCURRENT, API default 4).
-    maxConcurrent: null # @schema type:[integer, null];minimum:1
+    maxConcurrent: null  # @schema type:[integer, null];minimum:1
 
   # Policy-evaluation artifacts uploaded by agents (stored in PostgreSQL).
   artifacts:
     # Size limit of one artifact in bytes (CCF_ARTIFACT_MAX_BYTES, API default 16777216).
-    maxBytes: null # @schema type:[integer, null];minimum:1
+    maxBytes: null  # @schema type:[integer, null];minimum:1
     # Concurrent uploads (CCF_ARTIFACT_MAX_CONCURRENT, API default 8).
-    maxConcurrent: null # @schema type:[integer, null];minimum:1
+    maxConcurrent: null  # @schema type:[integer, null];minimum:1
 
   # Evidence subjects.
   evidence:
     # Agent evidence without a subject: off | warn | enforce (CCF_EVIDENCE_REQUIRE_SUBJECT,
     # API default off). Any other value stops the API and migrate-db. Quote "off".
-    requireSubject: "" # @schema enum:["","off","warn","enforce"]
+    requireSubject: ""  # @schema enum:["","off","warn","enforce"]
     # Require a subject on manually created evidence (CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT,
     # API default false).
-    manualRequireSubject: null # @schema type:[boolean, null]
+    manualRequireSubject: null  # @schema type:[boolean, null]
 
   # Optional agent bootstrap: a post-install/post-upgrade Job that, for each entry in agents,
   # creates the agent in the CCF API (Admin -> Agents) if it does not exist, creates a
@@ -384,7 +384,7 @@ api:
     enabled: false
     # Agents to bootstrap, one key and Secret each. Names may contain letters, digits, spaces,
     # '.', '_' and '-'.
-    agents: [] # @schema item:object;itemProperties:{"name":{"type":"string"},"description":{"type":"string"},"secretName":{"type":"string"},"namespace":{"type":"string"}}
+    agents: []  # @schema item:object;itemProperties:{"name":{"type":"string"},"description":{"type":"string"},"secretName":{"type":"string"},"namespace":{"type":"string"}}
       # - name: ccf-agent                    # agent name in the API (found by name, else created)
       #   description: "Cluster agent"       # used only when the agent is created
       #   secretName: ccf-agent-credentials  # Secret to create
@@ -393,16 +393,16 @@ api:
     # and the password in the <fullname>-initial-user-password Secret. Under cedar the user
     # needs the admin role in authz.roleAssignments.
     adminCredentials:
-      existingSecret: "" # Secret with the admin password (default: <fullname>-initial-user-password)
+      existingSecret: ""  # Secret with the admin password (default: <fullname>-initial-user-password)
       passwordKey: password
-      emailKey: "" # key in existingSecret holding the login email; empty uses email below
-      email: "" # login email; default api.user.email
+      emailKey: ""  # key in existingSecret holding the login email; empty uses email below
+      email: ""  # login email; default api.user.email
     # Override the API base URL (including /api). Default: the in-cluster API Service.
     apiUrl: ""
     # Seconds to wait for GET /api/health/ready before giving up. Helm waits for the hook only
     # up to --timeout (default 5m), so raise both together.
-    waitSeconds: 300 # @schema type:integer;minimum:0
-    backoffLimit: 2 # @schema type:integer;minimum:0
+    waitSeconds: 300  # @schema type:integer;minimum:0
+    backoffLimit: 2  # @schema type:integer;minimum:0
     # An image with a POSIX shell, curl >= 8.3 (for --variable/--expand-data) and busybox
     # tools (grep, sed, tr, head, mktemp, printenv). Nothing is installed at runtime. The
     # default is the official curl image, which runs as curl_user (uid 100, gid 101).
@@ -438,8 +438,8 @@ api:
     enabled: false
     # createSecret: true # If true, the API key is stored in a chart-managed secret
     # existingSecret: "" # If provided, the API key is read from this existing secret (key: CCF_AI_API_KEY)
-    provider: "anthropic" # @schema enum:[anthropic]
-    apiKey: "" # sensitive – sourced into CCF_AI_API_KEY
+    provider: "anthropic"  # @schema enum:[anthropic]
+    apiKey: ""  # sensitive – sourced into CCF_AI_API_KEY
     # Override the provider API base URL (CCF_AI_BASE_URL), e.g. for a proxy. Empty uses the
     # provider default.
     baseUrl: ""
@@ -458,16 +458,16 @@ api:
     # cedar   — embedded Cedar RBAC engine, DENY-BY-DEFAULT; reads roleAssignments below.
     # authzen — a remote AuthZEN PDP at authzen.endpoint.
     # WARNING: be sure to properly set up `roleAssignments` before switching to cedar driver!
-    driver: "builtin" # @schema enum:[builtin, cedar, authzen]
+    driver: "builtin"  # @schema enum:[builtin, cedar, authzen]
     # Behaviour when the PDP is unavailable (authzen only; no-op for the in-process engines).
-    failMode: "closed" # @schema enum:[closed, open]
+    failMode: "closed"  # @schema enum:[closed, open]
     # Remote AuthZEN PDP (driver: authzen).
     authzen:
       # The PDP's single-evaluation URL (CCF_AUTHZ_ENDPOINT). Required with driver authzen.
       endpoint: ""
       # Decision cache TTL, a Go duration such as 5s (CCF_AUTHZ_CACHE_TTL). Empty disables
       # the cache.
-      cacheTtl: "" # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+      cacheTtl: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
     # Optional configuration for Cedar driver
     cedar:
       # Directory of operator *.cedar policy files (CCF_AUTHZ_CEDAR_POLICY_DIR). They augment
@@ -516,11 +516,11 @@ ui:
   vpa:
     enabled: false
     updatePolicy:
-      updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
+      updateMode: "Recreate"  # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
     resourcePolicy:
       containerPolicy:
-        mode: Auto # @schema enum:[Off, Auto]
-        controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
+        mode: Auto  # @schema enum:[Off, Auto]
+        controlledValues: RequestsAndLimits  # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
           cpu: 50m
           memory: 10Mi
@@ -554,7 +554,7 @@ ui:
     # Banner shown on the login page (LOGIN_BANNER). Empty shows none.
     loginBanner: ""
     # LOGIN_BANNER_SEVERITY
-    loginBannerSeverity: info # @schema enum:[info, warn, error, success]
+    loginBannerSeverity: info  # @schema enum:[info, warn, error, success]
     # Allow filters (dashboards) to be linked to system components
     # (FILTER_COMPONENT_LINKING_ENABLED, new in ui 2.12).
     filterComponentLinkingEnabled: false
@@ -587,7 +587,7 @@ ui:
     enabled: true
     labels: {}
     annotations: {}
-    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
+    hosts: []  # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
 
 dex:
   enabled: false
@@ -616,11 +616,11 @@ dex:
     enabled: true
     labels: {}
     annotations: {}
-    hosts: [] # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
+    hosts: []  # @schema item:object;itemProperties:{"host":{"type":"string"},"paths":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"pathType":{"type":"string"}}}}}
   staticClient:
     id: ccf-ui
     name: CCF UI
-    redirectUris: [] # @schema item:string
+    redirectUris: []  # @schema item:string
   # Dex static client secret: existingSecret (with createSecret: false), externalSecret, value,
   # devSecrets.seed, or (DEPRECATED default with createSecret: true) lookup + random.
   clientSecret:
@@ -633,7 +633,7 @@ dex:
       enabled: false
     envName: CCF_SSO_PROVIDERS_DEX_CLIENT_SECRET
   sso:
-    name: dex # @schema pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+    name: dex  # @schema pattern: ^[A-Za-z_][A-Za-z0-9_]*$
     displayName: Dex
     provider: generic
     protocol: oidc
@@ -686,11 +686,11 @@ database:
     vpa:
       enabled: false
       updatePolicy:
-        updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
+        updateMode: "Recreate"  # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
       resourcePolicy:
         containerPolicy:
-          mode: Auto # @schema enum:[Off, Auto]
-          controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
+          mode: Auto  # @schema enum:[Off, Auto]
+          controlledValues: RequestsAndLimits  # @schema enum:[RequestsOnly, RequestsAndLimits]
           minAllowed:
             cpu: 100m
             memory: 128Mi
@@ -769,11 +769,11 @@ pgadmin4:
   vpa:
     enabled: false
     updatePolicy:
-      updateMode: "Recreate" # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
+      updateMode: "Recreate"  # @schema enum:[Off, Auto, Initial, Recreate, InPlaceOrRecreate]
     resourcePolicy:
       containerPolicy:
-        mode: Auto # @schema enum:[Off, Auto]
-        controlledValues: RequestsAndLimits # @schema enum:[RequestsOnly, RequestsAndLimits]
+        mode: Auto  # @schema enum:[Off, Auto]
+        controlledValues: RequestsAndLimits  # @schema enum:[RequestsOnly, RequestsAndLimits]
         minAllowed:
           cpu: 100m
           memory: 128Mi
