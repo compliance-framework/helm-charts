@@ -2,6 +2,18 @@
 
 A set of Helm charts for CCF.
 
+## Releasing
+
+Both charts are published to `oci://ghcr.io/compliance-framework/helm-charts` as `ccf` (from
+`charts/ccf-app`) and `ccf-agent` (from `charts/ccf-agent`).
+
+- Don't edit a chart's `version:` by hand. release-please opens a release PR from the
+  conventional commits on `main` (`fix` and `feat` touching a chart), bumps `Chart.yaml` and the
+  chart's `CHANGELOG.md`, and on merge tags `ccf-app-vX.Y.Z` / `ccf-agent-vX.Y.Z`. The tag's
+  release runs `release.yml`, which pushes `<chart>:X.Y.Z`.
+- For a release candidate, run the `cut-prerelease` workflow and pick the chart. It needs the
+  open release PR and publishes `<chart>:X.Y.Z-rcN`.
+
 ## Values files
 
 `values-local.yaml` - an example values file for local k8s clusters
