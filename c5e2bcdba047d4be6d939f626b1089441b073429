@@ -5,3 +5,7 @@ lisa-design:
 - Fixed ct yamllint findings in values.yaml (whitespace only) instead of adding a relaxed lintconf, so the repo stays on ct's defaults like the mock.
 - Deleted charts/ccf-app/Chart.lock (postgresql 16.7.27) rather than regenerating it: Chart.yaml has `dependencies: []`, so the lock is orphaned and breaks `helm dependency build` in ct lint.
 - release-agent.yaml/release-app.yaml only get $GITHUB_OUTPUT quoted (actionlint/shellcheck); they keep publishing until T03 replaces them.
+
+lisa-selfreview:
+- pass 1: [must-fix CORE-ERR-001 3434483fa45d] Makefile helm.schema.check: a failing `helm schema` run is reported as a stale schema (rc of generator and diff folded together). -> fix
+- pass 1 considered, not a finding: HELM-VER-001 for values.yaml whitespace + orphaned Chart.lock removal: no functional chart change; versions are owned by release-please from T02 (design note).
