@@ -17,6 +17,12 @@ jobs:
   argocd:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      # The kind release and the node image it was built for (from its release notes), pinned by
+      # digest so a cluster is the same on every run.
+      KIND_VERSION: v0.33.0
+      KIND_NODE_IMAGE: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+      KIND_CLUSTER: argocd-check
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -31,10 +37,32 @@ jobs:
       - name: Render twice, no lookup
         run: ci/argocd/check.sh render
 
+      # Creating the cluster is retried once: it downloads the kind binary and the node image, and a
+      # bad download (e.g. a kind binary that fails its checksum) fails the step without saying
+      # anything about the charts.
       - name: Create kind cluster
+        id: kind
+        continue-on-error: true
         uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with:
-          cluster_name: argocd-check
+          version: ${{ env.KIND_VERSION }}
+          node_image: ${{ env.KIND_NODE_IMAGE }}
+          cluster_name: ${{ env.KIND_CLUSTER }}
+
+      - name: Remove the half-created kind cluster
+        if: steps.kind.outcome == 'failure'
+        run: |
+          echo "::warning::creating the kind cluster failed; retrying once"
+          docker ps -aq --filter "label=io.x-k8s.kind.cluster=$KIND_CLUSTER" | xargs -r docker rm -f
+          sleep 15
+
+      - name: Create kind cluster (retry)
+        if: steps.kind.outcome == 'failure'
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: ${{ env.KIND_VERSION }}
+          node_image: ${{ env.KIND_NODE_IMAGE }}
+          cluster_name: ${{ env.KIND_CLUSTER }}
 
       - name: Sync with Argo CD and check it stays Synced
         env:
