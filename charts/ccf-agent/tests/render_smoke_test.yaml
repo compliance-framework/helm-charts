@@ -107,13 +107,16 @@ tests:
           pattern: ":0.3.0$"
         template: templates/deployment.yaml
 
+  # The chart's appVersion is overridden so a release-train bump of Chart.yaml doesn't break the test.
   - it: uses chart appVersion when tag is empty
     set:
       image.tag: ""
+    chart:
+      appVersion: "1.2.3"
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: ":0.9.0$"
+          pattern: ":1\\.2\\.3$"
         template: templates/deployment.yaml
 
   - it: sets custom hostname
