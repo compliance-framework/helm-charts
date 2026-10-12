@@ -6,10 +6,13 @@
 #    returns nothing there, and a random or generated value changes on every render.
 # 2. Installs Argo CD on the current cluster (a kind cluster in CI), creates an Application per
 #    chart and values set from REPO_URL at REVISION (existingSecret credentials, External Secrets
-#    Operator credentials, and the agent chart), syncs them, waits for Synced + Healthy, checks
-#    the ESO path end to end (ExternalSecrets Ready, API ready with the generated JWT key and
-#    Postgres password, Secret data unchanged after a forced sync), then forces two hard
-#    refreshes and requires the Applications to stay Synced (no diff between renders).
+#    Operator credentials, and the agent chart) once both operators are ready (CRDs Established,
+#    Deployments Available, ESO's webhook admitting a dry-run create), syncs them (a failed sync
+#    is logged with its diagnostics and run again, SYNC_ATTEMPTS times in all), waits for
+#    Synced + Healthy, checks the ESO path end to end (ExternalSecrets Ready, API ready with the
+#    generated JWT key and Postgres password, Secret data unchanged after a forced sync), then
+#    forces two hard refreshes and requires the Applications to stay Synced (no diff between
+#    renders).
 #
 # Usage: REPO_URL=https://github.com/<owner>/<repo> REVISION=<sha> ci/argocd/check.sh [render|argocd|all]
 set -euo pipefail
@@ -19,6 +22,11 @@ ESO_VERSION="${ESO_VERSION:-2.11.0}"
 # Every Application namespace enforces this Pod Security level; a rejected pod fails the check.
 PSS_LEVEL="${PSS_LEVEL-restricted}"
 TIMEOUT="${TIMEOUT:-900}"
+# How long to wait for an operator (ESO, Argo CD) to be ready, and how many times a failed sync is
+# run before the check fails (each failure is logged with its diagnostics, retried or not).
+READY_TIMEOUT="${READY_TIMEOUT:-300}"
+SYNC_ATTEMPTS="${SYNC_ATTEMPTS:-3}"
+SYNC_BACKOFF="${SYNC_BACKOFF:-15}"
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 mode="${1:-all}"
 
@@ -97,8 +105,8 @@ render_check() {
   fi
 }
 
-wait_for() { # wait_for <description> <command...>
-  local what="$1" deadline=$(( $(date +%s) + TIMEOUT )); shift
+wait_until() { # wait_until <seconds> <description> <command...>
+  local what="$2" deadline=$(( $(date +%s) + $1 )); shift 2
   until "$@"; do
     if [ "$(date +%s)" -ge "$deadline" ]; then
       log "FAIL: timed out waiting for $what"
@@ -108,29 +116,100 @@ wait_for() { # wait_for <description> <command...>
   done
 }
 
+wait_for() { wait_until "$TIMEOUT" "$@"; } # wait_for <description> <command...>
+
 default_project_exists() { kubectl -n argocd get appproject default >/dev/null 2>&1; }
 
-app_state() {
-  kubectl -n argocd get application "$1" \
-    -o jsonpath='{.status.sync.status}/{.status.health.status}/{.status.operationState.phase}' 2>/dev/null
+app_get() { kubectl -n argocd get application "$1" -o jsonpath="$2" 2>/dev/null; }
+
+app_state() { app_get "$1" '{.status.sync.status}/{.status.health.status}/{.status.operationState.phase}'; }
+
+# start_sync NAME: requests a sync and waits until the controller has started it, so the
+# operationState read afterwards is this sync's and not an earlier one's.
+start_sync() {
+  local before; before="$(app_get "$1" '{.status.operationState.startedAt}')"
+  kubectl -n argocd patch application "$1" --type merge \
+    -p "{\"operation\":{\"initiatedBy\":{\"username\":\"ci\"},\"sync\":{\"revision\":\"$REVISION\",\"prune\":true}}}" >/dev/null
+  wait_until 120 "$1's sync to start" sync_started_after "$1" "$before"
 }
 
-app_synced_healthy() {
-  local state; state="$(app_state "$1")"
-  case "$state" in
-    Synced/Healthy/Succeeded) return 0 ;;
-    */*/Failed|*/*/Error) log "FAIL: $1 sync failed: $state"; dump "$1"; exit 1 ;;
+sync_started_after() { # sync_started_after NAME STARTED_AT: an operation newer than STARTED_AT exists
+  local now; now="$(app_get "$1" '{.status.operationState.startedAt}')"
+  [ -n "$now" ] && [ "$now" != "$2" ]
+}
+
+# sync_done NAME: the sync failed, or it succeeded and the Application is Synced and Healthy.
+sync_done() {
+  case "$(app_state "$1")" in
+    Synced/Healthy/Succeeded|*/*/Failed|*/*/Error) return 0 ;;
   esac
   return 1
 }
 
-refresh_done() {
-  [ -z "$(kubectl -n argocd get application "$1" -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/refresh}')" ]
+# sync_app NAME: waits for the sync start_sync started; a failed sync is diagnosed and run again,
+# with backoff, up to SYNC_ATTEMPTS times in all. A sync can fail on a transient state: with
+# PostSync hooks (the bootstrap Job) Argo CD fails a sync task whose resource is Degraded while the
+# sync runs, and an ExternalSecret is Degraded (Ready=False) until ESO sees its generator, which
+# Argo CD may apply after it. A retried failure is still logged in full and annotated as a warning.
+sync_app() {
+  local name="$1" attempt=1 state
+  while :; do
+    wait_for "$name to be Synced and Healthy" sync_done_or_rejected "$name" || { diagnose "$name"; exit 1; }
+    state="$(app_state "$name")"
+    if [ "$state" = Synced/Healthy/Succeeded ]; then
+      log "ok: $name is $state"
+      return 0
+    fi
+    log "$name sync attempt $attempt/$SYNC_ATTEMPTS failed: $state"
+    [ -z "${GITHUB_ACTIONS:-}" ] || echo "::warning::$name sync attempt $attempt/$SYNC_ATTEMPTS failed: $state (diagnostics in the log)"
+    diagnose "$name"
+    if [ "$attempt" -ge "$SYNC_ATTEMPTS" ]; then
+      log "FAIL: $name sync failed $attempt times"
+      exit 1
+    fi
+    sleep $(( SYNC_BACKOFF * attempt ))
+    attempt=$(( attempt + 1 ))
+    log "syncing $name again (attempt $attempt/$SYNC_ATTEMPTS)"
+    start_sync "$name" || { diagnose "$name"; exit 1; }
+  done
 }
 
-dump() {
-  kubectl -n argocd get application "$1" -o yaml | sed -n '/^status:/,$p' | head -120 >&2 || true
-  kubectl get pods -A >&2 || true
+refresh_done() {
+  [ -z "$(app_get "$1" '{.metadata.annotations.argocd\.argoproj\.io/refresh}')" ]
+}
+
+# diagnose NAME: every sync task with its result (failed ones marked), every resource that is not
+# Synced and Healthy, the Application conditions, the logs of failed hook Jobs, recent events in
+# the destination namespace and every pod. Printed in full: a failure must be diagnosable from the
+# log alone.
+diagnose() {
+  local name="$1" json ns job
+  json="$(kubectl -n argocd get application "$name" -o json 2>/dev/null)" || { log "cannot read Application $name"; return 0; }
+  ns="$(jq -r '.spec.destination.namespace' <<<"$json")"
+  {
+    echo "--- $name: $(app_state "$name")"
+    jq -r '
+      def bad: ((.status // "") != "Synced") or ((.hookPhase // "") | test("Failed|Error"));
+      "operation: \(.status.operationState.phase // "none"): \(.status.operationState.message // "")",
+      "conditions:", ((.status.conditions // [])[] | "  \(.type): \(.message)"),
+      "sync tasks (!! = not OK):",
+      ((.status.operationState.syncResult.resources // [])[]
+        | "  \(if bad then "!!" else "  " end) \(.syncPhase // "-") \(.hookType // "") \(.kind) \(.namespace // "")/\(.name): status=\(.status // "-") hookPhase=\(.hookPhase // "-") message=\(.message // "")"),
+      "resources not Synced and Healthy:",
+      ((.status.resources // [])[]
+        | select(.status != "Synced" or ((.health.status // "Healthy") != "Healthy"))
+        | "  \(.kind) \(.namespace // "")/\(.name): sync=\(.status // "-") health=\(.health.status // "-") \(.health.message // "")")
+    ' <<<"$json"
+    for job in $(jq -r '(.status.operationState.syncResult.resources // [])[]
+        | select(.kind == "Job" and ((.hookPhase // "") | test("Failed|Error"))) | .name' <<<"$json"); do
+      echo "logs of hook Job $ns/$job:"
+      kubectl -n "$ns" logs "job/$job" --all-containers --tail=50 2>&1 | sed 's/^/  /'
+    done
+    echo "recent events in $ns:"
+    kubectl -n "$ns" get events --sort-by=.lastTimestamp 2>&1 | tail -n 30 | sed 's/^/  /'
+    echo "pods:"
+    kubectl get pods -A 2>&1 | sed 's/^/  /'
+  } >&2 || true
 }
 
 # Applications: name:chart path:values file:namespace
@@ -193,6 +272,86 @@ eso_check() {
   log "ok: the bootstrap Job logged in with the ESO-generated initial user password"
 }
 
+# The ESO resources the ccf-eso Application creates (and the webhook probe below) need these.
+ESO_CRDS="externalsecrets.external-secrets.io secretstores.external-secrets.io
+passwords.generators.external-secrets.io"
+ESO_WEBHOOK_CONFIGS="secretstore-validate externalsecret-validate"
+
+webhook_ca_injected() { # webhook_ca_injected CONFIG: every webhook in it has a CA bundle
+  kubectl get validatingwebhookconfiguration "$1" -o json 2>/dev/null \
+    | jq -e '(.webhooks | length) > 0 and all(.webhooks[]; (.clientConfig.caBundle // "") != "")' >/dev/null
+}
+
+# eso_webhook_serves: a server-side dry-run create of a SecretStore and of an ExternalSecret shaped
+# like the chart's goes through ESO's validating webhooks (failurePolicy Fail), so it succeeds only
+# once the webhook serves with the injected CA. Nothing is persisted.
+eso_probe_error=""
+eso_webhook_serves() {
+  if eso_probe_error="$(kubectl create --dry-run=server -o name -f - 2>&1 <<'EOF'
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: argocd-check-webhook-probe
+  namespace: default
+spec:
+  provider:
+    fake:
+      data: []
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: argocd-check-webhook-probe
+  namespace: default
+spec:
+  refreshPolicy: CreatedOnce
+  target:
+    name: argocd-check-webhook-probe
+    creationPolicy: Owner
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: argocd-check-webhook-probe
+EOF
+)"; then
+    return 0
+  fi
+  return 1
+}
+
+# eso_ready: the CRDs are Established, the controller, webhook and cert-controller are Available,
+# the CA is injected into the validating webhooks and the webhook admits a dry-run create.
+eso_ready() {
+  local crd cfg
+  for crd in $ESO_CRDS; do
+    kubectl wait --for=condition=Established "crd/$crd" --timeout="${READY_TIMEOUT}s" >/dev/null
+  done
+  kubectl -n external-secrets wait --for=condition=Available --timeout="${READY_TIMEOUT}s" \
+    deploy/external-secrets deploy/external-secrets-webhook deploy/external-secrets-cert-controller >/dev/null
+  for cfg in $ESO_WEBHOOK_CONFIGS; do
+    wait_until "$READY_TIMEOUT" "the CA in the $cfg webhook" webhook_ca_injected "$cfg" || exit 1
+  done
+  if ! wait_until "$READY_TIMEOUT" "the ESO webhook to admit a dry-run SecretStore and ExternalSecret" eso_webhook_serves; then
+    log "last webhook probe error: $eso_probe_error"
+    exit 1
+  fi
+  log "ok: External Secrets Operator is ready (CRDs Established, Deployments Available, webhook serving)"
+}
+
+# argocd_ready: the CRDs are Established, every Argo CD Deployment is Available, the application
+# controller is rolled out and argocd-server has created the default AppProject.
+argocd_ready() {
+  kubectl wait --for=condition=Established --timeout="${READY_TIMEOUT}s" \
+    crd/applications.argoproj.io crd/appprojects.argoproj.io >/dev/null
+  kubectl -n argocd wait --for=condition=Available deploy --all --timeout=600s >/dev/null
+  kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=600s
+  # argocd-server creates the default AppProject on start; Applications fail without it.
+  wait_for "the default AppProject" default_project_exists || exit 1
+  log "ok: Argo CD is ready (CRDs Established, Deployments Available, default AppProject)"
+}
+
 argocd_check() {
   : "${REPO_URL:?set REPO_URL}" "${REVISION:?set REVISION}"
   log "installing External Secrets Operator $ESO_VERSION"
@@ -203,12 +362,9 @@ argocd_check() {
   kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
   kubectl apply -n argocd --server-side --force-conflicts \
     -f "https://raw.githubusercontent.com/argoproj/argo-cd/$ARGOCD_VERSION/manifests/install.yaml" >/dev/null
-  kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=600s
-  kubectl -n argocd rollout status deploy/argocd-redis --timeout=600s
-  kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=600s
-  kubectl -n argocd rollout status deploy/argocd-server --timeout=600s
-  # argocd-server creates the default AppProject on start; Applications fail without it.
-  wait_for "the default AppProject" default_project_exists || exit 1
+  argocd_ready
+  # Checked last, right before the ccf-eso Application creates ExternalSecrets.
+  eso_ready
 
   log "creating the namespaces and the credentials the existingSecret values set references"
   local name path values ns
@@ -245,14 +401,10 @@ APP
   done <<<"$APPS"
 
   for name in $(app_names); do
-    log "syncing $name"
-    kubectl -n argocd patch application "$name" --type merge \
-      -p "{\"operation\":{\"initiatedBy\":{\"username\":\"ci\"},\"sync\":{\"revision\":\"$REVISION\",\"prune\":true}}}"
+    log "syncing $name (attempt 1/$SYNC_ATTEMPTS)"
+    start_sync "$name" || { diagnose "$name"; exit 1; }
   done
-  for name in $(app_names); do
-    wait_for "$name to be Synced and Healthy" app_synced_healthy_or_rejected "$name" || { dump "$name"; exit 1; }
-    log "ok: $name is $(app_state "$name")"
-  done
+  for name in $(app_names); do sync_app "$name"; done
   no_rejected_pods
 
   eso_check
@@ -262,13 +414,13 @@ APP
       kubectl -n argocd annotate application "$name" argocd.argoproj.io/refresh=hard --overwrite >/dev/null
     done
     for name in $(app_names); do
-      wait_for "$name hard refresh $round" refresh_done "$name" || { dump "$name"; exit 1; }
+      wait_for "$name hard refresh $round" refresh_done "$name" || { diagnose "$name"; exit 1; }
       sync="$(kubectl -n argocd get application "$name" -o jsonpath='{.status.sync.status}')"
       drift="$(kubectl -n argocd get application "$name" \
         -o jsonpath='{range .status.resources[?(@.status!="Synced")]}{.kind}/{.name} {end}')"
       if [ "$sync" != Synced ] || [ -n "$drift" ]; then
         log "FAIL: $name is $sync after hard refresh $round; drifted: ${drift:-none}"
-        dump "$name"
+        diagnose "$name"
         exit 1
       fi
       log "ok: $name still Synced after hard refresh $round"
@@ -277,7 +429,7 @@ APP
   no_rejected_pods
 }
 
-app_synced_healthy_or_rejected() { no_rejected_pods; app_synced_healthy "$1"; }
+sync_done_or_rejected() { no_rejected_pods; sync_done "$1"; }
 
 case "$mode" in
   render) render_check ;;
