@@ -13,7 +13,7 @@ jobs:
     # release-helm.yml picks the chart by the tag's component, matching the chart directory first
     # (so ccf-app-v* publishes the chart named `ccf`). It pushes <chart>:X.Y.Z to the default
     # registry oci://ghcr.io/compliance-framework/helm-charts, where the charts already live.
-    uses: compliance-framework/workflows/.github/workflows/release-helm.yml@55c549bf712163152173b398e297fba0f907ceca # v1.4.0
+    uses: compliance-framework/workflows/.github/workflows/release-helm.yml@05d2c3233de6e302c4ff891dde1132d440c081e4 # v1.6.0
     permissions:
       contents: read
       packages: write
