@@ -120,7 +120,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.21.0"
+    tag: "0.21.1"
   # JWT signing key management for the API.
   jwt:
     # Where the API's JWT signing key comes from:
