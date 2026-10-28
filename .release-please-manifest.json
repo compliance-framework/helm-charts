@@ -1,4 +1,4 @@
 {
-  "charts/ccf-app": "0.9.1",
-  "charts/ccf-agent": "0.4.2"
+  "charts/ccf-app": "0.10.0",
+  "charts/ccf-agent": "0.5.0"
 }
