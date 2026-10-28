@@ -396,6 +396,39 @@
                 "evidence": {
                     "type": "object",
                     "properties": {
+                        "batch": {
+                            "type": "object",
+                            "properties": {
+                                "chunkSize": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "minimum": 1
+                                },
+                                "maxItems": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "minimum": 1
+                                },
+                                "pruneSchedule": {
+                                    "type": "string"
+                                },
+                                "retention": {
+                                    "type": "string",
+                                    "pattern": "^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
+                                },
+                                "workers": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "minimum": 1
+                                }
+                            }
+                        },
                         "manualRequireSubject": {
                             "type": [
                                 "boolean",
@@ -551,6 +584,22 @@
                 },
                 "labels": {
                     "type": "object"
+                },
+                "lineage": {
+                    "type": "object",
+                    "properties": {
+                        "cacheMaxEntries": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1
+                        },
+                        "cacheTtl": {
+                            "type": "string",
+                            "pattern": "^$|^0$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
+                        }
+                    }
                 },
                 "livenessProbe": {
                     "type": "object",
@@ -789,6 +838,26 @@
                                     }
                                 }
                             }
+                        }
+                    }
+                },
+                "sspScope": {
+                    "type": "object",
+                    "properties": {
+                        "autoFiltersSchedule": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "sspTemplates": {
+                    "type": "object",
+                    "properties": {
+                        "discoverySchedule": {
+                            "type": "string"
+                        },
+                        "staleAfter": {
+                            "type": "string",
+                            "pattern": "^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$"
                         }
                     }
                 },

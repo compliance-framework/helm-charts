@@ -1,4 +1,4 @@
-suite: API agent, worker, playback, artifact and evidence settings
+suite: API agent, worker, playback, artifact, evidence, SSP and lineage settings
 templates:
   - templates/configmap_api.yaml
 values:
@@ -43,6 +43,26 @@ tests:
           path: data.CCF_EVIDENCE_REQUIRE_SUBJECT
       - notExists:
           path: data.CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT
+      - notExists:
+          path: data.CCF_EVIDENCE_BATCH_MAX_ITEMS
+      - notExists:
+          path: data.CCF_EVIDENCE_BATCH_CHUNK_SIZE
+      - notExists:
+          path: data.CCF_EVIDENCE_BATCH_WORKERS
+      - notExists:
+          path: data.CCF_EVIDENCE_BATCH_RETENTION
+      - notExists:
+          path: data.CCF_EVIDENCE_BATCH_PRUNE_SCHEDULE
+      - notExists:
+          path: data.CCF_SSP_SCOPE_AUTO_FILTERS_SCHEDULE
+      - notExists:
+          path: data.CCF_SSP_TEMPLATE_DISCOVERY_SCHEDULE
+      - notExists:
+          path: data.CCF_SSP_TEMPLATE_STALE_AFTER
+      - notExists:
+          path: data.CCF_LINEAGE_CACHE_TTL
+      - notExists:
+          path: data.CCF_LINEAGE_CACHE_MAX_ENTRIES
 
   - it: renders every setting when set
     values:
@@ -96,6 +116,36 @@ tests:
       - equal:
           path: data.CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT
           value: "true"
+      - equal:
+          path: data.CCF_EVIDENCE_BATCH_MAX_ITEMS
+          value: "500"
+      - equal:
+          path: data.CCF_EVIDENCE_BATCH_CHUNK_SIZE
+          value: "50"
+      - equal:
+          path: data.CCF_EVIDENCE_BATCH_WORKERS
+          value: "2"
+      - equal:
+          path: data.CCF_EVIDENCE_BATCH_RETENTION
+          value: "72h"
+      - equal:
+          path: data.CCF_EVIDENCE_BATCH_PRUNE_SCHEDULE
+          value: "0 12 * * * *"
+      - equal:
+          path: data.CCF_SSP_SCOPE_AUTO_FILTERS_SCHEDULE
+          value: "0 5 * * * *"
+      - equal:
+          path: data.CCF_SSP_TEMPLATE_DISCOVERY_SCHEDULE
+          value: "0 41 * * * *"
+      - equal:
+          path: data.CCF_SSP_TEMPLATE_STALE_AFTER
+          value: "336h"
+      - equal:
+          path: data.CCF_LINEAGE_CACHE_TTL
+          value: "10m"
+      - equal:
+          path: data.CCF_LINEAGE_CACHE_MAX_ENTRIES
+          value: "16"
 
   - it: leaves a key that api.extraConfig already sets to extraConfig
     set:
@@ -110,6 +160,40 @@ tests:
       - equal:
           path: data.CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS
           value: "true"
+
+  - it: leaves a new API 0.22 key that api.extraConfig already sets to extraConfig
+    set:
+      api.evidence.batch.workers: 8
+      api.lineage.cacheTtl: 10m
+      api.extraConfig:
+        CCF_EVIDENCE_BATCH_WORKERS: "2"
+    asserts:
+      - equal:
+          path: data.CCF_EVIDENCE_BATCH_WORKERS
+          value: "2"
+      - equal:
+          path: data.CCF_LINEAGE_CACHE_TTL
+          value: "10m"
+
+  - it: renders a lineage cache TTL of "0", which disables the cache
+    set:
+      api.lineage.cacheTtl: "0"
+    asserts:
+      - equal:
+          path: data.CCF_LINEAGE_CACHE_TTL
+          value: "0"
+
+  - it: rejects a lineage cache TTL that is not a duration
+    set:
+      api.lineage.cacheTtl: "5 minutes"
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects a non-positive evidence batch size
+    set:
+      api.evidence.batch.maxItems: 0
+    asserts:
+      - failedTemplate: {}
 
   - it: rejects an invalid evidence subject mode, which would stop the API
     set:

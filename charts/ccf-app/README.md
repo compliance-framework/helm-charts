@@ -107,7 +107,7 @@ The full list is in [`values.yaml`](./values.yaml), with a comment per value.
 | `api.authz.driver` | `builtin`, `cedar` or `authzen` | `builtin` |
 | `api.authz.roleAssignments` | Role grants rendered into `authz-roles.yaml` | `{agents: agent}` |
 | `api.agents.strictDisablePublicEndpoints` | Refuse anonymous agent traffic | `false` |
-| `api.agents.*`, `api.worker.enabled`, `api.playback.*`, `api.artifacts.*`, `api.evidence.*` | API tuning; unset values keep the API defaults | unset |
+| `api.agents.*`, `api.worker.enabled`, `api.playback.*`, `api.artifacts.*`, `api.evidence.*` (incl. `api.evidence.batch.*`), `api.sspScope.*`, `api.sspTemplates.*`, `api.lineage.*` | API tuning; unset values keep the API defaults | unset |
 | `api.agentBootstrap.*` | Optional Job that creates agent keys and Secrets | disabled |
 | `api.ai.*` | AI suggestions (`provider: anthropic`, `baseUrl`, model, limits) | disabled |
 | `<component>.podSecurityContext` / `<component>.securityContext` | Per-workload security contexts (`api`, `ui`, `dex`, `database.local`, `pgadmin4`); empty uses the global ones, then the hardened defaults | `{}` |
