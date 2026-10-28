@@ -20,3 +20,17 @@ api:
   evidence:
     requireSubject: "off"
     manualRequireSubject: true
+    batch:
+      maxItems: 500
+      chunkSize: 50
+      workers: 2
+      retention: 72h
+      pruneSchedule: "0 12 * * * *"
+  sspScope:
+    autoFiltersSchedule: "0 5 * * * *"
+  sspTemplates:
+    discoverySchedule: "0 41 * * * *"
+    staleAfter: 336h
+  lineage:
+    cacheTtl: 10m
+    cacheMaxEntries: 16

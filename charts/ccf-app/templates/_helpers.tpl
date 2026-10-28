@@ -219,9 +219,9 @@ Name of the ConfigMap holding the operator cedar policies the chart mounts, or e
 {{- end }}
 
 {{/*
-First-class API settings (agents, worker, playback, artifacts, evidence) as an env map for
-the API ConfigMap. Only set values are included, except
-CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS, which defaults to "false". A key that
+First-class API settings (agents, worker, playback, artifacts, evidence and evidence batches,
+SSP scope and templates, lineage cache) as an env map for the API ConfigMap. Only set values
+are included, except CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS, which defaults to "false". A key that
 api.extraConfig also sets is left to extraConfig, so existing installs that configured it
 there render unchanged.
 */}}
@@ -232,6 +232,10 @@ there render unchanged.
 {{- $playback := default (dict) $api.playback -}}
 {{- $artifacts := default (dict) $api.artifacts -}}
 {{- $evidence := default (dict) $api.evidence -}}
+{{- $evidenceBatch := default (dict) $evidence.batch -}}
+{{- $sspScope := default (dict) $api.sspScope -}}
+{{- $sspTemplates := default (dict) $api.sspTemplates -}}
+{{- $lineage := default (dict) $api.lineage -}}
 {{- $env := dict -}}
 {{- $_ := set $env "CCF_STRICT_DISABLE_PUBLIC_AGENT_ENDPOINTS" (toString (default false $agents.strictDisablePublicEndpoints)) -}}
 {{- $strings := dict
@@ -240,7 +244,13 @@ there render unchanged.
   "CCF_AGENT_INSTANCE_ONESHOT_RETENTION" $agents.oneShotInstanceRetention
   "CCF_AGENT_INSTANCE_PRUNE_SCHEDULE" $agents.instancePruneSchedule
   "CCF_PLAYBACK_TIMEOUT" $playback.timeout
-  "CCF_EVIDENCE_REQUIRE_SUBJECT" $evidence.requireSubject -}}
+  "CCF_EVIDENCE_REQUIRE_SUBJECT" $evidence.requireSubject
+  "CCF_EVIDENCE_BATCH_RETENTION" $evidenceBatch.retention
+  "CCF_EVIDENCE_BATCH_PRUNE_SCHEDULE" $evidenceBatch.pruneSchedule
+  "CCF_SSP_SCOPE_AUTO_FILTERS_SCHEDULE" $sspScope.autoFiltersSchedule
+  "CCF_SSP_TEMPLATE_DISCOVERY_SCHEDULE" $sspTemplates.discoverySchedule
+  "CCF_SSP_TEMPLATE_STALE_AFTER" $sspTemplates.staleAfter
+  "CCF_LINEAGE_CACHE_TTL" $lineage.cacheTtl -}}
 {{- range $key, $val := $strings -}}
 {{- if $val -}}
 {{- $_ := set $env $key (toString $val) -}}
@@ -261,7 +271,11 @@ there render unchanged.
   "CCF_PLAYBACK_MAX_BYTES" $playback.maxBytes
   "CCF_PLAYBACK_MAX_CONCURRENT" $playback.maxConcurrent
   "CCF_ARTIFACT_MAX_BYTES" $artifacts.maxBytes
-  "CCF_ARTIFACT_MAX_CONCURRENT" $artifacts.maxConcurrent -}}
+  "CCF_ARTIFACT_MAX_CONCURRENT" $artifacts.maxConcurrent
+  "CCF_EVIDENCE_BATCH_MAX_ITEMS" $evidenceBatch.maxItems
+  "CCF_EVIDENCE_BATCH_CHUNK_SIZE" $evidenceBatch.chunkSize
+  "CCF_EVIDENCE_BATCH_WORKERS" $evidenceBatch.workers
+  "CCF_LINEAGE_CACHE_MAX_ENTRIES" $lineage.cacheMaxEntries -}}
 {{- range $key, $val := $ints -}}
 {{- if not (kindIs "invalid" $val) -}}
 {{- $_ := set $env $key (toString (int64 $val)) -}}

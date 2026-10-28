@@ -120,7 +120,7 @@ api:
     repository: ghcr.io/compliance-framework/api
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.21.1"
+    tag: "0.22.1"
   # JWT signing key management for the API.
   jwt:
     # Where the API's JWT signing key comes from:
@@ -372,6 +372,47 @@ api:
     # Require a subject on manually created evidence (CCF_MANUAL_EVIDENCE_REQUIRE_SUBJECT,
     # API default false).
     manualRequireSubject: null  # @schema type:[boolean, null]
+    # Asynchronous batch evidence ingest (POST /api/evidence/batches). The batches are
+    # processed by the worker (api.worker); without it the batch routes answer 503.
+    batch:
+      # Most evidence one batch may hold (CCF_EVIDENCE_BATCH_MAX_ITEMS, API default 1000).
+      maxItems: null  # @schema type:[integer, null];minimum:1
+      # Evidence processed per background job (CCF_EVIDENCE_BATCH_CHUNK_SIZE, API default 100).
+      chunkSize: null  # @schema type:[integer, null];minimum:1
+      # Background jobs processing batch evidence at once (CCF_EVIDENCE_BATCH_WORKERS, API default 4).
+      workers: null  # @schema type:[integer, null];minimum:1
+      # Batches and their item outcomes are deleted this long after they were accepted; the
+      # evidence is kept (CCF_EVIDENCE_BATCH_RETENTION, API default 168h).
+      retention: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+      # River cron (6 fields, seconds first) of the batch prune job; it runs at most hourly
+      # (CCF_EVIDENCE_BATCH_PRUNE_SCHEDULE, API default "0 47 * * * *").
+      pruneSchedule: ""
+
+  # SSP scope.
+  sspScope:
+    # River cron (6 fields, seconds first) of the job that creates the missing automatic
+    # per-policy filters of every SSP with automatic filters on; it runs at most hourly
+    # (CCF_SSP_SCOPE_AUTO_FILTERS_SCHEDULE, API default "0 23 * * * *").
+    autoFiltersSchedule: ""
+
+  # SSP templates.
+  sspTemplates:
+    # River cron (6 fields, seconds first) of SSP template discovery, which creates one SSP per
+    # distinct key value in the latest evidence; it runs at most hourly
+    # (CCF_SSP_TEMPLATE_DISCOVERY_SCHEDULE, API default "0 37 * * * *").
+    discoverySchedule: ""
+    # An SSP a template created is reported as stale after this long without evidence; nothing
+    # is deleted (CCF_SSP_TEMPLATE_STALE_AFTER, API default 168h).
+    staleAfter: ""  # @schema pattern:^$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+
+  # Compliance Map (/api/lineage) cache, shared across users.
+  lineage:
+    # How long a built dataset is reused; "0" (quoted) disables the cache
+    # (CCF_LINEAGE_CACHE_TTL, API default 5m).
+    cacheTtl: ""  # @schema pattern:^$|^0$|^([0-9]*[.]?[0-9]+(ns|us|µs|ms|s|m|h))+$
+    # Most cached scopes (SSP x component); the oldest is evicted first
+    # (CCF_LINEAGE_CACHE_MAX_ENTRIES, API default 8).
+    cacheMaxEntries: null  # @schema type:[integer, null];minimum:1
 
   # Optional agent bootstrap: a post-install/post-upgrade Job that, for each entry in agents,
   # creates the agent in the CCF API (Admin -> Agents) if it does not exist, creates a
@@ -531,7 +572,7 @@ ui:
   image:
     repository: ghcr.io/compliance-framework/ui
     pullPolicy: IfNotPresent
-    tag: "2.12.1"
+    tag: "2.13.0"
   # nginx listens on this unprivileged port through the chart's server configuration
   # (configmap_ui_nginx.yaml); the Service targets it by name.
   containerPort: 8080
