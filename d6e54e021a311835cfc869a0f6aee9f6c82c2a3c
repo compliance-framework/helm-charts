@@ -1,0 +1,4 @@
+lisa-design:
+- Chart.yaml version is not bumped: release-please bumps chart versions in its release PR (ct.yaml check-version-increment: false), so HELM-VER-001 does not apply.
+- All 10 API 0.22.0 env settings are exposed even though api v0.22.0 only binds CCF_LINEAGE_CACHE_*; the other 7 take effect once the api binds them. Unset = not rendered, so defaults are unchanged. The gap is stated in the PR body, not values.yaml (user decision).
+- api.lineage.cacheTtl is a string; "0" disables the cache and is rendered (non-empty string). Schema pattern allows a bare "0". An unquoted integer (e.g. --set ...=0) is rejected by the schema; use "0" / --set-string.
