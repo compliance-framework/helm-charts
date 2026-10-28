@@ -1,0 +1,14 @@
+lisa-design:
+- T01 keeps argocd.yaml as its own PR workflow: the shared ci-helm can't run a kind cluster + Argo CD, so it is not part of ci / required (it never was a required check either).
+- The old schema check (make helm.schema && make check-diff) became helm.schema.check, which generates into a temp dir and diffs, so `make helm.test.*` never rewrites the tree and doesn't fail on unrelated uncommitted work.
+- helm.test.app/helm.test.agent fold in every check the old ci-app/ci-agent ran (unittest, schema drift, agent-bootstrap run.sh), so the make-targets input is exactly the two targets the plan names.
+- Fixed ct yamllint findings in values.yaml (whitespace only) instead of adding a relaxed lintconf, so the repo stays on ct's defaults like the mock.
+- Deleted charts/ccf-app/Chart.lock (postgresql 16.7.27) rather than regenerating it: Chart.yaml has `dependencies: []`, so the lock is orphaned and breaks `helm dependency build` in ct lint.
+- release-agent.yaml/release-app.yaml only get $GITHUB_OUTPUT quoted (actionlint/shellcheck); they keep publishing until T03 replaces them.
+
+lisa-selfreview:
+- pass 1: [must-fix CORE-ERR-001 3434483fa45d] Makefile helm.schema.check: a failing `helm schema` run is reported as a stale schema (rc of generator and diff folded together). -> fix
+- pass 1 considered, not a finding: HELM-VER-001 for values.yaml whitespace + orphaned Chart.lock removal: no functional chart change; versions are owned by release-please from T02 (design note).
+
+lisa-design:
+- No chart version bump in T01: the values.yaml edits are whitespace-only (rendered manifests identical) and the deleted Chart.lock listed a dependency Chart.yaml no longer has; release-please owns chart versions from T02 and the squash title `ci:` triggers no release.

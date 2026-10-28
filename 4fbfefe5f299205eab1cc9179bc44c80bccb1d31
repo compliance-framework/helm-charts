@@ -1,0 +1,7 @@
+lisa-design:
+- Bounded retry is done by the script (start_sync/sync_app), not by Argo CD's operation.retry: each failed attempt is printed with full diagnostics and a ::warning:: annotation, so a flake that a retry hides stays visible.
+- start_sync waits for operationState.startedAt to change after patching .operation; otherwise the previous attempt's Failed phase would be read as the new attempt's result.
+- Timeouts (wait_for TIMEOUT) are not retried; only an operation that reached Failed/Error is.
+- ESO readiness is checked after Argo CD readiness, immediately before the Applications are created, and proven by a server-side dry-run of a SecretStore and an ExternalSecret shaped like the chart's (validating webhooks, failurePolicy Fail).
+- Chart templates are untouched: the ExternalSecret/Password ordering race (same names, both kinds unknown to Argo CD's kind order) is a chart issue to report, not fixed here; the retry covers it in the check.
+- kind retry: continue-on-error first kind-action step, remove the node containers by the io.x-k8s.kind.cluster label (works even if the kind binary never installed), then a second kind-action step. A failed download leaves no `kind` in the tool cache, so the retry downloads again.

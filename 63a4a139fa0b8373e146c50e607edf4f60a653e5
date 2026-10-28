@@ -1,0 +1,2 @@
+lisa-selfreview:
+pass 1 (strict): approve. Only Chart.yaml version/appVersion and the api/ui image tags. ghcr api:0.21.0 and ui:2.12.1 manifests return 200. e2e on kind: upgrade of a ccf 0.8.0 install (api 0.17.1, ui 2.10.1) from main to this branch migrated, kept the JWT key, rolled the API as non-root and ran the bootstrap Job; ccf-agent 0.3.0 -> 0.4.0 upgrade switched RollingUpdate -> Recreate (rollingUpdate: null) and the agent authenticated.

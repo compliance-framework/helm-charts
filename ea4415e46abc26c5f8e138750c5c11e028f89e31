@@ -1,0 +1,2 @@
+lisa-design:
+- Pod Security restricted: seccompProfile RuntimeDefault defaults on pod and container (the only restricted field missing before). Argo CD CI in the ccf-app stack sets it explicitly for the ccf-agent chart on main until this stack merges.

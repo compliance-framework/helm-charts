@@ -1,0 +1,5 @@
+lisa-design:
+- SUPERSEDES the root volume-permissions init container and the UI sysctl (owner re-review: regulated clusters deny any root container and some deny every sysctl). Every pod must meet Pod Security restricted by default with no opt-outs.
+- PostgreSQL defaults to a dynamic PVC (storageClass "" = cluster default) with fsGroup 999 + OnRootMismatch; data goes in persistence.pgdataSubdir (pgdata) created by postgres itself, so root-owned 0777 volume roots (kind local-path, which ignores fsGroup) also work. A shell wrapper keeps data initialised at the volume root by 0.8.x (PG_VERSION present) where it is. The hostPath PV stays an opt-in; the chart never chowns it.
+- UI: chart-provided nginx server block on ui.containerPort (8080), a copy of ui v2.12.1 deployment/nginx.conf; accepted drift risk, overridable with ui.nginxConfig.
+- The helm test pod moved to templates/test-connection.yaml because helm-unittest cannot render templates/tests/.

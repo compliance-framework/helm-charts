@@ -1,0 +1,5 @@
+lisa-design:
+- The appVersion fallback test overrides .Chart.appVersion with helm-unittest's per-test `chart:` field (documented in helm-unittest v0.7.0, the Makefile's pinned version) and asserts the override, so it still proves an empty image.tag falls back to appVersion but no longer depends on Chart.yaml.
+- The dots in the asserted pattern are escaped (":1\\.2\\.3$") so the regex matches only the literal version.
+- Sweep result: no other test in charts/ccf-agent/tests or charts/ccf-app/tests asserts a version ccf-bump moves (agent appVersion, ccf-app appVersion/api tag, ui tag, agent image tags). Remaining literals are inputs set by the test itself (plugin sources, image.tag "0.3.0", jwt init image tag "3.22") or images ccf-bump doesn't move (alpine/openssl 3.5.9, curlimages/curl 8.22.0), so they stay.
+- Chart.yaml and values.yaml versions are untouched; the temporary bumps used for the local proof were reverted.

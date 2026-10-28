@@ -1,0 +1,11 @@
+lisa-design:
+- Bootstrap image: alpine:3.21 + `apk add curl jq` at start when either is missing (same pattern as the chart's generate-public-key init container), so the default uses an official, small base image; any image that ships curl and jq skips apk (air-gapped clusters). Rejected: third-party curl+jq images (supply chain) and alpine/k8s (large).
+- The Job runs as root by default (apk), with allowPrivilegeEscalation=false, drop ALL and seccomp RuntimeDefault; apk add verified to work with all capabilities dropped and no-new-privileges.
+- Secrets go to the Kubernetes API with curl from the SA token, not kubectl. Role per target namespace: get limited to the configured Secret names, create unrestricted (RBAC cannot scope create by name).
+- Idempotency: an existing Secret skips the agent (the client-secret cannot be read back). If Secret creation fails after a key was created, the key is revoked (DELETE /api/admin/agents/{id}/keys/{keyId}).
+- No secret in argv or logs: request bodies via files (--data-binary @file), Authorization headers via -H @file, admin login via jq env.*; only non-2xx bodies are logged.
+- Created Secrets are not Helm-managed (no ownership), so helm uninstall keeps working credentials.
+
+lisa-selfreview:
+pass 1 (strict): request_changes -> fixed: the admin password was passed to jq via --arg (argv). Now env.ADMIN_PASSWORD.
+pass 2 (strict): approve. Unit tests (disabled, enabled RBAC/Job, multi-namespace, admin secret, apiUrl override, validation) plus an e2e run on a throwaway kind cluster (api 0.21.0): install created the agent+key+Secret; upgrade skipped the existing Secret and created a second; inMemory JWT + cedar (admin@localhost: admin) path worked; ccf-agent 0.4.0 with existingSecret heartbeated and registered as an instance (report mode). shellcheck clean on the rendered script.

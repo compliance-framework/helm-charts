@@ -1,0 +1,2 @@
+lisa-selfreview:
+pass 1 (strict): approve. README claims checked against api v0.21.0 (cedar anonymous auto-grant cedar.go:117-127, 4 MiB config-report 413 in docs/agent-remote-config.md:30, artifact 16<<20, playback 2 MiB) and ui v2.12.1 (Admin -> Agents Configuration tab in AgentsView.vue). No ingress annotations added. NOTES covered by tests/notes_test.yaml. Pre-existing NOTES section 1 (prints nothing when ingress is on without explicit hosts) left as is; section 2 now gives the URLs.
