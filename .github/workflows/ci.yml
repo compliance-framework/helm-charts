@@ -12,7 +12,7 @@ permissions: {}
 
 jobs:
   ci:
-    uses: compliance-framework/workflows/.github/workflows/ci-helm.yml@05d2c3233de6e302c4ff891dde1132d440c081e4 # v1.6.0
+    uses: compliance-framework/workflows/.github/workflows/ci-helm.yml@dc7434879fbd0db1d1df9f590ed8bc13789bd320 # v1.9.2
     with:
       # Each target runs the chart's unit tests and its values.schema.json drift check;
       # helm.test.app also runs the agent bootstrap script test (ci/agent-bootstrap).
@@ -25,14 +25,14 @@ jobs:
     secrets: inherit
 
   release-checks:
-    uses: compliance-framework/workflows/.github/workflows/release-checks.yml@05d2c3233de6e302c4ff891dde1132d440c081e4 # v1.6.0
+    uses: compliance-framework/workflows/.github/workflows/release-checks.yml@dc7434879fbd0db1d1df9f590ed8bc13789bd320 # v1.9.2
     permissions:
       contents: read
 
   notify:
     needs: [ci, release-checks]
     if: always()
-    uses: compliance-framework/workflows/.github/workflows/notify-failure.yml@05d2c3233de6e302c4ff891dde1132d440c081e4 # v1.6.0
+    uses: compliance-framework/workflows/.github/workflows/notify-failure.yml@dc7434879fbd0db1d1df9f590ed8bc13789bd320 # v1.9.2
     with:
       needs: ${{ toJSON(needs) }}
     permissions:
