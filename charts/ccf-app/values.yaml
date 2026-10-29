@@ -636,7 +636,7 @@ dex:
   image:
     repository: ghcr.io/dexidp/dex
     pullPolicy: IfNotPresent
-    tag: "v2.44.0"
+    tag: "v2.46.1"
   command:
     - dex
     - serve
@@ -741,7 +741,7 @@ database:
       recommenders: []
     image:
       repository: postgres
-      tag: 17.5
+      tag: 17.11
       pullPolicy: IfNotPresent
     persistence:
       # Default (as in 0.8.x, so an upgrade with unchanged values keeps its volume): a
