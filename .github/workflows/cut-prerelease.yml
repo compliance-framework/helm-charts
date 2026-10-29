@@ -21,7 +21,7 @@ permissions:
 jobs:
   ccf-app:
     if: inputs.chart == 'ccf-app'
-    uses: compliance-framework/workflows/.github/workflows/cut-prerelease.yml@05d2c3233de6e302c4ff891dde1132d440c081e4 # v1.6.0
+    uses: compliance-framework/workflows/.github/workflows/cut-prerelease.yml@dc7434879fbd0db1d1df9f590ed8bc13789bd320 # v1.9.2
     with:
       path: charts/ccf-app
       tag-prefix: ccf-app-v
@@ -31,7 +31,7 @@ jobs:
 
   ccf-agent:
     if: inputs.chart == 'ccf-agent'
-    uses: compliance-framework/workflows/.github/workflows/cut-prerelease.yml@05d2c3233de6e302c4ff891dde1132d440c081e4 # v1.6.0
+    uses: compliance-framework/workflows/.github/workflows/cut-prerelease.yml@dc7434879fbd0db1d1df9f590ed8bc13789bd320 # v1.9.2
     with:
       path: charts/ccf-agent
       tag-prefix: ccf-agent-v
