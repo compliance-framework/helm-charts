@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/compliance-framework/helm-charts/compare/ccf-agent-v0.5.0...ccf-agent-v0.5.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **deps:** bump agent to v0.9.6, api to v0.22.2, ui to v2.14.0 ([#63](https://github.com/compliance-framework/helm-charts/issues/63)) ([360d193](https://github.com/compliance-framework/helm-charts/commit/360d193cea9135bb8ceb68b4405d230cabae6945))
+
 ## [0.5.0](https://github.com/compliance-framework/helm-charts/compare/ccf-agent-v0.4.2...ccf-agent-v0.5.0) (2026-10-28)
 
 
