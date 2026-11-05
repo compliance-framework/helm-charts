@@ -112,9 +112,10 @@ tests:
       - equal:
           path: spec.template.spec.restartPolicy
           value: Never
-      - equal:
+      # The bootstrap script requires curl >= 8.3 for --variable/--expand-data.
+      - matchRegex:
           path: spec.template.spec.containers[0].image
-          value: curlimages/curl:8.22.0
+          pattern: '^curlimages/curl:8\.([3-9]|[1-9][0-9])\.[0-9]+$'
       - matchRegex:
           path: spec.template.spec.containers[0].args[0]
           pattern: "CCF_API_AUTH_CLIENT_ID[^{]*\\{\\{CLIENT_ID:b64\\}\\}"

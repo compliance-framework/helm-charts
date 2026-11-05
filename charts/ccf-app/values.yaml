@@ -449,7 +449,7 @@ api:
     # default is the official curl image, which runs as curl_user (uid 100, gid 101).
     image:
       repository: curlimages/curl
-      tag: "8.22.0"
+      tag: "8.23.0"
       pullPolicy: IfNotPresent
     # runAsUser/runAsGroup are numeric because the image's USER is a name, which kubelet cannot
     # check against runAsNonRoot. Change them together with the image.
