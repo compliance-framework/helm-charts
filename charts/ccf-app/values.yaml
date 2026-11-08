@@ -741,7 +741,7 @@ database:
       recommenders: []
     image:
       repository: postgres
-      tag: 17.11
+      tag: 18.6
       pullPolicy: IfNotPresent
     persistence:
       # Default (as in 0.8.x, so an upgrade with unchanged values keeps its volume): a
