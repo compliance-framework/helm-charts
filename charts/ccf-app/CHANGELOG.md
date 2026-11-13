@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/compliance-framework/helm-charts/compare/ccf-app-v0.10.1...ccf-app-v0.10.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **deps:** bump api to v0.22.5, ui to v2.15.2 ([#67](https://github.com/compliance-framework/helm-charts/issues/67)) ([e3052d3](https://github.com/compliance-framework/helm-charts/commit/e3052d33addd954a4bb151fb58bd3c413a90c9de))
+
 ## [0.10.1](https://github.com/compliance-framework/helm-charts/compare/ccf-app-v0.10.0...ccf-app-v0.10.1) (2026-11-04)
 
 
