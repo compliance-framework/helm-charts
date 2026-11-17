@@ -1,0 +1,8 @@
+lisa-design:
+- One helper, ccf-app.apiSSOPublicClient (dict key provider), both decides "public" and validates (fail on publicClient+clientSecret, publicClient+protocol oauth); deployment_api and secrets_api_config call it, so every secret path shares one rule.
+- publicClient is public only when toString == "true" (bool true or the string "true"); a string "false" is not truthy-public.
+- Validation runs only for enabled providers (it sits inside the existing `if $val.enabled`), matching the rest of the provider handling.
+- configmap_api_sso.yaml is unchanged: it already renders publicClient as public_client. It does not call the helper because the API deployment renders it through the checksum annotations and fails first anyway; Helm reports the failure on deployment_api.yaml (or secrets_api_config.yaml with createSecret), which is what the failedTemplate tests assert.
+- No publicClient key added to the default google/github values: that would add public_client: false to their sso.yaml and change confidential renders. Documented in values.yaml comments instead; the schema has no additionalProperties restriction on providers, so it accepts the key unchanged (make helm.schema produces no diff).
+- CLIENT_ID handling is untouched for public clients (still a secretKeyRef with createSecret/existingSecret).
+- Bundled Dex (dex.*) path is out of scope and unchanged.
