@@ -1,0 +1,3 @@
+lisa-selfreview:
+pass 1: request_changes
+- [nit] CORE-STYLE-001 charts/ccf-app/values.yaml (api.sso.providers comment): says rendering fails for a public client with clientSecret/oauth without saying it applies only to enabled providers. fix: say "enabled public client".
