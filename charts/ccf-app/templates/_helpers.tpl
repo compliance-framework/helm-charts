@@ -418,18 +418,28 @@ webBaseUrl and URL/ingress helper functions
 {{/*
 ccf-app.apiSSOPublicClient: "true" when an api.sso.providers entry is a public OIDC client
 (publicClient: true), else "". A public client has no client secret, so the chart renders no
-CLIENT_SECRET env var or secret key for it. Like the API's own validation, it fails when a
-public client also sets clientSecret or uses the oauth protocol.
+CLIENT_SECRET env var or secret key for it. Like the API's own validation, it fails when
+publicClient is not a boolean (or the string "true"/"false"), and when a public client also
+sets clientSecret or uses a protocol other than oidc (compared trimmed and lowercased; empty
+means oidc).
 Call with (dict "key" $key "provider" $val).
 */}}
 {{- define "ccf-app.apiSSOPublicClient" -}}
 {{- $p := .provider -}}
-{{- if eq (toString $p.publicClient) "true" -}}
+{{- $public := "" -}}
+{{- if not (kindIs "invalid" $p.publicClient) -}}
+{{- $public = toString $p.publicClient -}}
+{{- if not (or (kindIs "bool" $p.publicClient) (and (kindIs "string" $p.publicClient) (has $public (list "true" "false")))) -}}
+{{- fail (printf "api.sso.providers.%s: publicClient must be true or false, got %q" .key $public) -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $public "true" -}}
 {{- if $p.clientSecret -}}
 {{- fail (printf "api.sso.providers.%s: publicClient is true but clientSecret is set; a public client has no client secret, so remove clientSecret or set publicClient: false" .key) -}}
 {{- end -}}
-{{- if eq (toString $p.protocol) "oauth" -}}
-{{- fail (printf "api.sso.providers.%s: publicClient is supported only with protocol oidc, not oauth" .key) -}}
+{{- $protocol := default "" $p.protocol | toString | trim | lower -}}
+{{- if not (has $protocol (list "" "oidc")) -}}
+{{- fail (printf "api.sso.providers.%s: publicClient requires protocol oidc, got %q" .key $protocol) -}}
 {{- end -}}
 true
 {{- end -}}

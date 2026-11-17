@@ -245,10 +245,12 @@ api:
     # publicClient: true marks an OIDC provider as a public client: it has no client secret, the
     # API sends only the client id and protects the login with PKCE. The chart then renders no
     # CLIENT_SECRET env var or secret key for it, on every path (plain values, createSecret,
-    # existingSecret). Rendering fails if an enabled public client also sets clientSecret or uses
-    # protocol oauth. Needs an API image that supports public_client
-    # (compliance-framework/api#575, in the next API release). Example, for a Dex static client
-    # declared with `public: true` (redirect URI: the API's SSO callback URL):
+    # existingSecret). publicClient must be true or false. Rendering fails if an enabled public
+    # client also sets clientSecret or uses a protocol other than oidc (empty means oidc). Needs an
+    # API image that supports public_client (compliance-framework/api#575, in the next API
+    # release). Example, for a Dex static client declared with `public: true`; its redirect URI is
+    # the SSO callback URL followed by /<name>, e.g.
+    # https://ccf.example.com/api/auth/sso/callback/dex:
     #
     #   dex:                         # under api.sso.providers
     #     name: "dex"
