@@ -75,6 +75,7 @@ spec:
               {{- else }}
               value: {{ $val.clientId | quote }}
               {{- end }}
+            {{- if not (include "ccf-app.apiSSOPublicClient" (dict "key" $key "provider" $val)) }}
             - name: CCF_SSO_PROVIDERS_{{ $key | upper }}_CLIENT_SECRET
               {{- if or $.Values.api.sso.createSecret $.Values.api.sso.existingSecret }}
               valueFrom:
@@ -84,6 +85,7 @@ spec:
               {{- else }}
               value: {{ $val.clientSecret | quote }}
               {{- end }}
+            {{- end }}
             {{- end }}
             {{- end }}
             {{- end }}
