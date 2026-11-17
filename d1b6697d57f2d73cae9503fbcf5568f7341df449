@@ -1,0 +1,6 @@
+lisa-addressed:
+ccf-review pass (local), fixed:
+- must-fix CORE-INPUT-001 (ccf-app.apiSSOPublicClient): publicClient other than a bool or the strings "true"/"false" (e.g. "yes", 1, "") now fails the render naming the provider; unset/null stays confidential; string "false" stays confidential. Tests: "yes" fails, 1 fails, "true" public, "false" confidential.
+- must-fix CORE-INPUT-001 (ccf-app.apiSSOPublicClient): protocol is trimmed+lowercased and a public client fails unless it is empty or oidc (mirrors the API); message "publicClient requires protocol oidc, got %q". Tests: " OAuth " fails, saml fails, empty and " OIDC " allowed.
+- nit (values.yaml): the redirect URI is now spelled out as <callback URL>/<name>, e.g. https://ccf.example.com/api/auth/sso/callback/dex; comment also says publicClient must be true or false and other protocols than oidc fail.
+- rejected by reviewer: HELM-VER-001 version bump (release-please owns Chart.yaml).
