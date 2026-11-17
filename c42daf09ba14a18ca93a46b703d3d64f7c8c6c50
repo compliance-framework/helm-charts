@@ -1,2 +1,5 @@
 lisa-addressed:
 - pass 1 CORE-STYLE-001 (values.yaml api.sso.providers comment): now says an *enabled* public client with clientSecret/oauth fails rendering.
+
+lisa-selfreview:
+pass 2: approve (no findings)
