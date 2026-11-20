@@ -1,0 +1,118 @@
+suite: API extra volumes and volumeMounts
+templates:
+  - templates/deployment_api.yaml
+  - templates/configmap_api.yaml
+  - templates/configmap_api_authz.yaml
+  - templates/configmap_api_authz_policies.yaml
+  - templates/configmap_api_sso.yaml
+  - templates/configmap_api_email.yaml
+  - templates/configmap_api_slack.yaml
+  - templates/configmap_api_workflow.yaml
+  - templates/secrets_api_config.yaml
+values:
+  - values/credentials.yaml
+release:
+  name: ccf-app
+  namespace: default
+
+tests:
+  - it: renders no extra volumes or mounts by default
+    template: templates/deployment_api.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 4
+      - lengthEqual:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 4
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: internal-ca
+          any: true
+
+  - it: renders extra volumes and mounts next to the JWT key volumes
+    template: templates/deployment_api.yaml
+    values:
+      - values/api_extra_volumes.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: internal-ca
+            configMap:
+              name: internal-ca
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: privatekey
+          any: true
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 5
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: internal-ca
+            mountPath: /etc/ccf/ca
+            readOnly: true
+      - lengthEqual:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 5
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SSL_CERT_DIR
+            value: /etc/ccf/ca
+
+  - it: renders extra volumes and mounts with jwt.source inMemory (no JWT key volumes)
+    template: templates/deployment_api.yaml
+    values:
+      - values/api_extra_volumes.yaml
+    set:
+      api.jwt.source: inMemory
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: privatekey
+          any: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: internal-ca
+            configMap:
+              name: internal-ca
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: internal-ca
+            mountPath: /etc/ccf/ca
+            readOnly: true
+
+  - it: adds extra mounts to the API container only, not to the init containers
+    template: templates/deployment_api.yaml
+    values:
+      - values/api_extra_volumes.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[2].name
+          value: migrate-db
+      - notContains:
+          path: spec.template.spec.initContainers[2].volumeMounts
+          content:
+            name: internal-ca
+          any: true
+      - equal:
+          path: spec.template.spec.initContainers[3].name
+          value: create-user
+      - notContains:
+          path: spec.template.spec.initContainers[3].volumeMounts
+          content:
+            name: internal-ca
+          any: true
+      - notContains:
+          path: spec.template.spec.initContainers[1].volumeMounts
+          content:
+            name: internal-ca
+          any: true

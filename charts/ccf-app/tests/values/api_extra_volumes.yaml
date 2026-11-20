@@ -1,0 +1,13 @@
+# Internal CA example: a ConfigMap mounted into the API container, trusted through SSL_CERT_DIR.
+api:
+  extraEnv:
+    - name: SSL_CERT_DIR
+      value: /etc/ccf/ca
+  extraVolumes:
+    - name: internal-ca
+      configMap:
+        name: internal-ca
+  extraVolumeMounts:
+    - name: internal-ca
+      mountPath: /etc/ccf/ca
+      readOnly: true
