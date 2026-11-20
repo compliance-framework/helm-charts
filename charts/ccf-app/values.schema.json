@@ -455,6 +455,18 @@
                 "extraEnvFrom": {
                     "type": "array"
                 },
+                "extraVolumeMounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "extraVolumes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
                 "image": {
                     "type": "object",
                     "properties": {

@@ -114,6 +114,7 @@ The full list is in [`values.yaml`](./values.yaml), with a comment per value.
 | `database.local.persistence.*` | Bundled PostgreSQL storage: the chart-created hostPath PV (as in 0.8.x), or a dynamically provisioned PVC with `createPersistentVolume: false` (recommended for fresh installs) | hostPath PV, `storageClass: standard` |
 | `ui.apiUrl`, `ui.config.*`, `ui.extraConfig` | UI runtime `config.json` | see `values.yaml` |
 | `api.extraConfig` | Extra `CCF_*` env vars for the API | `{}` |
+| `api.extraVolumes` / `api.extraVolumeMounts` | Extra pod volumes and API container mounts (main container only), e.g. an internal CA | `[]` |
 
 ## Agents
 
@@ -238,6 +239,40 @@ Operator Cedar policies can be added with `api.authz.cedar.policies` (a map of `
   release initialised at the volume root is used where it is.
 - **Credentials.** Use existing Secrets or External Secrets Operator (or `inMemory` / the seed for development): they
   are stable under `helm template` (Argo CD, Flux). The deprecated generated default is not: see Credentials.
+
+## Internal CA certificates
+
+The API is a static Go binary on a distroless image. To make it trust an internal or private CA (an OIDC issuer, SMTP
+server or AI proxy behind it), mount the CA bundle with `api.extraVolumes` / `api.extraVolumeMounts` and point
+`SSL_CERT_DIR` at it. Go keeps loading the system roots (`/etc/ssl/certs/ca-certificates.crt`) and also loads every
+file in `SSL_CERT_DIR`, so public CAs stay trusted:
+
+```yaml
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: internal-ca
+    data:
+      internal-ca.crt: |
+        -----BEGIN CERTIFICATE-----
+        ...
+        -----END CERTIFICATE-----
+api:
+  extraEnv:
+    - name: SSL_CERT_DIR
+      value: /etc/ccf/ca
+  extraVolumes:
+    - name: internal-ca
+      configMap:
+        name: internal-ca
+  extraVolumeMounts:
+    - name: internal-ca
+      mountPath: /etc/ccf/ca
+      readOnly: true
+```
+
+The extra mounts go to the main API container only, not to its init containers (`migrate-db`, `create-user`, ...).
 
 ## Request sizes
 

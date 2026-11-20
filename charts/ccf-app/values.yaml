@@ -226,6 +226,24 @@ api:
   securityContext: {}
   extraEnv: []
   extraEnvFrom: []
+  # Extra pod volumes and API container volumeMounts, as Kubernetes Volume / VolumeMount objects.
+  # They are added to the main API container only, not to the init containers (migrate-db,
+  # create-user, ...). Typical use: trust an internal CA. The API is a static Go binary: it keeps
+  # loading the system roots (/etc/ssl/certs/ca-certificates.crt) and also loads every file in
+  # SSL_CERT_DIR. Example, with a ConfigMap internal-ca created e.g. through extraObjects:
+  #   extraEnv:
+  #     - name: SSL_CERT_DIR
+  #       value: /etc/ccf/ca
+  #   extraVolumes:
+  #     - name: internal-ca
+  #       configMap:
+  #         name: internal-ca
+  #   extraVolumeMounts:
+  #     - name: internal-ca
+  #       mountPath: /etc/ccf/ca
+  #       readOnly: true
+  extraVolumes: []  # @schema item:object
+  extraVolumeMounts: []  # @schema item:object
   ingress:
     enabled: true
     labels: {}
