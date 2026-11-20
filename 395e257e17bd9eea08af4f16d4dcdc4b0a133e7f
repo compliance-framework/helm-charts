@@ -1,0 +1,5 @@
+lisa-design:
+- Extras are appended after the chart's own volumes/mounts (tmp last). On main the API container's volumeMounts and the pod volumes are unconditional (tmp and api-authz-config always render), so no guard restructuring was needed; any future guard around those lists must also consider api.extraVolumes / api.extraVolumeMounts.
+- Extra mounts go to the main API container only, not to init containers (wait-for-postgres, generate-public-key, migrate-db, create-user), as specified. extraVolumes still lands in the pod spec, so init containers could mount them if a later option asks for it.
+- Values are passed through as raw Kubernetes Volume / VolumeMount objects (toYaml, no tpl); schema only enforces array of objects (helm-schema `@schema item:object`), matching extraEnv style.
+- No Chart.yaml version bump: release-please bumps versions and ct.yaml sets check-version-increment: false.
