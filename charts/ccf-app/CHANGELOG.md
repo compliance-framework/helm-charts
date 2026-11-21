@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/compliance-framework/helm-charts/compare/ccf-app-v0.10.1...ccf-app-v0.11.0) (2026-11-21)
+
+
+### Features
+
+* **ccf-app:** add api.extraVolumes and api.extraVolumeMounts ([#73](https://github.com/compliance-framework/helm-charts/issues/73)) ([874144f](https://github.com/compliance-framework/helm-charts/commit/874144fa73f2449ea77de607925fc14db6e19da6))
+* **ccf-app:** support public OIDC SSO clients without a client secret ([#71](https://github.com/compliance-framework/helm-charts/issues/71)) ([8cacc5b](https://github.com/compliance-framework/helm-charts/commit/8cacc5bd67b95d7b0e2567468a6b6c4e0de02ea4))
+
+
+### Bug Fixes
+
+* **deps:** bump api to v0.22.5, ui to v2.15.2 ([#67](https://github.com/compliance-framework/helm-charts/issues/67)) ([e3052d3](https://github.com/compliance-framework/helm-charts/commit/e3052d33addd954a4bb151fb58bd3c413a90c9de))
+
 ## [0.10.1](https://github.com/compliance-framework/helm-charts/compare/ccf-app-v0.10.0...ccf-app-v0.10.1) (2026-11-04)
 
 
